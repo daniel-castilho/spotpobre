@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter; // Add Setter
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -14,10 +14,10 @@ import java.util.List;
 import java.util.Set;
 
 @Getter
-@Setter // Add Setter
+@Setter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@NoArgsConstructor // Public no-argument constructor for frameworks
+@NoArgsConstructor
 public class User {
 
     private UserId id;
@@ -26,21 +26,23 @@ public class User {
     private Set<Role> roles;
     private List<Playlist> playlists;
 
-    /**
-     * Creates a new user with a local password (e.g., from a registration form).
-     */
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
+        if (profile == null) {
+            throw new IllegalArgumentException("User profile cannot be null.");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Password cannot be blank for local registration.");
+        }
         final Set<Role> defaultRoles = EnumSet.of(Role.USER);
-        return new User(UserId.generate(), profile, password, defaultRoles, new ArrayList<Playlist>());
+        return new User(UserId.generate(), profile, password, defaultRoles, new ArrayList<>());
     }
 
-    /**
-     * Creates a new user from an external provider (e.g., OAuth2).
-     * No local password is set.
-     */
     public static User createFromExternalProvider(final UserProfile profile) {
+        if (profile == null) {
+            throw new IllegalArgumentException("User profile cannot be null.");
+        }
         final Set<Role> defaultRoles = EnumSet.of(Role.USER);
-        return new User(UserId.generate(), profile, null, defaultRoles, new ArrayList<Playlist>());
+        return new User(UserId.generate(), profile, null, defaultRoles, new ArrayList<>());
     }
 
     public Playlist createPlaylist(final String name) {
