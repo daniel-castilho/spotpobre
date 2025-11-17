@@ -7,6 +7,8 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.ArtistPersistenceMapper;
 import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbArtistRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -28,5 +30,11 @@ public class DynamoDbArtistRepositoryAdapter implements ArtistRepository {
     public void save(final Artist artist) {
         final ArtistDocument document = mapper.toDocument(artist);
         dynamoDbArtistRepository.save(document);
+    }
+
+    @Override
+    public Page<Artist> searchByName(final String nameQuery, final Pageable pageable) {
+        Page<ArtistDocument> documentPage = dynamoDbArtistRepository.searchByName(nameQuery, pageable);
+        return documentPage.map(mapper::toDomain);
     }
 }

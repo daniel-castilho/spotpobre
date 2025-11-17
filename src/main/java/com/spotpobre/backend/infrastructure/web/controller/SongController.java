@@ -2,14 +2,19 @@ package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
+import com.spotpobre.backend.application.song.port.in.SearchSongsUseCase; // Import
 import com.spotpobre.backend.application.song.port.in.UploadSongUseCase;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.infrastructure.web.dto.request.UploadSongRequest;
+import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse; // Import
 import com.spotpobre.backend.infrastructure.web.dto.response.SongDetailsResponse;
+import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse; // Import
 import com.spotpobre.backend.infrastructure.web.mapper.SongApiMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page; // Import
+import org.springframework.data.domain.Pageable; // Import
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +32,7 @@ public class SongController {
     private final UploadSongUseCase uploadSongUseCase;
     private final GetSongMetadataUseCase getSongMetadataUseCase;
     private final GetSongStreamUrlUseCase getSongStreamUrlUseCase;
+    private final SearchSongsUseCase searchSongsUseCase; // Inject
     private final SongApiMapper mapper;
 
     @PostMapping(consumes = {"multipart/form-data"})
@@ -45,6 +51,16 @@ public class SongController {
         final URI streamingUrl = getSongStreamUrlUseCase.getSongStreamUrl(uploadedSong.getId());
         final SongDetailsResponse response = mapper.toResponse(uploadedSong, streamingUrl);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<SongResponse>> searchSongs(
+            @RequestParam("query") final String query,
+            final Pageable pageable
+    ) {
+        final var command = new SearchSongsUseCase.SearchSongsCommand(query, pageable);
+        final Page<Song> songPage = searchSongsUseCase.searchSongs(command);
+        return ResponseEntity.ok(songPage.map(mapper::toSongResponse));
     }
 
     @GetMapping("/{songId}")
