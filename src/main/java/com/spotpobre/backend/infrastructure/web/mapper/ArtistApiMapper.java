@@ -1,5 +1,6 @@
 package com.spotpobre.backend.infrastructure.web.mapper;
 
+import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase.CreateArtistCommand;
 import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
@@ -10,8 +11,9 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring", uses = {UuidMapper.class, SongApiMapper.class})
 public interface ArtistApiMapper {
 
-    Artist toDomain(final CreateArtistRequest request);
+    CreateArtistCommand toCommand(final CreateArtistRequest request);
 
     @Mapping(source = "id", target = "id", qualifiedByName = "artistIdToUuid")
+    // Removed @Mapping(source = "songs", target = "songs")
     ArtistResponse toResponse(final Artist artist);
 }

@@ -8,6 +8,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.util.UUID;
 
 @Component
@@ -59,8 +60,24 @@ public abstract class UuidMapper {
         return artistId != null ? artistId.value() : null;
     }
 
-    @Named("uuidToArtistId") // New method
+    @Named("uuidToArtistId")
     public ArtistId uuidToArtistId(UUID uuid) {
         return uuid != null ? new ArtistId(uuid) : null;
+    }
+
+    @Named("uriToString")
+    public String uriToString(URI uri) {
+        return uri != null ? uri.toString() : null;
+    }
+
+    // New methods to convert specific ID types to UUID
+    @Named("songIdToRawUuid")
+    public UUID songIdToRawUuid(SongId songId) {
+        return songId != null ? songId.value() : null;
+    }
+
+    @Named("artistIdToRawUuid")
+    public UUID artistIdToRawUuid(ArtistId artistId) {
+        return artistId != null ? artistId.value() : null;
     }
 }

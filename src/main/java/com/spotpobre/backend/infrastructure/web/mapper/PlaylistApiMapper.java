@@ -2,25 +2,27 @@ package com.spotpobre.backend.infrastructure.web.mapper;
 
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase.CreatePlaylistCommand;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
-import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreatePlaylistRequest;
+import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.PlaylistResponse;
-import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
 public class PlaylistApiMapper {
 
     private final UuidMapper uuidMapper;
+    private final SongApiMapper songApiMapper;
 
-    public PlaylistApiMapper(UuidMapper uuidMapper) {
+    public PlaylistApiMapper(UuidMapper uuidMapper, SongApiMapper songApiMapper) {
         this.uuidMapper = uuidMapper;
+        this.songApiMapper = songApiMapper;
     }
 
     public CreatePlaylistCommand toCommand(final CreatePlaylistRequest request, final UserId ownerId) {
@@ -40,26 +42,14 @@ public class PlaylistApiMapper {
         }
 
         return new PlaylistResponse(
-                playlist.getId() != null ? playlist.getId().value() : null,
+                uuidMapper.playlistIdToUuid(playlist.getId()),
                 playlist.getName(),
-                playlist.getOwnerId() != null ? UUID.fromString(playlist.getOwnerId().value().toString()) : null,
-                playlist.getSongs() != null ? 
-                       playlist.getSongs().stream()
-                               .map(this::toResponse)
-                               .collect(Collectors.toList()) : 
-                       List.of()
-        );
-    }
-
-    public SongResponse toResponse(final Song song) {
-        if (song == null) {
-            return null;
-        }
-
-        return new SongResponse(
-                song.getId() != null ? song.getId().value() : null,
-                song.getTitle(),
-                song.getArtistId() != null ? song.getArtistId().value() : null
+                uuidMapper.userIdToUuid(playlist.getOwnerId()),
+                playlist.getSongs() != null ?
+                        playlist.getSongs().stream()
+                                .map(songApiMapper::toSongResponse)
+                                .collect(Collectors.toList()) :
+                        Collections.emptyList()
         );
     }
 
@@ -72,12 +62,14 @@ public class PlaylistApiMapper {
                 .collect(Collectors.toList());
     }
 
-    public List<SongResponse> toSongResponseList(List<Song> songs) {
-        if (songs == null) {
-            return null;
-        }
-        return songs.stream()
+    public PageResponse<PlaylistResponse> toPageResponse(final DynamoDbPage<Playlist> playlistPage) {
+        List<PlaylistResponse> content = playlistPage.content().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+
+        return new PageResponse<>(
+                content,
+                playlistPage.lastEvaluatedKey()
+        );
     }
 }

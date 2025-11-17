@@ -5,8 +5,10 @@ import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.PlaylistPersistenceMapper;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbPlaylistRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -28,5 +30,14 @@ public class DynamoDbPlaylistRepositoryAdapter implements PlaylistRepository {
     public void save(final Playlist playlist) {
         final PlaylistDocument document = mapper.toDocument(playlist);
         dynamoDbPlaylistRepository.save(document);
+    }
+
+    @Override
+    public DynamoDbPage<Playlist> findAll(final Pageable pageable, final String exclusiveStartKey) {
+        final DynamoDbPage<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findAll(pageable, exclusiveStartKey);
+        return new DynamoDbPage<>(
+                mapper.toDomainList(documentPage.content()),
+                documentPage.lastEvaluatedKey()
+        );
     }
 }

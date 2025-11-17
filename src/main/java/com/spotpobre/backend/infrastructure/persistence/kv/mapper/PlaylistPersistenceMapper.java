@@ -4,6 +4,8 @@ import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -26,14 +28,14 @@ public class PlaylistPersistenceMapper {
             return null;
         }
 
-        return PlaylistDocument.builder()
-                .id(playlist.getId() != null ? playlist.getId().value().toString() : null)
-                .name(playlist.getName())
-                .ownerId(playlist.getOwnerId() != null ? UUID.fromString(playlist.getOwnerId().value().toString()) : null)
-                .songs(playlist.getSongs() != null ?
-                        songPersistenceMapper.toDocumentList(playlist.getSongs()) :
-                        Collections.emptyList())
-                .build();
+        PlaylistDocument document = new PlaylistDocument();
+        document.setId(playlist.getId() != null ? playlist.getId().value().toString() : null);
+        document.setName(playlist.getName());
+        document.setOwnerId(playlist.getOwnerId() != null ? playlist.getOwnerId().value() : null); // Use value directly
+        document.setSongs(playlist.getSongs() != null ?
+                songPersistenceMapper.toDocumentList(playlist.getSongs()) :
+                Collections.emptyList());
+        return document;
     }
 
     public Playlist toDomain(final PlaylistDocument document) {
@@ -41,16 +43,14 @@ public class PlaylistPersistenceMapper {
             return null;
         }
 
-        return Playlist.builder()
-                .id(document.getId() != null ? new PlaylistId(UUID.fromString(document.getId())) : null)
-                .name(document.getName())
-                .ownerId(document.getOwnerId() != null ?
-                        UserId.from(document.getOwnerId().toString()) :
-                        null)
-                .songs(document.getSongs() != null ?
-                        songPersistenceMapper.toDomainList(document.getSongs()) :
-                        new ArrayList<>())
-                .build();
+        Playlist playlist = new Playlist();
+        playlist.setId(document.getId() != null ? new PlaylistId(UUID.fromString(document.getId())) : null);
+        playlist.setName(document.getName());
+        playlist.setOwnerId(document.getOwnerId() != null ? new UserId(document.getOwnerId()) : null); // Use UserId constructor
+        playlist.setSongs(document.getSongs() != null ?
+                songPersistenceMapper.toDomainList(document.getSongs()) :
+                new ArrayList<>());
+        return playlist;
     }
 
     public List<PlaylistDocument> toDocumentList(List<Playlist> playlists) {
@@ -69,5 +69,12 @@ public class PlaylistPersistenceMapper {
         return documents.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    public Page<Playlist> toDomainPage(final Page<PlaylistDocument> documentPage) {
+        List<Playlist> domainPlaylists = documentPage.getContent().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+        return new PageImpl<>(domainPlaylists, documentPage.getPageable(), documentPage.getTotalElements());
     }
 }

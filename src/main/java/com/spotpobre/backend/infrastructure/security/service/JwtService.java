@@ -1,9 +1,9 @@
 package com.spotpobre.backend.infrastructure.security.service;
 
+import com.spotpobre.backend.infrastructure.config.properties.JwtProperties; // Import JwtProperties
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -18,11 +18,11 @@ import java.util.stream.Collectors;
 @Component
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final JwtProperties jwtProperties; // Inject JwtProperties
 
-    @Value("${jwt.expiration-ms}")
-    private long jwtExpirationMs;
+    public JwtService(JwtProperties jwtProperties) { // Constructor injection
+        this.jwtProperties = jwtProperties;
+    }
 
     public String extractUsername(final String token) {
         return extractClaim(token, Claims::getSubject);
@@ -43,7 +43,7 @@ public class JwtService {
                 .claims(claims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .expiration(new Date(System.currentTimeMillis() + jwtProperties.expiration().toMillis())) // Use expiration from properties
                 .signWith(getSigningKey())
                 .compact();
     }
@@ -70,6 +70,6 @@ public class JwtService {
     }
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        return Keys.hmacShaKeyFor(jwtProperties.secret().getBytes()); // Use secret from properties
     }
 }

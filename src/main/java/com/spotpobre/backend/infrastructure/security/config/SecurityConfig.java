@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can get playlist details
                         .requestMatchers(HttpMethod.POST, "/api/v1/playlists/**/songs/**").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can add songs to playlists
                         .requestMatchers("/api/v1/users/me").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can get their profile
+                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority("ROLE_ADMIN") // Only admins can create artists
                         .anyRequest().authenticated() // All other requests require authentication
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

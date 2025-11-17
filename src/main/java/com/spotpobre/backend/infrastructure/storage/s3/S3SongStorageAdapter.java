@@ -1,10 +1,10 @@
 package com.spotpobre.backend.infrastructure.storage.s3;
 
+import com.spotpobre.backend.infrastructure.config.properties.AwsProperties; // Import AwsProperties
 import com.spotpobre.backend.domain.song.model.SongFile;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -24,15 +24,13 @@ public class S3SongStorageAdapter implements SongStoragePort {
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
-
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
+    private final AwsProperties awsProperties; // Inject AwsProperties
 
     @Override
     public String saveSong(final SongFile file) {
         final String key = UUID.randomUUID().toString();
         final PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
+                .bucket(awsProperties.s3().bucketName()) // Use bucketName from properties
                 .key(key)
                 .contentType(file.contentType())
                 .build();
@@ -44,7 +42,7 @@ public class S3SongStorageAdapter implements SongStoragePort {
     @Override
     public URI getStreamingUrl(final SongId id) {
         final GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(bucketName)
+                .bucket(awsProperties.s3().bucketName()) // Use bucketName from properties
                 .key(id.value().toString()) // Assuming the storageId is the same as the SongId
                 .build();
 
