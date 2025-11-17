@@ -1,6 +1,7 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper; // Import DynamoDbCursorHelper
 import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepository {
 
     private final DynamoDbTable<PlaylistDocument> playlistTable;
+    private final DynamoDbCursorHelper cursorHelper; // Inject DynamoDbCursorHelper
 
     @Override
     public PlaylistDocument save(final PlaylistDocument playlistDocument) {
@@ -44,21 +46,12 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
                 .limit(pageable.getPageSize());
 
         if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
-            Map<String, AttributeValue> startKey = Map.of(
-                    "ownerId", AttributeValue.builder().s(ownerId.toString()).build(),
-                    "id", AttributeValue.builder().s(exclusiveStartKey).build()
-            );
-            requestBuilder.exclusiveStartKey(startKey);
+            requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
         }
 
         Page<PlaylistDocument> page = index.query(requestBuilder.build()).iterator().next();
         List<PlaylistDocument> documents = page.items();
-        Map<String, AttributeValue> lastEvaluatedKey = page.lastEvaluatedKey();
-
-        String nextToken = null;
-        if (lastEvaluatedKey != null && !lastEvaluatedKey.isEmpty()) {
-            nextToken = lastEvaluatedKey.get("id").s();
-        }
+        String nextToken = cursorHelper.encodeCursor(page.lastEvaluatedKey());
 
         return new DynamoDbPage<>(documents, nextToken);
     }

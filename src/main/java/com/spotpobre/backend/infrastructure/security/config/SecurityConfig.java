@@ -1,6 +1,6 @@
 package com.spotpobre.backend.infrastructure.security.config;
 
-import com.spotpobre.backend.domain.user.model.Role; // Import Role
+import com.spotpobre.backend.domain.user.model.Role;
 import com.spotpobre.backend.infrastructure.security.adapter.UserDetailsServiceImpl;
 import com.spotpobre.backend.infrastructure.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +34,24 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/songs").hasAuthority(Role.ARTIST.name()) // Corrected
-                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority(Role.ADMIN.name()) // Corrected
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+
+                        // Admin-only endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority(Role.ADMIN.name())
+
+                        // Artist-only endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/v1/songs").hasAuthority(Role.ARTIST.name())
+
+                        // Endpoints for any authenticated user
+                        .requestMatchers("/api/v1/users/me").authenticated()
+                        .requestMatchers("/api/v1/playlists/**").authenticated()
+                        .requestMatchers("/api/v1/me/playlists").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/artists/**").authenticated()
+
+                        // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
