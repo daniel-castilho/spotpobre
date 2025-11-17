@@ -18,8 +18,15 @@ public abstract class AbstractIntegrationTest {
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
+        // AWS Endpoints
         registry.add("aws.s3.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString());
         registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString());
+        
+        // AWS Credentials for LocalStack using Spring Cloud AWS specific properties
+        registry.add("spring.cloud.aws.credentials.access-key", localstack::getAccessKey);
+        registry.add("spring.cloud.aws.credentials.secret-key", localstack::getSecretKey);
+        
+        // AWS Region
         registry.add("aws.region", localstack::getRegion);
     }
 }

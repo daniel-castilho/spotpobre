@@ -27,14 +27,15 @@ class DynamoDbPlaylistRepositoryAdapterTest extends AbstractIntegrationTest {
     @Autowired
     private DynamoDbClient dynamoDbClient;
 
+    @Autowired
+    private TableSchema<com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument> playlistTableSchema; // Inject the schema
+
     @BeforeEach
     void setUp() {
-        // Ensure the table exists before each test
-        // In a real scenario, you might use a more sophisticated schema migration tool
         ListTablesResponse tables = dynamoDbClient.listTables();
         boolean tableExists = tables.tableNames().stream().anyMatch(name -> name.equals("Playlists"));
         if (!tableExists) {
-            dynamoDbEnhancedClient.table("Playlists", TableSchema.fromBean(com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument.class)).createTable();
+            dynamoDbEnhancedClient.table("Playlists", playlistTableSchema).createTable();
         }
     }
 
