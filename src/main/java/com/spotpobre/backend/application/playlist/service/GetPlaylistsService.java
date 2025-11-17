@@ -3,10 +3,9 @@ package com.spotpobre.backend.application.playlist.service;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsUseCase;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
@@ -16,7 +15,7 @@ public class GetPlaylistsService implements GetPlaylistsUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Playlist> getPlaylists(final Pageable pageable) {
-        return playlistRepository.findAll(pageable);
+    public DynamoDbPage<Playlist> getPlaylists(final Pageable pageable, final String exclusiveStartKey) {
+        return playlistRepository.findAll(pageable, exclusiveStartKey);
     }
 }
