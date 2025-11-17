@@ -46,7 +46,10 @@ public class SecurityConfig {
 
                         // Endpoints for any authenticated user
                         .requestMatchers("/api/v1/users/me").authenticated()
-                        .requestMatchers("/api/v1/playlists/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/playlists").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/playlists/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/playlists/**").authenticated() // Added rule for DELETE
+                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").authenticated()
                         .requestMatchers("/api/v1/me/playlists").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/artists/**").authenticated()

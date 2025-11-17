@@ -34,6 +34,11 @@ public class DynamoDbPlaylistRepositoryAdapter implements PlaylistRepository {
     }
 
     @Override
+    public void deleteById(final PlaylistId id) {
+        dynamoDbPlaylistRepository.deleteById(id.value());
+    }
+
+    @Override
     public DynamoDbPage<Playlist> findByOwnerId(final UserId ownerId, final Pageable pageable, final String exclusiveStartKey) {
         final DynamoDbPage<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findByOwnerId(ownerId.value(), pageable, exclusiveStartKey);
         return new DynamoDbPage<>(

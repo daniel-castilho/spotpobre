@@ -1,9 +1,6 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
-import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
-import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase; // Renamed
+import com.spotpobre.backend.application.playlist.port.in.*;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -12,6 +9,7 @@ import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreatePlaylistRequest;
+import com.spotpobre.backend.infrastructure.web.dto.request.UpdatePlaylistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.PlaylistResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.PlaylistApiMapper;
@@ -26,14 +24,17 @@ import java.security.Principal;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1") // Changed base path
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class PlaylistController {
 
     private final CreatePlaylistUseCase createPlaylistUseCase;
     private final GetPlaylistDetailsUseCase getPlaylistDetailsUseCase;
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
-    private final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase; // Renamed
+    private final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase;
+    private final UpdatePlaylistDetailsUseCase updatePlaylistDetailsUseCase;
+    private final RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase;
+    private final DeletePlaylistUseCase deletePlaylistUseCase; // Inject
     private final PlaylistApiMapper mapper;
     private final UserRepository userRepository;
 
@@ -53,7 +54,41 @@ public class PlaylistController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/me/playlists") // Changed endpoint
+    @PatchMapping("/playlists/{playlistId}")
+    public ResponseEntity<PlaylistResponse> updatePlaylistDetails(
+            @PathVariable final UUID playlistId,
+            @RequestBody @Valid final UpdatePlaylistRequest request
+    ) {
+        final var command = new UpdatePlaylistDetailsUseCase.UpdatePlaylistDetailsCommand(
+                new PlaylistId(playlistId),
+                request.name()
+        );
+        final Playlist updatedPlaylist = updatePlaylistDetailsUseCase.updatePlaylistDetails(command);
+        final PlaylistResponse response = mapper.toResponse(updatedPlaylist);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/playlists/{playlistId}")
+    public ResponseEntity<Void> deletePlaylist(@PathVariable final UUID playlistId) {
+        deletePlaylistUseCase.deletePlaylist(new PlaylistId(playlistId));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/playlists/{playlistId}/songs/{songId}")
+    public ResponseEntity<PlaylistResponse> removeSongFromPlaylist(
+            @PathVariable final UUID playlistId,
+            @PathVariable final UUID songId
+    ) {
+        final var command = new RemoveSongFromPlaylistUseCase.RemoveSongFromPlaylistCommand(
+                new PlaylistId(playlistId),
+                new SongId(songId)
+        );
+        final Playlist updatedPlaylist = removeSongFromPlaylistUseCase.removeSongFromPlaylist(command);
+        final PlaylistResponse response = mapper.toResponse(updatedPlaylist);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/playlists")
     public ResponseEntity<PageResponse<PlaylistResponse>> getMyPlaylists(
             final Pageable pageable,
             @RequestParam(required = false) final String nextPageToken,

@@ -1,7 +1,7 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper; // Import DynamoDbCursorHelper
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper;
 import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +24,7 @@ import java.util.UUID;
 public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepository {
 
     private final DynamoDbTable<PlaylistDocument> playlistTable;
-    private final DynamoDbCursorHelper cursorHelper; // Inject DynamoDbCursorHelper
+    private final DynamoDbCursorHelper cursorHelper;
 
     @Override
     public PlaylistDocument save(final PlaylistDocument playlistDocument) {
@@ -35,6 +35,11 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     @Override
     public Optional<PlaylistDocument> findById(final UUID id) {
         return Optional.ofNullable(playlistTable.getItem(Key.builder().partitionValue(id.toString()).build()));
+    }
+
+    @Override
+    public void deleteById(final UUID id) {
+        playlistTable.deleteItem(Key.builder().partitionValue(id.toString()).build());
     }
 
     @Override

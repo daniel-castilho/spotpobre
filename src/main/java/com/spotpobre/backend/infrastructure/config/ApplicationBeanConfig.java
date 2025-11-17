@@ -1,19 +1,17 @@
 package com.spotpobre.backend.infrastructure.config;
 
-import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
-import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase; // Renamed
-import com.spotpobre.backend.application.playlist.service.AddSongToPlaylistService;
-import com.spotpobre.backend.application.playlist.service.CreatePlaylistService;
-import com.spotpobre.backend.application.playlist.service.GetPlaylistDetailsService;
-import com.spotpobre.backend.application.playlist.service.GetPlaylistsByOwnerService; // Renamed
-import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
-import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
-import com.spotpobre.backend.application.song.port.in.UploadSongUseCase;
-import com.spotpobre.backend.application.song.service.GetSongMetadataService;
-import com.spotpobre.backend.application.song.service.GetSongStreamUrlService;
-import com.spotpobre.backend.application.song.service.UploadSongService;
+import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
+import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
+import com.spotpobre.backend.application.artist.service.CreateArtistService;
+import com.spotpobre.backend.application.artist.service.SearchArtistsService;
+import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
+import com.spotpobre.backend.application.like.service.LikeStrategy;
+import com.spotpobre.backend.application.like.service.LikeStrategyFactory;
+import com.spotpobre.backend.application.like.service.ToggleLikeService;
+import com.spotpobre.backend.application.playlist.port.in.*;
+import com.spotpobre.backend.application.playlist.service.*;
+import com.spotpobre.backend.application.song.port.in.*;
+import com.spotpobre.backend.application.song.service.*;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
@@ -22,17 +20,18 @@ import com.spotpobre.backend.application.user.service.AuthenticationService;
 import com.spotpobre.backend.application.user.service.GetUserDetailsUseCaseService;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
-import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
-import com.spotpobre.backend.application.artist.service.CreateArtistService;
+import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
 import com.spotpobre.backend.domain.user.port.UserRepository;
-import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.List;
 
 @Configuration
 public class ApplicationBeanConfig {
@@ -60,8 +59,23 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    public GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase(final PlaylistRepository playlistRepository) { // Renamed
+    public GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase(final PlaylistRepository playlistRepository) {
         return new GetPlaylistsByOwnerService(playlistRepository);
+    }
+
+    @Bean
+    public UpdatePlaylistDetailsUseCase updatePlaylistDetailsUseCase(final PlaylistRepository playlistRepository) {
+        return new UpdatePlaylistDetailsService(playlistRepository);
+    }
+
+    @Bean
+    public RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase(final PlaylistRepository playlistRepository) {
+        return new RemoveSongFromPlaylistService(playlistRepository);
+    }
+
+    @Bean
+    public DeletePlaylistUseCase deletePlaylistUseCase(final PlaylistRepository playlistRepository) {
+        return new DeletePlaylistService(playlistRepository);
     }
 
     // Song Use Cases
@@ -84,6 +98,11 @@ public class ApplicationBeanConfig {
             final SongStoragePort songStoragePort
     ) {
         return new GetSongStreamUrlService(songMetadataRepository, songStoragePort);
+    }
+
+    @Bean
+    public SearchSongsUseCase searchSongsUseCase(final SongMetadataRepository songMetadataRepository) {
+        return new SearchSongsService(songMetadataRepository);
     }
 
     // User Use Cases
@@ -117,5 +136,24 @@ public class ApplicationBeanConfig {
     @Bean
     public CreateArtistUseCase createArtistUseCase(final ArtistRepository artistRepository) {
         return new CreateArtistService(artistRepository);
+    }
+
+    @Bean
+    public SearchArtistsUseCase searchArtistsUseCase(final ArtistRepository artistRepository) {
+        return new SearchArtistsService(artistRepository);
+    }
+
+    // Like Use Cases
+    @Bean
+    public LikeStrategyFactory likeStrategyFactory(List<LikeStrategy> strategies) {
+        return new LikeStrategyFactory(strategies);
+    }
+
+    @Bean
+    public ToggleLikeUseCase toggleLikeUseCase(
+            LikeRepository likeRepository,
+            LikeStrategyFactory likeStrategyFactory
+    ) {
+        return new ToggleLikeService(likeRepository, likeStrategyFactory);
     }
 }

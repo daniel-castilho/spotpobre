@@ -10,5 +10,6 @@ import java.util.UUID;
 public interface DynamoDbPlaylistRepository {
     PlaylistDocument save(final PlaylistDocument playlistDocument);
     Optional<PlaylistDocument> findById(final UUID id);
-    DynamoDbPage<PlaylistDocument> findByOwnerId(final UUID ownerId, final Pageable pageable, final String exclusiveStartKey); // Renamed and added ownerId
+    void deleteById(final UUID id); // New method
+    DynamoDbPage<PlaylistDocument> findByOwnerId(final UUID ownerId, final Pageable pageable, final String exclusiveStartKey);
 }
