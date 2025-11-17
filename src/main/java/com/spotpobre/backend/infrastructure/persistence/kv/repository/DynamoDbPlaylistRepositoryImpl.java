@@ -5,18 +5,18 @@ import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
-import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -36,22 +36,27 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     }
 
     @Override
-    public DynamoDbPage<PlaylistDocument> findAll(final Pageable pageable, final String exclusiveStartKey) {
-        ScanEnhancedRequest.Builder requestBuilder = ScanEnhancedRequest.builder()
+    public DynamoDbPage<PlaylistDocument> findByOwnerId(final UUID ownerId, final Pageable pageable, final String exclusiveStartKey) {
+        DynamoDbIndex<PlaylistDocument> index = playlistTable.index("ownerId-index");
+
+        QueryEnhancedRequest.Builder requestBuilder = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(k -> k.partitionValue(ownerId.toString())))
                 .limit(pageable.getPageSize());
 
         if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
-            Map<String, AttributeValue> startKey = Map.of("id", AttributeValue.builder().s(exclusiveStartKey).build());
+            Map<String, AttributeValue> startKey = Map.of(
+                    "ownerId", AttributeValue.builder().s(ownerId.toString()).build(),
+                    "id", AttributeValue.builder().s(exclusiveStartKey).build()
+            );
             requestBuilder.exclusiveStartKey(startKey);
         }
 
-        Page<PlaylistDocument> page = playlistTable.scan(requestBuilder.build()).iterator().next();
+        Page<PlaylistDocument> page = index.query(requestBuilder.build()).iterator().next();
         List<PlaylistDocument> documents = page.items();
         Map<String, AttributeValue> lastEvaluatedKey = page.lastEvaluatedKey();
 
         String nextToken = null;
         if (lastEvaluatedKey != null && !lastEvaluatedKey.isEmpty()) {
-            // For simplicity, assuming the key is a single string attribute 'id'
             nextToken = lastEvaluatedKey.get("id").s();
         }
 

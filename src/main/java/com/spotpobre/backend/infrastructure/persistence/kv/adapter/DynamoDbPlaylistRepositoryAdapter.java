@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
+import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.PlaylistPersistenceMapper;
 import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
@@ -33,8 +34,8 @@ public class DynamoDbPlaylistRepositoryAdapter implements PlaylistRepository {
     }
 
     @Override
-    public DynamoDbPage<Playlist> findAll(final Pageable pageable, final String exclusiveStartKey) {
-        final DynamoDbPage<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findAll(pageable, exclusiveStartKey);
+    public DynamoDbPage<Playlist> findByOwnerId(final UserId ownerId, final Pageable pageable, final String exclusiveStartKey) {
+        final DynamoDbPage<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findByOwnerId(ownerId.value(), pageable, exclusiveStartKey);
         return new DynamoDbPage<>(
                 mapper.toDomainList(documentPage.content()),
                 documentPage.lastEvaluatedKey()

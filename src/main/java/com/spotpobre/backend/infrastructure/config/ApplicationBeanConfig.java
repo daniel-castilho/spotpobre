@@ -3,11 +3,11 @@ package com.spotpobre.backend.infrastructure.config;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsUseCase; // Import GetPlaylistsUseCase
+import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase; // Renamed
 import com.spotpobre.backend.application.playlist.service.AddSongToPlaylistService;
 import com.spotpobre.backend.application.playlist.service.CreatePlaylistService;
 import com.spotpobre.backend.application.playlist.service.GetPlaylistDetailsService;
-import com.spotpobre.backend.application.playlist.service.GetPlaylistsService; // Import GetPlaylistsService
+import com.spotpobre.backend.application.playlist.service.GetPlaylistsByOwnerService; // Renamed
 import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
 import com.spotpobre.backend.application.song.port.in.UploadSongUseCase;
@@ -60,8 +60,8 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    public GetPlaylistsUseCase getPlaylistsUseCase(final PlaylistRepository playlistRepository) {
-        return new GetPlaylistsService(playlistRepository);
+    public GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase(final PlaylistRepository playlistRepository) { // Renamed
+        return new GetPlaylistsByOwnerService(playlistRepository);
     }
 
     // Song Use Cases

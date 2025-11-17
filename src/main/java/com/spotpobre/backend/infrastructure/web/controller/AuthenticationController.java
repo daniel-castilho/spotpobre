@@ -11,13 +11,14 @@ import com.spotpobre.backend.infrastructure.web.mapper.AuthApiMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collections;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -34,11 +35,14 @@ public class AuthenticationController {
         final var command = mapper.toCommand(request);
         final User registeredUser = registerUserUseCase.registerUser(command);
 
-        // Create UserDetails for token generation
+        var authorities = registeredUser.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .collect(Collectors.toList());
+
         final UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 registeredUser.getProfile().email(),
                 registeredUser.getPassword(),
-                Collections.emptyList()
+                authorities
         );
 
         final String token = jwtService.generateToken(userDetails);
@@ -50,11 +54,14 @@ public class AuthenticationController {
         final var command = mapper.toCommand(request);
         final User authenticatedUser = authenticateUserUseCase.authenticate(command);
 
-        // Create UserDetails for token generation
+        var authorities = authenticatedUser.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .collect(Collectors.toList());
+
         final UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 authenticatedUser.getProfile().email(),
                 authenticatedUser.getPassword(),
-                Collections.emptyList()
+                authorities
         );
 
         final String token = jwtService.generateToken(userDetails);

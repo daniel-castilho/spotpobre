@@ -1,5 +1,6 @@
 package com.spotpobre.backend.infrastructure.security.config;
 
+import com.spotpobre.backend.domain.user.model.Role; // Import Role
 import com.spotpobre.backend.infrastructure.security.adapter.UserDetailsServiceImpl;
 import com.spotpobre.backend.infrastructure.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // Enables @PreAuthorize, @PostAuthorize, etc.
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -33,15 +34,10 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Authentication endpoints are public
-                        .requestMatchers(HttpMethod.POST, "/api/v1/songs").hasAnyAuthority("ROLE_ARTIST", "ROLE_ADMIN") // Only artists and admins can upload songs
-                        .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can get song details
-                        .requestMatchers(HttpMethod.POST, "/api/v1/playlists").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can create playlists
-                        .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can get playlist details
-                        .requestMatchers(HttpMethod.POST, "/api/v1/playlists/**/songs/**").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can add songs to playlists
-                        .requestMatchers("/api/v1/users/me").hasAnyAuthority("ROLE_USER", "ROLE_ARTIST", "ROLE_ADMIN") // All authenticated users can get their profile
-                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority("ROLE_ADMIN") // Only admins can create artists
-                        .anyRequest().authenticated() // All other requests require authentication
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/songs").hasAuthority(Role.ARTIST.name()) // Corrected
+                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority(Role.ADMIN.name()) // Corrected
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())

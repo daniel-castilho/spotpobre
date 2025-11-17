@@ -3,7 +3,7 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
-import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsUseCase;
+import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase; // Renamed
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -26,18 +26,18 @@ import java.security.Principal;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/playlists")
+@RequestMapping("/api/v1") // Changed base path
 @RequiredArgsConstructor
 public class PlaylistController {
 
     private final CreatePlaylistUseCase createPlaylistUseCase;
     private final GetPlaylistDetailsUseCase getPlaylistDetailsUseCase;
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
-    private final GetPlaylistsUseCase getPlaylistsUseCase;
+    private final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase; // Renamed
     private final PlaylistApiMapper mapper;
     private final UserRepository userRepository;
 
-    @PostMapping
+    @PostMapping("/playlists")
     public ResponseEntity<PlaylistResponse> createPlaylist(
             @RequestBody @Valid final CreatePlaylistRequest request,
             final Principal principal
@@ -53,24 +53,30 @@ public class PlaylistController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping
-    public ResponseEntity<PageResponse<PlaylistResponse>> getPlaylists(
+    @GetMapping("/me/playlists") // Changed endpoint
+    public ResponseEntity<PageResponse<PlaylistResponse>> getMyPlaylists(
             final Pageable pageable,
-            @RequestParam(required = false) final String nextPageToken
+            @RequestParam(required = false) final String nextPageToken,
+            final Principal principal
     ) {
-        final DynamoDbPage<Playlist> playlistPage = getPlaylistsUseCase.getPlaylists(pageable, nextPageToken);
+        final String userEmail = principal.getName();
+        final UserId ownerId = userRepository.findByProfileEmail(userEmail)
+                .map(User::getId)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+
+        final DynamoDbPage<Playlist> playlistPage = getPlaylistsByOwnerUseCase.getPlaylistsByOwner(ownerId, pageable, nextPageToken);
         final PageResponse<PlaylistResponse> response = mapper.toPageResponse(playlistPage);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{playlistId}")
+    @GetMapping("/playlists/{playlistId}")
     public ResponseEntity<PlaylistResponse> getPlaylist(@PathVariable final UUID playlistId) {
         final Playlist playlist = getPlaylistDetailsUseCase.getPlaylistDetails(new PlaylistId(playlistId));
         final PlaylistResponse response = mapper.toResponse(playlist);
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{playlistId}/songs/{songId}")
+    @PostMapping("/playlists/{playlistId}/songs/{songId}")
     public ResponseEntity<PlaylistResponse> addSongToPlaylist(
             @PathVariable final UUID playlistId,
             @PathVariable final UUID songId

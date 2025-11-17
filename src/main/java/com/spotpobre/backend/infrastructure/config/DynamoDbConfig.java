@@ -26,6 +26,7 @@ import java.util.Set;
 public class DynamoDbConfig {
 
     private final AwsProperties awsProperties;
+
     public DynamoDbConfig(AwsProperties awsProperties) {
         this.awsProperties = awsProperties;
     }
@@ -35,18 +36,16 @@ public class DynamoDbConfig {
             TableSchema.builder(UserProfileDocument.class)
                     .newItemSupplier(UserProfileDocument::new)
                     .addAttribute(String.class, a -> a.name("name")
-
                             .getter(UserProfileDocument::getName)
                             .setter(UserProfileDocument::setName))
                     .addAttribute(String.class, a -> a.name("email")
                             .getter(UserProfileDocument::getEmail)
-
-                            .setter(UserProfileDocument::setEmail)) // <-- A TAG DO GSI FOI REMOVIDA DAQUI
+                            .setter(UserProfileDocument::setEmail))
                     .addAttribute(String.class, a -> a.name("country")
                             .getter(UserProfileDocument::getCountry)
-
                             .setter(UserProfileDocument::setCountry))
                     .build();
+
     @Bean
     public DynamoDbClient dynamoDbClient() {
         return DynamoDbClient.builder()
@@ -63,9 +62,33 @@ public class DynamoDbConfig {
                 .build();
     }
 
+    // Define TableSchema for PlaylistDocument programmatically to include GSI
     @Bean
-    public DynamoDbTable<PlaylistDocument> playlistTable(final DynamoDbEnhancedClient enhancedClient) {
-        return enhancedClient.table("Playlists", TableSchema.fromBean(PlaylistDocument.class));
+    public TableSchema<PlaylistDocument> playlistTableSchema() {
+        return TableSchema.builder(PlaylistDocument.class)
+                .newItemSupplier(PlaylistDocument::new)
+                .addAttribute(String.class, a -> a.name("id")
+                        .getter(PlaylistDocument::getId)
+                        .setter(PlaylistDocument::setId)
+                        .tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("name")
+                        .getter(PlaylistDocument::getName)
+                        .setter(PlaylistDocument::setName))
+                .addAttribute(String.class, a -> a.name("ownerId")
+                        .getter(playlist -> playlist.getOwnerId() != null ? playlist.getOwnerId().toString() : null)
+                        .setter((playlist, ownerId) -> playlist.setOwnerId(ownerId != null ? java.util.UUID.fromString(ownerId) : null))
+                        .tags(StaticAttributeTags.secondaryPartitionKey("ownerId-index")))
+                .addAttribute(EnhancedType.listOf(
+                        EnhancedType.documentOf(SongDocument.class, TableSchema.fromBean(SongDocument.class))
+                ), a -> a.name("songs")
+                        .getter(PlaylistDocument::getSongs)
+                        .setter(PlaylistDocument::setSongs))
+                .build();
+    }
+
+    @Bean
+    public DynamoDbTable<PlaylistDocument> playlistTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<PlaylistDocument> playlistTableSchema) {
+        return enhancedClient.table("Playlists", playlistTableSchema);
     }
 
     // Define TableSchema for UserDocument programmatically to include GSI
@@ -75,39 +98,31 @@ public class DynamoDbConfig {
                 .newItemSupplier(UserDocument::new)
                 .addAttribute(String.class, a -> a.name("id")
                         .getter(UserDocument::getId)
-
                         .setter(UserDocument::setId)
                         .tags(StaticAttributeTags.primaryPartitionKey()))
                 .addAttribute(EnhancedType.documentOf(UserProfileDocument.class, USER_PROFILE_TABLE_SCHEMA),
                         a -> a.name("profile")
-
                                 .getter(UserDocument::getProfile)
                                 .setter(UserDocument::setProfile))
                 .addAttribute(String.class, a -> a.name("password")
                         .getter(UserDocument::getPassword)
-
                         .setter(UserDocument::setPassword))
                 .addAttribute(EnhancedType.setOf(String.class), a -> a.name("roles")
                         .getter(UserDocument::getRoles)
                         .setter(UserDocument::setRoles))
                 .addAttribute(EnhancedType.listOf(
-
-                        EnhancedType.documentOf(PlaylistDocument.class, TableSchema.fromBean(PlaylistDocument.class))
+                        EnhancedType.documentOf(PlaylistDocument.class, playlistTableSchema()) // Use the new schema
                 ), a -> a.name("playlists")
                         .getter(UserDocument::getPlaylists)
                         .setter(UserDocument::setPlaylists))
-
-                // --- CORREÇÃO: A TAG DO GSI FOI MOVIDA PARA CÁ ---
-                // Definimos um atributo "virtual" para o GSI que aponta para o campo aninhado
                 .addAttribute(String.class, a -> a.name("profile.email")
-                        .getter(userDoc -> userDoc.getProfile()!= null? userDoc.getProfile().getEmail() : null)
+                        .getter(userDoc -> userDoc.getProfile() != null ? userDoc.getProfile().getEmail() : null)
                         .setter((userDoc, email) -> {
-                            if (userDoc.getProfile()!= null) {
+                            if (userDoc.getProfile() != null) {
                                 userDoc.getProfile().setEmail(email);
                             }
                         })
                         .tags(StaticAttributeTags.secondaryPartitionKey("email-index")))
-
                 .build();
     }
 
@@ -118,7 +133,6 @@ public class DynamoDbConfig {
 
     @Bean
     public DynamoDbIndex<UserDocument> userEmailIndex(final DynamoDbEnhancedClient enhancedClient, final TableSchema<UserDocument> userTableSchema) {
-        // Agora esta chamada vai funcionar, pois o "email-index" está definido no userTableSchema
         return enhancedClient.table("Users", userTableSchema).index("email-index");
     }
 
