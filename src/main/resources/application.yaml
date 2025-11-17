@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: Spotpobre
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+aws:
+  region: us-east-1
+  dynamodb:
+    endpoint: http://localhost:4566
+  s3:
+    endpoint: http://localhost:4566
+    bucket-name: spotpobre-songs
+
+jwt:
+  # ATENÇÃO: Use uma chave secreta forte e longa em produção, gerenciada via variáveis de ambiente.
+  # Este é apenas um exemplo. Gere a sua própria chave.
+  secret: "635266556A586E3272357538782F413F4428472B4B6250655368566D59713374"
+  expiration-ms: 3600000 # 1 hora
