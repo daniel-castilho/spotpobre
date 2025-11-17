@@ -8,19 +8,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+@RequiredArgsConstructor
 public class RegisterUserService implements RegisterUserUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public RegisterUserService(final UserRepository userRepository, final PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
     @Override
     @Transactional
     public User registerUser(final RegisterUserCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("Registration command cannot be null.");
+        }
+
         userRepository.findByProfileEmail(command.email()).ifPresent(user -> {
             throw new IllegalStateException("User with email " + command.email() + " already exists.");
         });
@@ -33,7 +33,6 @@ public class RegisterUserService implements RegisterUserUseCase {
 
         final String hashedPassword = passwordEncoder.encode(command.password());
 
-        // Use the correct factory method
         final User newUser = User.createWithLocalPassword(profile, hashedPassword);
 
         userRepository.save(newUser);
