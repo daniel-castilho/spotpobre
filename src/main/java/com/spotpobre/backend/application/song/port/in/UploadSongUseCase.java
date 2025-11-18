@@ -1,6 +1,6 @@
 package com.spotpobre.backend.application.song.port.in;
 
-import com.spotpobre.backend.domain.artist.model.ArtistId;
+import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.song.model.Song;
 
 public interface UploadSongUseCase {
@@ -9,7 +9,7 @@ public interface UploadSongUseCase {
 
     record UploadSongCommand(
             String title,
-            ArtistId artistId,
+            AlbumId albumId,
             byte[] fileContent,
             String contentType
     ) {
