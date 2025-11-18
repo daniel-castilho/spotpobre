@@ -1,6 +1,6 @@
 package com.spotpobre.backend.application.song.service;
 
-import com.spotpobre.backend.domain.artist.model.ArtistId; // Import ArtistId
+import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -29,8 +29,8 @@ class GetSongMetadataServiceTest {
     void shouldReturnSongMetadataSuccessfully() {
         // Given
         SongId songId = new SongId(UUID.randomUUID());
-        // Corrected: Provide a valid ArtistId when creating the song
-        Song expectedSong = Song.create("Test Song", new ArtistId(UUID.randomUUID()), "storage-id");
+        // Corrected: Provide a valid AlbumId when creating the song
+        Song expectedSong = Song.create("Test Song", new AlbumId(UUID.randomUUID()), "storage-id");
 
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.of(expectedSong));
 

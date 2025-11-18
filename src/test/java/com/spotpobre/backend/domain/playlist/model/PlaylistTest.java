@@ -1,6 +1,6 @@
 package com.spotpobre.backend.domain.playlist.model;
 
-import com.spotpobre.backend.domain.artist.model.ArtistId;
+import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.user.model.UserId;
 import org.junit.jupiter.api.Test;
@@ -63,7 +63,8 @@ class PlaylistTest {
     void shouldAddSongSuccessfully() {
         // Given
         Playlist playlist = Playlist.create("My Rock Playlist", UserId.generate());
-        Song newSong = Song.create("Stairway to Heaven", new ArtistId(UUID.randomUUID()), "storage-id-123");
+        // Corrected: Provide a valid AlbumId when creating the song
+        Song newSong = Song.create("Stairway to Heaven", new AlbumId(UUID.randomUUID()), "storage-id-123");
 
         // When
         playlist.addSong(newSong);
@@ -78,12 +79,12 @@ class PlaylistTest {
     void shouldThrowExceptionWhenSongLimitIsReached() {
         // Given
         Playlist playlist = Playlist.create("Huge Playlist", UserId.generate());
-        ArtistId artistId = new ArtistId(UUID.randomUUID());
+        AlbumId albumId = new AlbumId(UUID.randomUUID());
         IntStream.range(0, 100).forEach(i -> {
-            Song song = Song.create("Song " + i, artistId, "storage-" + i);
+            Song song = Song.create("Song " + i, albumId, "storage-" + i);
             playlist.addSong(song);
         });
-        Song oneMoreSong = Song.create("The 101st Song", artistId, "storage-101");
+        Song oneMoreSong = Song.create("The 101st Song", albumId, "storage-101");
 
         // When & Then
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {

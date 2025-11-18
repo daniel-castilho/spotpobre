@@ -1,7 +1,7 @@
 package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
-import com.spotpobre.backend.domain.artist.model.ArtistId; // Import ArtistId
+import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -41,8 +41,8 @@ class AddSongToPlaylistServiceTest {
         AddSongToPlaylistUseCase.AddSongToPlaylistCommand command = new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId);
 
         Playlist playlist = Playlist.create("My Playlist", UserId.generate());
-        // Corrected: Provide a valid ArtistId when creating the song
-        Song song = Song.create("My Song", new ArtistId(UUID.randomUUID()), "storage-id");
+        // Corrected: Provide a valid AlbumId when creating the song
+        Song song = Song.create("My Song", new AlbumId(UUID.randomUUID()), "storage-id");
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(playlist));
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.of(song));

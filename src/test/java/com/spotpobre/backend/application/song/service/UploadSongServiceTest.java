@@ -1,7 +1,9 @@
 package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.application.song.port.in.UploadSongUseCase;
-import com.spotpobre.backend.domain.artist.model.ArtistId;
+import com.spotpobre.backend.domain.album.model.Album;
+import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongFile;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -13,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,19 +30,23 @@ class UploadSongServiceTest {
     @Mock
     private SongMetadataRepository songMetadataRepository;
 
+    @Mock
+    private AlbumRepository albumRepository;
+
     @InjectMocks
     private UploadSongService uploadSongService;
 
     @Test
     void shouldUploadSongSuccessfully() {
         // Given
-        ArtistId artistId = new ArtistId(UUID.randomUUID());
+        AlbumId albumId = new AlbumId(UUID.randomUUID());
         byte[] fileContent = "fake-mp3-content".getBytes();
         UploadSongUseCase.UploadSongCommand command = new UploadSongUseCase.UploadSongCommand(
-                "New Song Title", artistId, fileContent, "audio/mpeg"
+                "New Song Title", albumId, fileContent, "audio/mpeg"
         );
         String expectedStorageId = "storage-key-12345";
 
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(mock(Album.class)));
         when(songStoragePort.saveSong(any(SongFile.class))).thenReturn(expectedStorageId);
 
         // When
@@ -48,7 +55,7 @@ class UploadSongServiceTest {
         // Then
         assertNotNull(uploadedSong);
         assertEquals("New Song Title", uploadedSong.getTitle());
-        assertEquals(artistId, uploadedSong.getArtistId());
+        assertEquals(albumId, uploadedSong.getAlbumId());
         assertEquals(expectedStorageId, uploadedSong.getStorageId());
 
         ArgumentCaptor<SongFile> songFileCaptor = ArgumentCaptor.forClass(SongFile.class);
@@ -62,10 +69,12 @@ class UploadSongServiceTest {
     @Test
     void shouldNotSaveMetadataWhenStorageFails() {
         // Given
+        AlbumId albumId = new AlbumId(UUID.randomUUID());
         UploadSongUseCase.UploadSongCommand command = new UploadSongUseCase.UploadSongCommand(
-                "Failing Song", new ArtistId(UUID.randomUUID()), new byte[]{}, "audio/mpeg"
+                "Failing Song", albumId, new byte[]{}, "audio/mpeg"
         );
 
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(mock(Album.class)));
         when(songStoragePort.saveSong(any(SongFile.class))).thenThrow(new RuntimeException("S3 is down"));
 
         // When & Then
@@ -73,7 +82,6 @@ class UploadSongServiceTest {
             uploadSongService.uploadSong(command);
         });
 
-        // Verify that metadata repository's save method was never called
         verify(songMetadataRepository, never()).save(any());
     }
 }

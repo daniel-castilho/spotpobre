@@ -1,6 +1,6 @@
 package com.spotpobre.backend.application.song.service;
 
-import com.spotpobre.backend.domain.artist.model.ArtistId;
+import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -34,8 +34,8 @@ class GetSongStreamUrlServiceTest {
     void shouldReturnStreamingUrlSuccessfully() {
         // Given
         SongId songId = new SongId(UUID.randomUUID());
-        // Corrected: Provide a valid ArtistId
-        Song song = Song.create("Test Song", new ArtistId(UUID.randomUUID()), "storage-id");
+        // Corrected: Provide a valid AlbumId
+        Song song = Song.create("Test Song", new AlbumId(UUID.randomUUID()), "storage-id");
         URI expectedUri = URI.create("https://example.com/stream");
 
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.of(song));
