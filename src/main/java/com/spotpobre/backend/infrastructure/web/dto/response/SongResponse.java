@@ -5,6 +5,6 @@ import java.util.UUID;
 public record SongResponse(
         UUID id,
         String title,
-        UUID artistId
+        UUID albumId // Changed from artistId to albumId
 ) {
 }

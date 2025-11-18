@@ -1,5 +1,6 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.mapper;
 
+import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -40,6 +41,11 @@ public abstract class UuidMapper {
         return uuidString != null ? new PlaylistId(UUID.fromString(uuidString)) : null;
     }
 
+    @Named("stringToAlbumId")
+    public AlbumId stringToAlbumId(String uuidString) {
+        return uuidString != null ? new AlbumId(UUID.fromString(uuidString)) : null;
+    }
+
     @Named("playlistIdToUuid")
     public UUID playlistIdToUuid(PlaylistId playlistId) {
         return playlistId != null ? playlistId.value() : null;
@@ -60,24 +66,23 @@ public abstract class UuidMapper {
         return artistId != null ? artistId.value() : null;
     }
 
+    @Named("albumIdToUuid")
+    public UUID albumIdToUuid(AlbumId albumId) {
+        return albumId != null ? albumId.value() : null;
+    }
+
     @Named("uuidToArtistId")
     public ArtistId uuidToArtistId(UUID uuid) {
         return uuid != null ? new ArtistId(uuid) : null;
     }
 
+    @Named("uuidToAlbumId")
+    public AlbumId uuidToAlbumId(UUID uuid) {
+        return uuid != null ? new AlbumId(uuid) : null;
+    }
+
     @Named("uriToString")
     public String uriToString(URI uri) {
         return uri != null ? uri.toString() : null;
-    }
-
-    // New methods to convert specific ID types to UUID
-    @Named("songIdToRawUuid")
-    public UUID songIdToRawUuid(SongId songId) {
-        return songId != null ? songId.value() : null;
-    }
-
-    @Named("artistIdToRawUuid")
-    public UUID artistIdToRawUuid(ArtistId artistId) {
-        return artistId != null ? artistId.value() : null;
     }
 }

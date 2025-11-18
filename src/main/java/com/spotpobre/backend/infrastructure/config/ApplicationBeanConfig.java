@@ -1,5 +1,7 @@
 package com.spotpobre.backend.infrastructure.config;
 
+import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
+import com.spotpobre.backend.application.album.service.CreateAlbumService;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
 import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
 import com.spotpobre.backend.application.artist.service.CreateArtistService;
@@ -20,6 +22,7 @@ import com.spotpobre.backend.application.user.service.AuthenticationService;
 import com.spotpobre.backend.application.user.service.GetUserDetailsUseCaseService;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
+import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -82,9 +85,10 @@ public class ApplicationBeanConfig {
     @Bean
     public UploadSongUseCase uploadSongUseCase(
             final SongStoragePort songStoragePort,
-            final SongMetadataRepository songMetadataRepository
+            final SongMetadataRepository songMetadataRepository,
+            final AlbumRepository albumRepository
     ) {
-        return new UploadSongService(songStoragePort, songMetadataRepository);
+        return new UploadSongService(songStoragePort, songMetadataRepository, albumRepository);
     }
 
     @Bean
@@ -141,6 +145,15 @@ public class ApplicationBeanConfig {
     @Bean
     public SearchArtistsUseCase searchArtistsUseCase(final ArtistRepository artistRepository) {
         return new SearchArtistsService(artistRepository);
+    }
+    
+    // Album Use Cases
+    @Bean
+    public CreateAlbumUseCase createAlbumUseCase(
+            final ArtistRepository artistRepository,
+            final AlbumRepository albumRepository
+    ) {
+        return new CreateAlbumService(artistRepository, albumRepository);
     }
 
     // Like Use Cases

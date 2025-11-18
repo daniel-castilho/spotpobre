@@ -8,8 +8,7 @@ public record UploadSongRequest(
         @NotBlank(message = "Song title cannot be blank")
         String title,
 
-        @NotNull(message = "Artist ID cannot be null")
-        UUID artistId
-        // The file content will be handled separately, typically as MultipartFile in the controller
+        @NotNull(message = "Album ID cannot be null")
+        UUID albumId // Changed from artistId to albumId
 ) {
 }
