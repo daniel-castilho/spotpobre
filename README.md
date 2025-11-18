@@ -20,9 +20,9 @@ A Spotpobre API é um serviço de backend para streaming de música, construído
 
 A aplicação segue os princípios da Arquitetura Limpa, dividindo o código em três camadas principais, com uma regra de dependência estrita que aponta sempre para o centro:
 
-1.  **`domain` (Camada de Domínio):** O núcleo da aplicação. Contém as entidades de negócio (`User`, `Song`, `Playlist`), a lógica de negócio rica e as interfaces das portas de saída (`UserRepository`, `SongStoragePort`). Esta camada é 100% Java puro, sem dependências de frameworks.
+1.  **`domain` (Camada de Domínio):** O núcleo da aplicação. Contém as entidades de negócio (`User`, `Artist`, `Album`, `Song`, `Playlist`), a lógica de negócio rica e as interfaces das portas de saída (`UserRepository`, `AlbumRepository`). Esta camada é 100% Java puro, sem dependências de frameworks.
 
-2.  **`application` (Camada de Aplicação):** Orquestra o domínio para executar os casos de uso específicos da aplicação (`CreatePlaylistUseCase`, `UploadSongUseCase`). Esta camada depende do `domain`, mas permanece ignorante da camada de `infrastructure`.
+2.  **`application` (Camada de Aplicação):** Orquestra o domínio para executar os casos de uso específicos da aplicação (`CreateAlbumUseCase`, `ToggleLikeUseCase`). Esta camada depende do `domain`, mas permanece ignorante da camada de `infrastructure`.
 
 3.  **`infrastructure` (Camada de Infraestrutura):** A camada mais externa. Contém todos os detalhes tecnológicos: controladores Spring Web, adaptadores de persistência (DynamoDB), adaptadores de armazenamento (S3), configuração de segurança (JWT), etc. Esta camada implementa as portas do domínio e depende da camada de aplicação.
 
@@ -109,31 +109,38 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Tabela de Músicas (GSI para busca por título)
+# Tabela de Músicas
 awslocal dynamodb create-table \
     --table-name Songs \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=title,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"title-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"}, {\"AttributeName\":\"title\",\"KeyType\":\"RANGE\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
     --billing-mode PAY_PER_REQUEST
 
 # Tabela de Artistas (GSI para busca por nome)
 awslocal dynamodb create-table \
     --table-name Artists \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=name,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=name,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
                 \"IndexName\": \"name-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"}, {\"AttributeName\":\"name\",\"KeyType\":\"RANGE\"}],
+                \"KeySchema\": [{\"AttributeName\":\"name\",\"KeyType\":\"HASH\"}],
+                \"Projection\": {\"ProjectionType\":\"ALL\"}
+            }
+        ]" \
+    --billing-mode PAY_PER_REQUEST
+
+# Tabela de Álbuns (GSI no artistId)
+awslocal dynamodb create-table \
+    --table-name Albums \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=artistId,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --global-secondary-indexes \
+        "[
+            {
+                \"IndexName\": \"artistId-index\",
+                \"KeySchema\": [{\"AttributeName\":\"artistId\",\"KeyType\":\"HASH\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             }
         ]" \
@@ -184,6 +191,9 @@ Lá você poderá ver todos os endpoints, seus DTOs, e testá-los diretamente, i
 | **Auth** | `POST` | `/api/v1/auth/register` | Registra um novo usuário. |
 | | `POST` | `/api/v1/auth/authenticate` | Autentica um usuário e retorna um JWT. |
 | **Users** | `GET` | `/api/v1/users/me` | Retorna o perfil do usuário autenticado. |
+| **Artists** | `POST` | `/api/v1/artists` | Cria um novo artista (requer `ROLE_ADMIN`). |
+| **Albums** | `POST` | `/api/v1/albums` | Cria um novo álbum para um artista. |
+| | `POST` | `/api/v1/albums/{albumId}/songs` | Faz o upload de uma nova música para um álbum. |
 | **Playlists** | `POST` | `/api/v1/playlists` | Cria uma nova playlist. |
 | | `GET` | `/api/v1/me/playlists` | Lista as playlists do usuário autenticado (paginado). |
 | | `GET` | `/api/v1/playlists/{id}` | Retorna os detalhes de uma playlist. |
@@ -191,9 +201,7 @@ Lá você poderá ver todos os endpoints, seus DTOs, e testá-los diretamente, i
 | | `DELETE` | `/api/v1/playlists/{id}` | Apaga uma playlist. |
 | | `POST` | `/api/v1/playlists/{id}/songs/{songId}` | Adiciona uma música a uma playlist. |
 | | `DELETE` | `/api/v1/playlists/{id}/songs/{songId}` | Remove uma música de uma playlist. |
-| **Songs** | `POST` | `/api/v1/songs` | Faz o upload de uma nova música (requer `ROLE_ARTIST`). |
-| | `GET` | `/api/v1/songs/{id}` | Retorna os metadados e a URL de streaming de uma música. |
-| **Artists** | `POST` | `/api/v1/artists` | Cria um novo artista (requer `ROLE_ADMIN`). |
+| **Songs** | `GET` | `/api/v1/songs/{id}` | Retorna os metadados e a URL de streaming de uma música. |
 | **Search** | `GET` | `/api/v1/search/songs?query={q}` | Busca músicas por título. |
 | | `GET` | `/api/v1/search/artists?query={q}` | Busca artistas por nome. |
 | **Likes** | `POST` | `/api/v1/likes/toggle` | Curte ou descurte uma música, artista ou playlist. |
@@ -213,12 +221,14 @@ A estrutura de diretórios reflete a Arquitetura Limpa:
 ```
 src/main/java/com/spotpobre/backend/
 ├── domain/
+│   ├── album/
 │   ├── artist/
 │   │   ├── model/      # Entidades e Value Objects (Artist, ArtistId)
 │   │   └── port/       # Interfaces de repositório (ArtistRepository)
 │   ├── playlist/
 │   └── user/
 ├── application/
+│   ├── album/
 │   ├── artist/
 │   │   ├── port/in/    # Interfaces de Casos de Uso (CreateArtistUseCase)
 │   │   └── service/    # Implementações dos Casos de Uso (CreateArtistService)
