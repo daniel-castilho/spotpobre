@@ -155,12 +155,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **`AuthenticationManager` (Spring Security) injected directly into `AuthenticationService`.**
-  Password hashing itself is already behind the `PasswordHasher` port (adapter
-  `SpringSecurityPasswordHasher`, Argon2id). The remaining leak is that authentication is still
-  delegated to Spring Security's `AuthenticationManager` inside the application layer; ideally the
-  application would depend on a domain-level authentication port and the infrastructure adapter
-  would bridge to Spring Security's provider.
 - **Lombok inside `domain/`.** Entities use `@Getter`/`@Setter`/`@Builder` for boilerplate. This
   contradicts the README's "100% pure Java" claim for the domain layer; the README wording should
   be corrected or the entities made fully explicit.

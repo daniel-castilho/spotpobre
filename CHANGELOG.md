@@ -24,6 +24,13 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   (`infrastructure/security/adapter`). The application layer depends only on the port, so the
   hashing library can be swapped by changing one `PasswordEncoder` bean without touching business
   code.
+- **Authentication behind a domain port.** New `AuthenticationPort` (`domain/user/port/`) returns a
+  pure domain `AuthenticatedUser` (wrapping the `User` aggregate, no Spring Security types). The
+  application layer's `AuthenticationService` now depends only on that port; the
+  `SpringSecurityAuthenticationAdapter` (`infrastructure/security/adapter/`) owns the
+  `AuthenticationManager` injection and maps to/from Spring Security types. Item cleared from the
+  AGENTS technical debt list; `docs/coding-standards.md` updated to drop the
+  "`AuthenticationManager` injection is tracked debt" note.
 - **Argon2id password hashing.** The `SecurityConfig` `PasswordEncoder` bean switched from BCrypt
   to `Argon2PasswordEncoder` (Spring Security defaults for 5.8+); BouncyCastle
   (`bcprov-jdk18on`) added to satisfy Argon2. (Dependency approved by human — AGENTS rule 5.)

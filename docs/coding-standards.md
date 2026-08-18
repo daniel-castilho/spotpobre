@@ -63,7 +63,7 @@ com.spotpobre.backend/
 | Layer            | Framework / external imports                                                                                          |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `domain/`        | Pure Java (+ Lombok boilerplate). No Spring, no AWS SDK, no MapStruct, no springdoc, no `org.springframework.web`. Pagination uses pure domain types `PageRequest`/`PageResult` (`domain/common/pagination`). |
-| `application/`   | **Minimal**: Lombok + Spring annotations (`@Component`, `@RequiredArgsConstructor`, `@Transactional`) and the Java stdlib. No `infrastructure.*`, no AWS SDK, no MapStruct/springdoc, no `org.springframework.web`. Password hashing goes through the domain `PasswordHasher` port only; `AuthenticationManager` injection is tracked debt. |
+| `application/`   | **Minimal**: Lombok + Spring annotations (`@Component`, `@RequiredArgsConstructor`, `@Transactional`) and the Java stdlib. No `infrastructure.*`, no AWS SDK, no MapStruct/springdoc, no `org.springframework.web`. Password hashing goes through the domain `PasswordHasher` port; authentication goes through the domain `AuthenticationPort` — the Spring Security `AuthenticationManager` is owned by `SpringSecurityAuthenticationAdapter`. |
 | `infrastructure/`| Full stack allowed: Spring Web, Spring Security, AWS SDK (DynamoDB Enhanced, S3), MapStruct, springdoc, jjwt, Redis.     |
 
 Web controllers are **thin**: they bind `port/in` use cases and DTOs only. No business rules, no repository calls from controllers.

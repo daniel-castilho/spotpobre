@@ -46,11 +46,11 @@ import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
+import com.spotpobre.backend.domain.user.port.AuthenticationPort;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
 
 import java.util.List;
 
@@ -142,11 +142,8 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    public AuthenticateUserUseCase authenticateUserUseCase(
-            final AuthenticationManager authenticationManager,
-            final UserRepository userRepository
-    ) {
-        return new AuthenticationService(authenticationManager, userRepository);
+    public AuthenticateUserUseCase authenticateUserUseCase(final AuthenticationPort authenticationPort) {
+        return new AuthenticationService(authenticationPort);
     }
 
     @Bean

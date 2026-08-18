@@ -2,33 +2,20 @@ package com.spotpobre.backend.application.user.service;
 
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.domain.user.model.User;
-import com.spotpobre.backend.domain.user.port.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.spotpobre.backend.domain.user.port.AuthenticationPort;
 import org.springframework.transaction.annotation.Transactional;
 
 public class AuthenticationService implements AuthenticateUserUseCase {
 
-    private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository;
+    private final AuthenticationPort authenticationPort;
 
-    public AuthenticationService(final AuthenticationManager authenticationManager, final UserRepository userRepository) {
-        this.authenticationManager = authenticationManager;
-        this.userRepository = userRepository;
+    public AuthenticationService(final AuthenticationPort authenticationPort) {
+        this.authenticationPort = authenticationPort;
     }
 
     @Override
     @Transactional(readOnly = true)
     public User authenticate(final AuthenticationCommand command) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        command.email(),
-                        command.password()
-                )
-        );
-
-        return userRepository.findByProfileEmail(command.email())
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found in database."));
+        return authenticationPort.authenticate(command.email(), command.password()).user();
     }
 }
