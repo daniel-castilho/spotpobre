@@ -1,23 +1,13 @@
 package com.spotpobre.backend.domain.user.model;
 
 import com.spotpobre.backend.domain.playlist.model.Playlist;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
-@Getter
-@Setter
-@Builder
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class User {
 
     public static final int MAX_PLAYLISTS_PER_USER = 10;
@@ -28,6 +18,14 @@ public class User {
     private Set<Role> roles;
     private List<Playlist> playlists;
 
+    private User(final Builder builder) {
+        this.id = builder.id;
+        this.profile = builder.profile;
+        this.password = builder.password;
+        this.roles = builder.roles;
+        this.playlists = builder.playlists;
+    }
+
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
         if (profile == null) {
             throw new IllegalArgumentException("User profile cannot be null.");
@@ -36,7 +34,13 @@ public class User {
             throw new IllegalArgumentException("Password cannot be blank for local registration.");
         }
         final Set<Role> defaultRoles = EnumSet.of(Role.USER);
-        return new User(UserId.generate(), profile, password, defaultRoles, new ArrayList<>());
+        return new User.Builder()
+                .id(UserId.generate())
+                .profile(profile)
+                .password(password)
+                .roles(defaultRoles)
+                .playlists(new ArrayList<>())
+                .build();
     }
 
     public static User createFromExternalProvider(final UserProfile profile) {
@@ -44,7 +48,37 @@ public class User {
             throw new IllegalArgumentException("User profile cannot be null.");
         }
         final Set<Role> defaultRoles = EnumSet.of(Role.USER);
-        return new User(UserId.generate(), profile, null, defaultRoles, new ArrayList<>());
+        return new User.Builder()
+                .id(UserId.generate())
+                .profile(profile)
+                .password(null)
+                .roles(defaultRoles)
+                .playlists(new ArrayList<>())
+                .build();
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public UserId getId() {
+        return id;
+    }
+
+    public UserProfile getProfile() {
+        return profile;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public List<Playlist> getPlaylists() {
+        return playlists;
     }
 
     public Playlist createPlaylist(final String name) {
@@ -66,5 +100,76 @@ public class User {
 
     public void revokeRole(final Role role) {
         this.roles.remove(role);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof User other)) {
+            return false;
+        }
+        return Objects.equals(id, other.id)
+                && Objects.equals(profile, other.profile)
+                && Objects.equals(password, other.password)
+                && Objects.equals(roles, other.roles)
+                && Objects.equals(playlists, other.playlists);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, profile, password, roles, playlists);
+    }
+
+    @Override
+    public String toString() {
+        return "User{"
+                + "id=" + id
+                + ", profile=" + profile
+                + ", password=" + (password != null ? "[PROTECTED]" : "null")
+                + ", roles=" + roles
+                + ", playlists=" + playlists
+                + '}';
+    }
+
+    public static final class Builder {
+        private UserId id;
+        private UserProfile profile;
+        private String password;
+        private Set<Role> roles;
+        private List<Playlist> playlists;
+
+        private Builder() {
+        }
+
+        public Builder id(final UserId id) {
+            this.id = id;
+            return this;
+        }
+
+        public Builder profile(final UserProfile profile) {
+            this.profile = profile;
+            return this;
+        }
+
+        public Builder password(final String password) {
+            this.password = password;
+            return this;
+        }
+
+        public Builder roles(final Set<Role> roles) {
+            this.roles = roles;
+            return this;
+        }
+
+        public Builder playlists(final List<Playlist> playlists) {
+            this.playlists = playlists;
+            return this;
+        }
+
+        public User build() {
+            return new User(this);
+        }
     }
 }

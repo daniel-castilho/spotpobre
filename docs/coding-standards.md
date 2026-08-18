@@ -62,7 +62,7 @@ com.spotpobre.backend/
 
 | Layer            | Framework / external imports                                                                                          |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `domain/`        | Pure Java (+ Lombok boilerplate). No Spring, no AWS SDK, no MapStruct, no springdoc, no `org.springframework.web`. Pagination uses pure domain types `PageRequest`/`PageResult` (`domain/common/pagination`). |
+| `domain/`        | Pure Java — no Lombok, no annotation processors, no Spring, no AWS SDK, no MapStruct, no springdoc, no `org.springframework.web`. Entities, value objects, factories, getters, `equals`/`hashCode`/`toString` and small fluent builders are written by hand. Pagination uses pure domain types `PageRequest`/`PageResult` (`domain/common/pagination`). |
 | `application/`   | **Minimal**: Lombok + Spring annotations (`@Component`, `@RequiredArgsConstructor`, `@Transactional`) and the Java stdlib. No `infrastructure.*`, no AWS SDK, no MapStruct/springdoc, no `org.springframework.web`. Password hashing goes through the domain `PasswordHasher` port; authentication goes through the domain `AuthenticationPort` — the Spring Security `AuthenticationManager` is owned by `SpringSecurityAuthenticationAdapter`. |
 | `infrastructure/`| Full stack allowed: Spring Web, Spring Security, AWS SDK (DynamoDB Enhanced, S3), MapStruct, springdoc, jjwt, Redis.     |
 
@@ -110,7 +110,7 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
 | **Adapter (Ports & Adapters)**   | `DynamoDb*RepositoryAdapter`, `S3SongStorageAdapter`, `CdnSongStorageAdapter` | Any technical boundary (DynamoDB, S3, JWT, CDN) — implement the domain port | AWS SDK / framework calls outside `infrastructure/`                         |
 | **Facade (use-case service)**    | `*Service` in `application/<feature>/service`   | Orchestrating a use case across domain ports; keep services thin                     | Putting business rules in the service                                        |
 | **Repository**                   | `*Repository` domain ports                      | Data-access abstraction; lookups driven by GSIs                                      | Raw DynamoDB/S3 calls in services or controllers                             |
-| **Builder**                      | Lombok `@Builder` on domain entities            | Entities with many/optional fields; test fixtures                                    | Telescoping constructors                                                      |
+| **Builder**                      | Hand-written static `X.builder()` returning a private nested `Builder` (the domain layer is Lombok-free) | Entities with many/optional fields; test fixtures                                    | Telescoping constructors                                                      |
 | **Translation (anti-corruption)**| `*PersistenceMapper`, `*ApiMapper`              | Translating between domain ↔ persistence ↔ web models at the boundaries             | Silently sharing one model across layers                                      |
 
 **Cross-cutting (declarative).** Prefer framework annotations over hand-rolled wrappers:

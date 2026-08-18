@@ -6,9 +6,10 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 3** and a strict
-**Clean Architecture**. Its business core is 100% framework-free: the `domain` layer holds pure Java
-entities, rich business rules and outbound port interfaces, which keeps the application scalable,
-testable and independent of external technologies.
+**Clean Architecture**. Its business core is 100% framework-free and 100% framework-free of code-generation
+tools: the `domain` layer holds plain Java entities (no Lombok, no annotation processors), rich business
+rules and outbound port interfaces, which keeps the application scalable, testable and independent of
+external technologies.
 
 ## Table of Contents
 

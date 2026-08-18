@@ -1,23 +1,13 @@
 package com.spotpobre.backend.domain.playlist.model;
 
 import com.spotpobre.backend.domain.song.model.Song;
-import com.spotpobre.backend.domain.song.model.SongId; // Import SongId
+import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.user.model.UserId;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-@Builder
-@Getter
-@Setter
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class Playlist {
 
     public static final int MAX_SONGS = 100;
@@ -27,6 +17,13 @@ public class Playlist {
     private UserId ownerId;
     private List<Song> songs;
 
+    private Playlist(final Builder builder) {
+        this.id = builder.id;
+        this.name = builder.name;
+        this.ownerId = builder.ownerId;
+        this.songs = builder.songs != null ? builder.songs : new ArrayList<>();
+    }
+
     public static Playlist create(final String name, final UserId ownerId) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Playlist name cannot be blank.");
@@ -34,7 +31,36 @@ public class Playlist {
         if (ownerId == null) {
             throw new IllegalArgumentException("Owner ID cannot be null.");
         }
-        return new Playlist(PlaylistId.generate(), name, ownerId, new ArrayList<>());
+        return new Builder()
+                .id(PlaylistId.generate())
+                .name(name)
+                .ownerId(ownerId)
+                .songs(new ArrayList<>())
+                .build();
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public PlaylistId getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public UserId getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(final UserId ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public List<Song> getSongs() {
+        return songs;
     }
 
     public void addSong(final Song song) {
@@ -51,6 +77,68 @@ public class Playlist {
     public void updateDetails(final String newName) {
         if (newName != null && !newName.isBlank()) {
             this.name = newName;
+        }
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Playlist other)) {
+            return false;
+        }
+        return Objects.equals(id, other.id)
+                && Objects.equals(name, other.name)
+                && Objects.equals(ownerId, other.ownerId)
+                && Objects.equals(songs, other.songs);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, ownerId, songs);
+    }
+
+    @Override
+    public String toString() {
+        return "Playlist{id=" + id
+                + ", name='" + name + '\''
+                + ", ownerId=" + ownerId
+                + ", songs=" + songs
+                + '}';
+    }
+
+    public static final class Builder {
+        private PlaylistId id;
+        private String name;
+        private UserId ownerId;
+        private List<Song> songs;
+
+        private Builder() {
+        }
+
+        public Builder id(final PlaylistId id) {
+            this.id = id;
+            return this;
+        }
+
+        public Builder name(final String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder ownerId(final UserId ownerId) {
+            this.ownerId = ownerId;
+            return this;
+        }
+
+        public Builder songs(final List<Song> songs) {
+            this.songs = songs;
+            return this;
+        }
+
+        public Playlist build() {
+            return new Playlist(this);
         }
     }
 }

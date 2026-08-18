@@ -31,6 +31,19 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   `AuthenticationManager` injection and maps to/from Spring Security types. Item cleared from the
   AGENTS technical debt list; `docs/coding-standards.md` updated to drop the
   "`AuthenticationManager` injection is tracked debt" note.
+- **Domain layer is now truly pure Java.** Every Lombok annotation (`@Getter`, `@Setter`,
+  `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor`) has been removed from the six domain
+  entities (`User`, `Artist`, `Album`, `Song`, `Playlist`) and `UserProfile` was already a record.
+  The domain now has zero annotation processors and zero external dependencies on the model side:
+  fields, constructors, getters, `equals`/`hashCode`/`toString` and small fluent builders are
+  written by hand. The public API of each entity is preserved (factory methods, getters, the
+  fluent `X.builder()...build()`, and the four setters the persistence layer actually needs —
+  `User.setId`/`User.setProfile`/etc. are gone; `Song.setId`, `Song.setAlbumId`,
+  `Album.setArtistId`, `Playlist.setOwnerId` remain because the DynamoDB Enhanced mapper or
+  existing tests call them). `UserPersistenceMapper`, `CreateAlbumService`,
+  `*LikeStrategyTest`, `UploadSongServiceTest` and `RemoveSongFromPlaylistServiceTest` keep
+  working unchanged. README "100% framework-free" wording now matches reality. Item cleared
+  from the AGENTS technical debt list; `docs/coding-standards.md` updated.
 - **Argon2id password hashing.** The `SecurityConfig` `PasswordEncoder` bean switched from BCrypt
   to `Argon2PasswordEncoder` (Spring Security defaults for 5.8+); BouncyCastle
   (`bcprov-jdk18on`) added to satisfy Argon2. (Dependency approved by human — AGENTS rule 5.)

@@ -92,7 +92,9 @@ src/main/java/com/spotpobre/backend/
 
 - **`domain`** — `User`, `Artist`, `Album`, `Song`, `SongMetadata`, `SongFile`, `Playlist`,
   `Like`, value objects (`*Id`), `Role`/`EntityType` enums, and the outbound port interfaces
-  (`*Repository`, `SongStoragePort`). Rich business rules live here.
+  (`*Repository`, `SongStoragePort`). Rich business rules live here. Pure Java — no Lombok, no
+  annotation processors; getters, `equals`/`hashCode`/`toString` and small fluent builders are
+  hand-written.
 - **`application`** — use-case implementations such as `CreateArtistService`,
   `ToggleLikeService` (a `LikeStrategy` family: `SongLikeStrategy`, `ArtistLikeStrategy`,
   `PlaylistLikeStrategy` behind `LikeStrategyFactory`). They depend on domain ports only and stay
@@ -155,9 +157,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **Lombok inside `domain/`.** Entities use `@Getter`/`@Setter`/`@Builder` for boilerplate. This
-  contradicts the README's "100% pure Java" claim for the domain layer; the README wording should
-  be corrected or the entities made fully explicit.
 - **No documented production deployment runtime shape.** The env-var contract now lives in
   `application-prod.yaml` (activating profile `prod` fails fast on missing variables); how the
   artifact is shipped/run (container image, platform) is still undocumented.
