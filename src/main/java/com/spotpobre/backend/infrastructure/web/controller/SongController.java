@@ -3,6 +3,8 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
 import com.spotpobre.backend.application.song.port.in.SearchSongsUseCase;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
@@ -37,9 +39,12 @@ public class SongController {
             @RequestParam("query") final String query,
             final Pageable pageable
     ) {
-        final var command = new SearchSongsUseCase.SearchSongsCommand(query, pageable);
-        final Page<Song> songPage = searchSongsUseCase.searchSongs(command);
-        return ResponseEntity.ok(songPage.map(mapper::toSongResponse));
+        final var command = new SearchSongsUseCase.SearchSongsCommand(
+                query,
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
+        );
+        final PageResult<Song> songPage = searchSongsUseCase.searchSongs(command);
+        return ResponseEntity.ok(mapper.toResponsePage(songPage, pageable));
     }
 
     @GetMapping("/{songId}")

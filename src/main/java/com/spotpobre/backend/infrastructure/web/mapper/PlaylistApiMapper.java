@@ -1,10 +1,10 @@
 package com.spotpobre.backend.infrastructure.web.mapper;
 
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase.CreatePlaylistCommand;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreatePlaylistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.PlaylistResponse;
@@ -62,14 +62,14 @@ public class PlaylistApiMapper {
                 .collect(Collectors.toList());
     }
 
-    public PageResponse<PlaylistResponse> toPageResponse(final DynamoDbPage<Playlist> playlistPage) {
+    public PageResponse<PlaylistResponse> toPageResponse(final PageResult<Playlist> playlistPage) {
         List<PlaylistResponse> content = playlistPage.content().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
 
         return new PageResponse<>(
                 content,
-                playlistPage.lastEvaluatedKey()
+                playlistPage.nextPageToken()
         );
     }
 }

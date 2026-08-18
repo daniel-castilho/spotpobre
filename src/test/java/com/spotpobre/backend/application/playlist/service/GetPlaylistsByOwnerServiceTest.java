@@ -1,16 +1,15 @@
 package com.spotpobre.backend.application.playlist.service;
 
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.user.model.UserId;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.util.Collections;
 
@@ -30,18 +29,18 @@ class GetPlaylistsByOwnerServiceTest {
     void shouldGetPlaylistsByOwner() {
         // Given
         UserId ownerId = UserId.generate();
-        Pageable pageable = PageRequest.of(0, 10);
+        PageRequest pageRequest = PageRequest.of(0, 10);
         String token = "next-page-token";
-        DynamoDbPage<Playlist> expectedPage = new DynamoDbPage<>(Collections.emptyList(), token);
+        PageResult<Playlist> expectedPage = new PageResult<>(Collections.emptyList(), 0L, 0, 0, 10, true, false, token);
 
-        when(playlistRepository.findByOwnerId(ownerId, pageable, token)).thenReturn(expectedPage);
+        when(playlistRepository.findByOwnerId(ownerId, pageRequest, token)).thenReturn(expectedPage);
 
         // When
-        DynamoDbPage<Playlist> resultPage = getPlaylistsByOwnerService.getPlaylistsByOwner(ownerId, pageable, token);
+        PageResult<Playlist> resultPage = getPlaylistsByOwnerService.getPlaylistsByOwner(ownerId, pageRequest, token);
 
         // Then
         assertNotNull(resultPage);
         assertEquals(expectedPage, resultPage);
-        verify(playlistRepository, times(1)).findByOwnerId(ownerId, pageable, token);
+        verify(playlistRepository, times(1)).findByOwnerId(ownerId, pageRequest, token);
     }
 }

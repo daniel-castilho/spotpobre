@@ -62,7 +62,7 @@ com.spotpobre.backend/
 
 | Layer            | Framework / external imports                                                                                          |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `domain/`        | Pure Java (+ Lombok boilerplate). No Spring, no AWS SDK, no MapStruct, no springdoc, no `org.springframework.web`. Known leaks tracked in `AGENTS.md` (Spring Data `Page`/`Pageable`, `DynamoDbPage`). |
+| `domain/`        | Pure Java (+ Lombok boilerplate). No Spring, no AWS SDK, no MapStruct, no springdoc, no `org.springframework.web`. Pagination uses pure domain types `PageRequest`/`PageResult` (`domain/common/pagination`). |
 | `application/`   | **Minimal**: Lombok + Spring annotations (`@Component`, `@RequiredArgsConstructor`, `@Transactional`) and the Java stdlib. No `infrastructure.*`, no AWS SDK, no MapStruct/springdoc, no `org.springframework.web`. Password hashing goes through the domain `PasswordHasher` port only; `AuthenticationManager` injection is tracked debt. |
 | `infrastructure/`| Full stack allowed: Spring Web, Spring Security, AWS SDK (DynamoDB Enhanced, S3), MapStruct, springdoc, jjwt, Redis.     |
 
@@ -175,8 +175,10 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
   `web` mappers thin (MapStruct, `componentModel = spring`).
 - **Validation**: `spring-boot-starter-validation` + `jakarta.validation.constraints.*` on request
   DTOs, `@Valid` in controllers. Centralized errors (see § 8).
-- **Pagination**: current flows use Spring Data `Page`/`Pageable` (tracked debt in `AGENTS.md`).
-  Do **not** expand that leak — prefer the domain pagination refactor when touching these flows.
+- **Pagination**: pure domain types `PageRequest`/`PageResult` in `domain/common/pagination` used
+  by ports, use cases and services. Adapters translate to the storage-native mechanism; the web
+  layer adapts results back to the REST shape (Spring `Page` for search, `PageResponse` + cursor
+  for playlists). Controllers may use Spring Data `Pageable`/`Page` at the boundary.
 
 ---
 
@@ -221,8 +223,9 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
   `name-search-index` (Artists), `artistId-index` (Albums), `entityId-index` (Likes reverse).
   When adding a new query shape, add the GSI in `docker-compose`/LocalStack setup and in the
   README setup block, not by scanning.
-- Pagination on DynamoDB uses `DynamoDbCursorHelper` / `DynamoDbPage` — tracked debt: do not widen
-  its reach into `domain/`/`application/`.
+- Pagination on DynamoDB uses `DynamoDbCursorHelper` for the playlist cursor; results are exposed
+  to the core as `PageResult` (domain type). Search index queries use `PageResult` too — never
+  import Spring Data types into `domain/`/`application/`.
 - **Redis** (reactive starter): cache only. TTLs are set per cache (`CacheConfig`, e.g. `userCache`
   5 min). Never store secrets or large blobs. `disableCachingNullValues()`.
 - Schema/tables: created via `awslocal dynamodb create-table ...` in the README setup block
@@ -302,7 +305,7 @@ milestone as current. The hard rule lives in `AGENTS.md` § *Critical rules* (ru
 
 - [ ] No wildcard imports added; 4-space indent; layout follows the layer
 - [ ] `domain/` free of `infrastructure.*`, AWS SDK, MapStruct, springdoc, `springframework.web`
-- [ ] `application/` free of `infrastructure.*`; no new `Page`/`Pageable`/`DynamoDbPage` use
+- [ ] `application/` free of `infrastructure.*`; pagination uses `PageRequest`/`PageResult` only
 - [ ] Injects ports only (DIP); no concrete adapter imported by a service
 - [ ] No `if/else` on `EntityType`; strategy used when behaviour varies by type
 - [ ] Used a house pattern (Strategy/Factory/Adapter/Facade/Repository) instead of raw SDK calls or stringly-typed dispatch

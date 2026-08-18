@@ -7,13 +7,14 @@ import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseC
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase;
 import com.spotpobre.backend.application.playlist.port.in.RemoveSongFromPlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.UpdatePlaylistDetailsUseCase;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.port.UserRepository;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreatePlaylistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.UpdatePlaylistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
@@ -113,7 +114,11 @@ public class PlaylistController {
                 .map(User::getId)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
 
-        final DynamoDbPage<Playlist> playlistPage = getPlaylistsByOwnerUseCase.getPlaylistsByOwner(ownerId, pageable, nextPageToken);
+        final PageResult<Playlist> playlistPage = getPlaylistsByOwnerUseCase.getPlaylistsByOwner(
+                ownerId,
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()),
+                nextPageToken
+        );
         final PageResponse<PlaylistResponse> response = mapper.toPageResponse(playlistPage);
         return ResponseEntity.ok(response);
     }

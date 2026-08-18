@@ -1,15 +1,15 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.PlaylistPersistenceMapper;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbPlaylistRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -39,11 +39,8 @@ public class DynamoDbPlaylistRepositoryAdapter implements PlaylistRepository {
     }
 
     @Override
-    public DynamoDbPage<Playlist> findByOwnerId(final UserId ownerId, final Pageable pageable, final String exclusiveStartKey) {
-        final DynamoDbPage<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findByOwnerId(ownerId.value(), pageable, exclusiveStartKey);
-        return new DynamoDbPage<>(
-                mapper.toDomainList(documentPage.content()),
-                documentPage.lastEvaluatedKey()
-        );
+    public PageResult<Playlist> findByOwnerId(final UserId ownerId, final PageRequest pageRequest, final String exclusiveStartKey) {
+        final PageResult<PlaylistDocument> documentPage = dynamoDbPlaylistRepository.findByOwnerId(ownerId.value(), pageRequest, exclusiveStartKey);
+        return documentPage.map(mapper::toDomain);
     }
 }

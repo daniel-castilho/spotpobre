@@ -81,10 +81,6 @@ src/main/java/com/spotpobre/backend/
 - Persistence (DynamoDB), storage (S3) and streaming are swappable behind ports
   (`AlbumRepository`, `SongStoragePort`, ...).
 
-> Known leak: the playlist pagination model `DynamoDbPage` (an `infrastructure.persistence.kv`
-> type) is currently imported by the playlist domain port and application use cases. Tracked as
-> technical debt in `AGENTS.md` — do not extend it.
-
 ## Requirements
 
 - JDK 21

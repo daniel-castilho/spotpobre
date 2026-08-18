@@ -3,6 +3,8 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
 import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
 import com.spotpobre.backend.domain.artist.model.Artist;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.ArtistResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.ArtistApiMapper;
@@ -41,8 +43,11 @@ public class ArtistController {
             @RequestParam("query") final String query,
             final Pageable pageable
     ) {
-        final var command = new SearchArtistsUseCase.SearchArtistsCommand(query, pageable);
-        final Page<Artist> artistPage = searchArtistsUseCase.searchArtists(command);
-        return ResponseEntity.ok(artistPage.map(mapper::toResponse));
+        final var command = new SearchArtistsUseCase.SearchArtistsCommand(
+                query,
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
+        );
+        final PageResult<Artist> artistPage = searchArtistsUseCase.searchArtists(command);
+        return ResponseEntity.ok(mapper.toResponsePage(artistPage, pageable));
     }
 }

@@ -3,6 +3,8 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.ArtistPersistenceMapper;
 import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbArtistRepository;
@@ -33,8 +35,18 @@ public class DynamoDbArtistRepositoryAdapter implements ArtistRepository {
     }
 
     @Override
-    public Page<Artist> searchByName(final String nameQuery, final Pageable pageable) {
+    public PageResult<Artist> searchByName(final String nameQuery, final PageRequest pageRequest) {
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNumber(), pageRequest.pageSize());
         Page<ArtistDocument> documentPage = dynamoDbArtistRepository.searchByName(nameQuery, pageable);
-        return documentPage.map(mapper::toDomain);
+        return new PageResult<>(
+                documentPage.getContent().stream().map(mapper::toDomain).toList(),
+                documentPage.getTotalElements(),
+                documentPage.getTotalPages(),
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                documentPage.hasNext(),
+                documentPage.hasPrevious(),
+                null
+        );
     }
 }

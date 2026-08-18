@@ -51,6 +51,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 - **README LocalStack setup block corrected** to the real schema (Users GSI on `profile.email`,
   Artists/Songs search indexes on `searchPartition` + `name`/`title`).
 - **README Current State / Roadmap synced** (Argon2id; upload flow exercised end-to-end).
+- **Pagination decoupled from Spring Data.** New pure domain types `PageRequest` / `PageResult`
+  (`domain/common/pagination`) replace `org.springframework.data.domain.Page` / `Pageable` in the
+  domain ports (`ArtistRepository`, `SongMetadataRepository`, `PlaylistRepository`) and the
+  application use cases/services (artist/song search, playlists by owner). Adapters translate
+  between the domain types and the storage-native mechanism; the web layer rebuilds the Spring
+  `Page` for the search endpoints (identical REST shape) and maps `PageResult` to `PageResponse`
+  for playlists. The `DynamoDbPage` infrastructure model was removed — both items cleared from the
+  AGENTS technical debt list.
 
 ### Fixed
 

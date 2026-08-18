@@ -2,6 +2,7 @@ package com.spotpobre.backend.infrastructure.web.mapper;
 
 import com.spotpobre.backend.application.song.port.in.UploadSongUseCase.UploadSongCommand;
 import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
 import com.spotpobre.backend.infrastructure.web.dto.request.UploadSongRequest;
@@ -9,9 +10,13 @@ import com.spotpobre.backend.infrastructure.web.dto.response.SongDetailsResponse
 import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.net.URI;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring", uses = UuidMapper.class)
 public interface SongApiMapper {
@@ -30,4 +35,12 @@ public interface SongApiMapper {
     @Mapping(source = "id", target = "id", qualifiedByName = "songIdToUuid")
     @Mapping(source = "albumId", target = "albumId", qualifiedByName = "albumIdToUuid") // Changed
     SongResponse toSongResponse(final Song song);
+
+    default Page<SongResponse> toResponsePage(final PageResult<Song> page, final Pageable pageable) {
+        return new PageImpl<>(
+                page.content().stream().map(this::toSongResponse).collect(Collectors.toList()),
+                pageable,
+                page.totalElements()
+        );
+    }
 }

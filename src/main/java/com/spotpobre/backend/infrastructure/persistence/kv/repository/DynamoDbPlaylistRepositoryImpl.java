@@ -1,10 +1,10 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper;
-import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -43,12 +43,12 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     }
 
     @Override
-    public DynamoDbPage<PlaylistDocument> findByOwnerId(final UUID ownerId, final Pageable pageable, final String exclusiveStartKey) {
+    public PageResult<PlaylistDocument> findByOwnerId(final UUID ownerId, final PageRequest pageRequest, final String exclusiveStartKey) {
         DynamoDbIndex<PlaylistDocument> index = playlistTable.index("ownerId-index");
 
         QueryEnhancedRequest.Builder requestBuilder = QueryEnhancedRequest.builder()
                 .queryConditional(QueryConditional.keyEqualTo(k -> k.partitionValue(ownerId.toString())))
-                .limit(pageable.getPageSize());
+                .limit(pageRequest.pageSize());
 
         if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
             requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
@@ -57,7 +57,17 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
         Optional<Page<PlaylistDocument>> page = index.query(requestBuilder.build()).stream().findFirst();
         List<PlaylistDocument> documents = page.map(Page::items).orElse(List.of());
         String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
+        boolean hasNext = nextToken != null;
 
-        return new DynamoDbPage<>(documents, nextToken);
+        return new PageResult<>(
+                documents,
+                documents.size(),
+                1,
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                hasNext,
+                pageRequest.pageNumber() > 0,
+                nextToken
+        );
     }
 }

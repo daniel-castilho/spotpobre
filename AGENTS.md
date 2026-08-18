@@ -17,9 +17,8 @@ task.
    Verify before finishing:
    `grep -rEn "^import (com\.spotpobre\.backend\.infrastructure|software\.amazon|io\.awspring|org\.mapstruct|org\.springdoc|org\.springframework\.web)" src/main/java/com/spotpobre/backend/domain src/main/java/com/spotpobre/backend/application`
    must return nothing (matches real imports only, not comments). Known exceptions/leaks are
-   tracked in "Known technical debt" — do **not** silently extend them. Today the only known leak
-   is `com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage` (used by playlist
-   ports/use cases) — flagged below.
+   tracked in "Known technical debt" — do **not** silently extend them. Today there are **no
+   known leaks** in `domain/`/`application/`; any new one must be flagged below.
 2. Business logic lives in `domain` (entities, value objects, rich rules) and `application`
    (use cases). `infrastructure/web` controllers and DTOs are **thin** — no business rules, no
    repository calls from controllers. Controllers depend only on `application/<feature>/port/in`
@@ -121,8 +120,10 @@ src/main/java/com/spotpobre/backend/
 - New endpoints: add the `*UseCase` port in `application`, implement it in `application/service`,
   expose it via a thin controller and a MapStruct mapper, and add an explicit `SecurityConfig`
   rule (rule 7).
-- Pagination: the current search/list flows use Spring Data `Page`/`Pageable` — see "Known
-  technical debt" before expanding their use.
+- Pagination: pure domain types `PageRequest`/`PageResult` in `domain/common/pagination` are used
+  by ports, use cases and services. Adapters translate to/from the storage-native mechanism and the
+  web layer adapts them back to the REST response (Spring `Page` for search, `PageResponse` +
+  cursor token for playlists).
 
 ## Testing
 
@@ -154,17 +155,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **Spring Data types leak into the core.** `org.springframework.data.domain.Page`/`Pageable`
-  appear in domain ports (`ArtistRepository`, `PlaylistRepository`, `SongMetadataRepository`) and
-  application use cases (search/pagination). This couples the business core to Spring Data.
-  Future: introduce a domain-level pagination type and translate it in the adapters.
-- **`DynamoDbPage` leaks into the core.** The pagination model
-  `com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbPage` is imported by the
-  playlist domain port (`PlaylistRepository`) and application use cases
-  (`GetPlaylistsUseCase`, `GetPlaylistsByOwnerUseCase`, `GetPlaylistsByOwnerService`) — the rule-1
-  grep currently matches it. This is the same debt as the Spring Data `Page` item: define a
-  domain-level pagination type and translate it in the adapters. Do **not** add more
-  `infrastructure.*` imports to `domain/`/`application/`.
 - **`AuthenticationManager` (Spring Security) injected directly into `AuthenticationService`.**
   Password hashing itself is already behind the `PasswordHasher` port (adapter
   `SpringSecurityPasswordHasher`, Argon2id). The remaining leak is that authentication is still

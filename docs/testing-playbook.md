@@ -110,7 +110,7 @@ message that never leaks whether the user exists. Pinned by `GlobalExceptionHand
 | **Playlists**              | CRUD owner-scoped; rename/delete/add/remove guards; owner list paginated; non-owner rejected              |
 | **Likes**                  | Toggle on song/artist/playlist; reverse query returns likes for an entity                                  |
 | **Security**               | Every endpoint has an explicit `SecurityConfig` rule; mutating routes never permit-all                     |
-| **Boundaries**             | Rule-1 grep returns no **new** matches; `DynamoDbPage`/`Page`/`Pageable` reach not widened                |
+| **Boundaries**             | Rule-1 grep returns no **new** matches; pagination uses domain `PageRequest`/`PageResult` only |
 | **Stack**                  | No new test dependencies; `./mvnw test` green; `*IT` green after persistence/storage/security changes     |
 
 **Playlist authorization regression (application):** create playlist as owner A → owner B
@@ -161,7 +161,7 @@ grep -rEn "^import (com\.spotpobre\.backend\.infrastructure|software\.amazon|io\
 ```
 
 There is no CI pipeline yet — run the four commands locally and keep them green. The boundary grep
-must return only the tracked `DynamoDbPage` matches (see `AGENTS.md`).
+must return nothing (no tracked leaks in `domain/`/`application/`; see `AGENTS.md`).
 
 ---
 
@@ -208,7 +208,7 @@ Cause (one line)
 - Assert or log plaintext passwords or JWT secrets
 - Weaken an existing assertion to make a change pass
 - Put business rules in controller/IT tests "because the flow failed"
-- Widen `Page`/`Pageable`/`DynamoDbPage` use across the core
+- Widen `Page`/`Pageable`/`DynamoDbPage` use across the core — pagination goes through `PageRequest`/`PageResult`
 
 ---
 

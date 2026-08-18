@@ -1,13 +1,13 @@
 package com.spotpobre.backend.application.artist.port.in;
 
 import com.spotpobre.backend.domain.artist.model.Artist;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 
 public interface SearchArtistsUseCase {
 
-    Page<Artist> searchArtists(final SearchArtistsCommand command);
+    PageResult<Artist> searchArtists(final SearchArtistsCommand command);
 
-    record SearchArtistsCommand(String query, Pageable pageable) {
+    record SearchArtistsCommand(String query, PageRequest pageRequest) {
     }
 }
