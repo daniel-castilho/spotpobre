@@ -1,14 +1,20 @@
 package com.spotpobre.backend;
 
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbSongMetadataRepository;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreatePlaylistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RegisterRequest;
+import com.spotpobre.backend.infrastructure.web.dto.request.UpdatePlaylistRequest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+
+import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -19,16 +25,17 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
     @LocalServerPort
     private int port;
 
-    private String userToken;
+    @Autowired
+    private DynamoDbSongMetadataRepository songMetadataRepository;
 
     @BeforeEach
     void setUp() {
         RestAssured.port = port;
-        userToken = registerAndLoginUser("playlist.user@example.com");
     }
 
     @Test
     void shouldCreateAndListPlaylistSuccessfully() {
+        String userToken = registerAndLoginUser("playlist.happy@example.com");
         CreatePlaylistRequest createPlaylistRequest = new CreatePlaylistRequest("My Awesome Playlist");
 
         given()
@@ -60,6 +67,111 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
         // This test requires a more complex setup and is left as an exercise.
     }
     */
+
+    @Test
+    void shouldRejectPlaylistMutationsByNonOwnerWith403() {
+        // 1. User A (owner) creates a playlist
+        String ownerToken = registerAndLoginUser("playlist.owner@example.com");
+        String playlistId = given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(ContentType.JSON)
+                .body(new CreatePlaylistRequest("My Secure Playlist"))
+                .when()
+                .post("/api/v1/playlists")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("id");
+
+        // Seed a song so add/remove-song operations can be exercised end-to-end
+        UUID songId = UUID.randomUUID();
+        SongDocument songDocument = new SongDocument();
+        songDocument.setId(songId.toString());
+        songDocument.setTitle("Stolen Song");
+        songDocument.setAlbumId(UUID.randomUUID());
+        songDocument.setStorageId("storage-key");
+        songMetadataRepository.save(songDocument);
+
+        // 2. User B (attacker) registers and logs in
+        String attackerToken = registerAndLoginUser("playlist.attacker@example.com");
+
+        // 3. User B tries all four mutations on User A's playlist → expect 403
+        //    Update playlist details
+        given()
+                .header("Authorization", "Bearer " + attackerToken)
+                .contentType(ContentType.JSON)
+                .body(new UpdatePlaylistRequest("Hijacked Name"))
+                .when()
+                .patch("/api/v1/playlists/{playlistId}", playlistId)
+                .then()
+                .statusCode(403)
+                .body("error", equalTo("Forbidden"));
+
+        //    Delete playlist
+        given()
+                .header("Authorization", "Bearer " + attackerToken)
+                .when()
+                .delete("/api/v1/playlists/{playlistId}", playlistId)
+                .then()
+                .statusCode(403)
+                .body("error", equalTo("Forbidden"));
+
+        //    Add song to playlist
+        given()
+                .header("Authorization", "Bearer " + attackerToken)
+                .when()
+                .post("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(403)
+                .body("error", equalTo("Forbidden"));
+
+        //    Remove song from playlist
+        given()
+                .header("Authorization", "Bearer " + attackerToken)
+                .when()
+                .delete("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(403)
+                .body("error", equalTo("Forbidden"));
+
+        // 4. User A can still perform all four operations successfully
+        //    Rename own playlist
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(ContentType.JSON)
+                .body(new UpdatePlaylistRequest("Renamed by Owner"))
+                .when()
+                .patch("/api/v1/playlists/{playlistId}", playlistId)
+                .then()
+                .statusCode(200)
+                .body("name", equalTo("Renamed by Owner"));
+
+        //    Add song to own playlist
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .when()
+                .post("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(200)
+                .body("songs", hasSize(1));
+
+        //    Remove song from own playlist
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .when()
+                .delete("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(200)
+                .body("songs", hasSize(0));
+
+        //    Delete own playlist
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .when()
+                .delete("/api/v1/playlists/{playlistId}", playlistId)
+                .then()
+                .statusCode(204);
+    }
 
     private String registerAndLoginUser(String email) {
         RegisterRequest registerRequest = new RegisterRequest(

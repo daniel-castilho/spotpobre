@@ -1,11 +1,13 @@
 package com.spotpobre.backend.infrastructure.web.mapper;
 
-import com.spotpobre.backend.application.song.port.in.UploadSongUseCase.UploadSongCommand;
-import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
+import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase.InitiateSongUploadResult;
 import com.spotpobre.backend.domain.common.pagination.PageResult;
+import com.spotpobre.backend.domain.song.model.PresignedUploadPart;
+import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
-import com.spotpobre.backend.infrastructure.web.dto.request.UploadSongRequest;
+import com.spotpobre.backend.infrastructure.web.dto.response.InitiateSongUploadResponse;
+import com.spotpobre.backend.infrastructure.web.dto.response.PresignedUploadPartResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.SongDetailsResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse;
 import org.mapstruct.Mapper;
@@ -15,17 +17,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.net.URI;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring", uses = UuidMapper.class)
 public interface SongApiMapper {
-
-    @Mapping(source = "request.title", target = "title")
-    @Mapping(source = "request.albumId", target = "albumId", qualifiedByName = "uuidToAlbumId") // Changed
-    @Mapping(target = "fileContent", ignore = true)
-    @Mapping(target = "contentType", ignore = true)
-    UploadSongCommand toCommand(final UploadSongRequest request);
 
     @Mapping(source = "song.id", target = "id", qualifiedByName = "songIdToUuid")
     @Mapping(source = "song.albumId", target = "albumId", qualifiedByName = "albumIdToUuid") // Changed
@@ -42,5 +37,24 @@ public interface SongApiMapper {
                 pageable,
                 page.totalElements()
         );
+    }
+
+    default InitiateSongUploadResponse toInitiateResponse(final InitiateSongUploadResult result) {
+        final Song song = result.song();
+        final PresignedUploadResult upload = result.upload();
+        return new InitiateSongUploadResponse(
+                song.getId().value(),
+                song.getTitle(),
+                song.getAlbumId().value(),
+                upload.storageKey(),
+                upload.multipartUploadId(),
+                upload.expiresAt(),
+                upload.multipart(),
+                upload.parts().stream().map(this::toPartResponse).toList()
+        );
+    }
+
+    default PresignedUploadPartResponse toPartResponse(final PresignedUploadPart part) {
+        return new PresignedUploadPartResponse(part.partNumber(), part.url());
     }
 }

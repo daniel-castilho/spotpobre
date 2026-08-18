@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
+import com.spotpobre.backend.domain.common.ForbiddenException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -65,6 +67,18 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals("Forbidden", response.getBody().error());
+    }
+
+    @Test
+    void handleForbiddenException_shouldReturn403() {
+        when(request.getRequestURI()).thenReturn("/api/v1/playlists/{id}");
+
+        ResponseEntity<ErrorResponse> response = handler.handleForbidden(
+                new ForbiddenException("You do not have permission to modify this playlist"), request);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals("Forbidden", response.getBody().error());
+        assertEquals("You do not have permission to modify this playlist", response.getBody().message());
     }
 
     @Test

@@ -39,7 +39,7 @@ class GetSongStreamUrlServiceTest {
         URI expectedUri = URI.create("https://example.com/stream");
 
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.of(song));
-        when(songStoragePort.getStreamingUrl(songId)).thenReturn(expectedUri);
+        when(songStoragePort.getStreamingUrl("storage-id")).thenReturn(expectedUri);
 
         // When
         URI streamingUrl = getSongStreamUrlService.getSongStreamUrl(songId);

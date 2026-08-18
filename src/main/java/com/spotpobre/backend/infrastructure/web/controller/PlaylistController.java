@@ -58,10 +58,7 @@ public class PlaylistController {
             @RequestBody @Valid final CreatePlaylistRequest request,
             final Principal principal
     ) {
-        final String userEmail = principal.getName();
-        final UserId ownerId = userRepository.findByProfileEmail(userEmail)
-                .map(User::getId)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+        final UserId ownerId = resolveCurrentUserId(principal);
 
         final var command = mapper.toCommand(request, ownerId);
         final Playlist playlist = createPlaylistUseCase.createPlaylist(command);
@@ -72,11 +69,13 @@ public class PlaylistController {
     @PatchMapping("/playlists/{playlistId}")
     public ResponseEntity<PlaylistResponse> updatePlaylistDetails(
             @PathVariable final UUID playlistId,
-            @RequestBody @Valid final UpdatePlaylistRequest request
+            @RequestBody @Valid final UpdatePlaylistRequest request,
+            final Principal principal
     ) {
         final var command = new UpdatePlaylistDetailsUseCase.UpdatePlaylistDetailsCommand(
                 new PlaylistId(playlistId),
-                request.name()
+                request.name(),
+                resolveCurrentUserId(principal)
         );
         final Playlist updatedPlaylist = updatePlaylistDetailsUseCase.updatePlaylistDetails(command);
         final PlaylistResponse response = mapper.toResponse(updatedPlaylist);
@@ -84,19 +83,27 @@ public class PlaylistController {
     }
 
     @DeleteMapping("/playlists/{playlistId}")
-    public ResponseEntity<Void> deletePlaylist(@PathVariable final UUID playlistId) {
-        deletePlaylistUseCase.deletePlaylist(new PlaylistId(playlistId));
+    public ResponseEntity<Void> deletePlaylist(
+            @PathVariable final UUID playlistId,
+            final Principal principal
+    ) {
+        deletePlaylistUseCase.deletePlaylist(new DeletePlaylistUseCase.DeletePlaylistCommand(
+                new PlaylistId(playlistId),
+                resolveCurrentUserId(principal)
+        ));
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/playlists/{playlistId}/songs/{songId}")
     public ResponseEntity<PlaylistResponse> removeSongFromPlaylist(
             @PathVariable final UUID playlistId,
-            @PathVariable final UUID songId
+            @PathVariable final UUID songId,
+            final Principal principal
     ) {
         final var command = new RemoveSongFromPlaylistUseCase.RemoveSongFromPlaylistCommand(
                 new PlaylistId(playlistId),
-                new SongId(songId)
+                new SongId(songId),
+                resolveCurrentUserId(principal)
         );
         final Playlist updatedPlaylist = removeSongFromPlaylistUseCase.removeSongFromPlaylist(command);
         final PlaylistResponse response = mapper.toResponse(updatedPlaylist);
@@ -109,10 +116,7 @@ public class PlaylistController {
             @RequestParam(required = false) final String nextPageToken,
             final Principal principal
     ) {
-        final String userEmail = principal.getName();
-        final UserId ownerId = userRepository.findByProfileEmail(userEmail)
-                .map(User::getId)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+        final UserId ownerId = resolveCurrentUserId(principal);
 
         final PageResult<Playlist> playlistPage = getPlaylistsByOwnerUseCase.getPlaylistsByOwner(
                 ownerId,
@@ -133,14 +137,22 @@ public class PlaylistController {
     @PostMapping("/playlists/{playlistId}/songs/{songId}")
     public ResponseEntity<PlaylistResponse> addSongToPlaylist(
             @PathVariable final UUID playlistId,
-            @PathVariable final UUID songId
+            @PathVariable final UUID songId,
+            final Principal principal
     ) {
         final var command = new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(
                 new PlaylistId(playlistId),
-                new SongId(songId)
+                new SongId(songId),
+                resolveCurrentUserId(principal)
         );
         final Playlist playlist = addSongToPlaylistUseCase.addSongToPlaylist(command);
         final PlaylistResponse response = mapper.toResponse(playlist);
         return ResponseEntity.ok(response);
+    }
+
+    private UserId resolveCurrentUserId(final Principal principal) {
+        return userRepository.findByProfileEmail(principal.getName())
+                .map(User::getId)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
     }
 }

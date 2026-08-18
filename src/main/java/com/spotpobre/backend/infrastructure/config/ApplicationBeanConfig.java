@@ -24,14 +24,16 @@ import com.spotpobre.backend.application.playlist.service.GetPlaylistDetailsServ
 import com.spotpobre.backend.application.playlist.service.GetPlaylistsByOwnerService;
 import com.spotpobre.backend.application.playlist.service.RemoveSongFromPlaylistService;
 import com.spotpobre.backend.application.playlist.service.UpdatePlaylistDetailsService;
+import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
+import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.application.song.port.in.SearchSongsUseCase;
-import com.spotpobre.backend.application.song.port.in.UploadSongUseCase;
+import com.spotpobre.backend.application.song.service.ConfirmSongUploadService;
 import com.spotpobre.backend.application.song.service.GetSongMetadataService;
 import com.spotpobre.backend.application.song.service.GetSongStreamUrlService;
+import com.spotpobre.backend.application.song.service.InitiateSongUploadService;
 import com.spotpobre.backend.application.song.service.SearchSongsService;
-import com.spotpobre.backend.application.song.service.UploadSongService;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
@@ -101,12 +103,20 @@ public class ApplicationBeanConfig {
 
     // Song Use Cases
     @Bean
-    public UploadSongUseCase uploadSongUseCase(
+    public InitiateSongUploadUseCase initiateSongUploadUseCase(
             final SongStoragePort songStoragePort,
             final SongMetadataRepository songMetadataRepository,
             final AlbumRepository albumRepository
     ) {
-        return new UploadSongService(songStoragePort, songMetadataRepository, albumRepository);
+        return new InitiateSongUploadService(songStoragePort, songMetadataRepository, albumRepository);
+    }
+
+    @Bean
+    public ConfirmSongUploadUseCase confirmSongUploadUseCase(
+            final SongStoragePort songStoragePort,
+            final SongMetadataRepository songMetadataRepository
+    ) {
+        return new ConfirmSongUploadService(songStoragePort, songMetadataRepository);
     }
 
     @Bean

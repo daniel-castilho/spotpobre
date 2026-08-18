@@ -105,8 +105,8 @@ message that never leaks whether the user exists. Pinned by `GlobalExceptionHand
 | **Auth — register**        | Password stored hashed (via `PasswordHasher` → Argon2id); duplicate email rejected; `ROLE_USER` assigned |
 | **Auth — authenticate**    | Valid credentials return JWT; wrong password → 401; unknown user rejected without leaking existence         |
 | **Artists**                | `POST /api/v1/artists` requires `ROLE_ADMIN`; search by name returns only matches                          |
-| **Albums**                 | `POST /api/v1/albums` validates artist existence; `POST /albums/{id}/songs` uploads via `SongStoragePort`  |
-| **Songs**                  | Upload persists metadata; stream URL resolves; search by title matches; missing id → 404                  |
+| **Albums**                 | `POST /api/v1/albums` validates artist existence; `POST /albums/{id}/songs` initiates presigned upload via `SongStoragePort` |
+| **Songs**                  | Initiate persists metadata without file bytes; confirm verifies storage; stream URL resolves; search by title matches; missing id → 404 |
 | **Playlists**              | CRUD owner-scoped; rename/delete/add/remove guards; owner list paginated; non-owner rejected              |
 | **Likes**                  | Toggle on song/artist/playlist; reverse query returns likes for an entity                                  |
 | **Security**               | Every endpoint has an explicit `SecurityConfig` rule; mutating routes never permit-all                     |
@@ -116,8 +116,10 @@ message that never leaks whether the user exists. Pinned by `GlobalExceptionHand
 **Playlist authorization regression (application):** create playlist as owner A → owner B
 rename/delete/add/remove → rejected; owner A still succeeds.
 
-**Song upload regression (application):** `UploadSongServiceTest` — missing album rejected;
-storage port invoked exactly once on success; metadata persisted.
+**Song upload regression (application):** `InitiateSongUploadServiceTest` — missing album
+rejected; unsupported content type rejected before storage; storage port invoked exactly once on
+success; metadata persisted after URL generation. `ConfirmSongUploadServiceTest` — album/storage
+key mismatch rejected without calling storage.
 
 ---
 
@@ -139,7 +141,7 @@ docker-compose up -d        # LocalStack (DynamoDB + S3) + Redis
 | 2  | `POST /api/v1/auth/authenticate`                | 200 with JWT; wrong password → **401**               |
 | 3  | `POST /api/v1/artists` as non-admin             | 403                                                    |
 | 4  | `POST /api/v1/artists` as admin                 | 201; searchable by name                                 |
-| 5  | `POST /api/v1/albums` + `POST /albums/{id}/songs` | 201; song metadata + S3 object present                 |
+| 5  | `POST /api/v1/albums` + initiate + PUT to presigned URL + confirm | 201 then 200; metadata + S3 object; no file body through the API |
 | 6  | `GET /api/v1/songs/{id}`                        | 200 with metadata + stream URL                          |
 | 7  | Playlist CRUD as owner                          | Create → list → rename → add/remove song → delete      |
 | 8  | Playlist mutation as non-owner                  | Rejected (403/404)                                      |

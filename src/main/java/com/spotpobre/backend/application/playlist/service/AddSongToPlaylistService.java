@@ -1,11 +1,11 @@
 package com.spotpobre.backend.application.playlist.service;
 
+import com.spotpobre.backend.application.playlist.PlaylistOwnershipGuard;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
 public class AddSongToPlaylistService implements AddSongToPlaylistUseCase {
@@ -23,6 +23,8 @@ public class AddSongToPlaylistService implements AddSongToPlaylistUseCase {
     public Playlist addSongToPlaylist(final AddSongToPlaylistCommand command) {
         final Playlist playlist = playlistRepository.findById(command.playlistId())
                 .orElseThrow(() -> new IllegalStateException("Playlist not found"));
+
+        PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
         final Song song = songMetadataRepository.findById(command.songId())
                 .orElseThrow(() -> new IllegalStateException("Song not found"));

@@ -90,7 +90,7 @@ src/main/java/com/spotpobre/backend/
     └── web/          Controllers, DTOs and MapStruct API mappers
 ```
 
-- **`domain`** — `User`, `Artist`, `Album`, `Song`, `SongMetadata`, `SongFile`, `Playlist`,
+- **`domain`** — `User`, `Artist`, `Album`, `Song`, `SongMetadata`, `Playlist`,
   `Like`, value objects (`*Id`), `Role`/`EntityType` enums, and the outbound port interfaces
   (`*Repository`, `SongStoragePort`). Rich business rules live here. Pure Java — no Lombok, no
   annotation processors; getters, `equals`/`hashCode`/`toString` and small fluent builders are

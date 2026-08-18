@@ -264,7 +264,8 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`). |
 | | `GET` | `/api/v1/artists/search?query={q}` | Search artists by name. |
 | **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. |
-| | `POST` | `/api/v1/albums/{albumId}/songs` | Upload a new song to an album. |
+| | `POST` | `/api/v1/albums/{albumId}/songs` | Initiate a song upload (`ROLE_ARTIST`): validates type/size and returns short-lived presigned PUT URL(s). Files over 100 MB get S3 multipart part URLs. The API never accepts file bytes. |
+| | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
 | **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
 | | `GET` | `/api/v1/songs/search?query={q}` | Search songs by title. |
 | **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. |
@@ -292,8 +293,12 @@ already implemented on `main`:
   (adapter `SpringSecurityPasswordHasher`), so the hashing library is swappable without touching
   the application layer.
 - **Catalog** — artists, albums and songs aggregates with rich domain models (`Album` aggregate,
-  `SongMetadata`, `SongFile`).
-- **Playlists** — full CRUD with owner authorization, paginated listing and song membership.
+  `Song`, `SongMetadata`).
+- **Song upload** — direct-to-S3 via presigned URLs. `POST /albums/{id}/songs` authorizes the
+  upload (content type, max 500 MB) and returns 10-minute presigned PUT URL(s); the client PUTs
+  the audio to S3; `POST .../songs/{songId}/confirm` verifies the object (or completes multipart).
+  No `byte[]` / `MultipartFile` on the API.
+- **Playlists** — full CRUD with owner authorization (IDOR fixed: authenticated users can only mutate playlists they own; 403 returned for unauthorized access), paginated listing and song membership.
 - **Likes** — adjacency-list persistence with a reverse GSI; implemented as a Strategy family
   (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
 - **Search** — songs by title and artists by name via DynamoDB GSIs.
@@ -306,7 +311,6 @@ already implemented on `main`:
 
 Deliberately not implemented yet (candidate backlog):
 
-- Streaming / chunked song upload (today multipart upload is buffered as a `byte[]`)
 - Pagination on more list endpoints (artists, albums, search results)
 - Rate limiting and per-user quotas
 - Email verification and password recovery

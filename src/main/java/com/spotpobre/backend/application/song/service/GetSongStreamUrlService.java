@@ -22,9 +22,9 @@ public class GetSongStreamUrlService implements GetSongStreamUrlUseCase {
     @Override
     @Transactional(readOnly = true)
     public URI getSongStreamUrl(final SongId songId) {
-        songMetadataRepository.findById(songId)
+        final var song = songMetadataRepository.findById(songId)
                 .orElseThrow(() -> new IllegalStateException("Song not found"));
 
-        return songStoragePort.getStreamingUrl(songId);
+        return songStoragePort.getStreamingUrl(song.getStorageId());
     }
 }

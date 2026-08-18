@@ -9,6 +9,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **Direct-to-S3 song upload via presigned URLs.** The API no longer accepts audio as `byte[]` or
+  `MultipartFile`. `POST /api/v1/albums/{albumId}/songs` (`ROLE_ARTIST`) validates content type
+  and size (max 500 MB), persists song metadata, and returns short-lived (10 min) presigned PUT
+  URL(s). Files larger than 100 MB receive S3 multipart part URLs. The client uploads directly to
+  S3; `POST /api/v1/albums/{albumId}/songs/{songId}/confirm` verifies the object (or completes
+  multipart with part ETags). Domain `SongStoragePort` exposes `generateUploadUrl` /
+  `confirmUpload` with pure value objects (`SongUploadCommand`, `PresignedUploadResult`,
+  `ConfirmUploadCommand`). AWS SDK v2 stays in `S3SongStorageAdapter`.
 - **Twelve-Factor compliance hardening.**
   - Factor 3 — production config contract: `application-prod.yaml` binds every env-specific value
     from env vars and `ProdConfigValidator` (prod profile only) aborts startup with a clear message
@@ -82,6 +90,13 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **Playlist IDOR (Insecure Direct Object Reference) eliminated.** All four playlist mutation
+  use cases (`UpdatePlaylistDetailsService`, `DeletePlaylistService`, `AddSongToPlaylistService`,
+  `RemoveSongFromPlaylistService`) now enforce ownership via `PlaylistOwnershipGuard`, which throws
+  `ForbiddenException` (mapped to HTTP 403) when the authenticated user is not the playlist owner.
+  The `currentUserId` is injected from the security context in every controller mutation path — never
+  trusted from the request body. Covered by unit tests (per-service forbidden/not-found cases) and
+  E2E A-versus-B tests in `PlaylistFlowIT`.
 - **DynamoDB empty-page crashes.** `findByProfileEmail` used `page.items().get(0)` and the
   playlist/like queries used `iterator().next()`; all now stream empty pages safely
   (`IndexOutOfBoundsException` / `NoSuchElementException` on fresh tables).
@@ -98,6 +113,5 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 - Production environment shape (`application-prod.yaml` empty; JWT secret, AWS endpoints and
   Redis host from env vars in real deployments).
-- Streaming / chunked song upload (today multipart upload is buffered as a `byte[]`).
 - Pagination on more list endpoints; rate limiting; email verification and password recovery.
 - CI pipeline and dependency/security gates.

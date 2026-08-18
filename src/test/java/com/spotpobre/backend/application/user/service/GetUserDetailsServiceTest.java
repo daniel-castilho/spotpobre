@@ -9,11 +9,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -37,28 +34,24 @@ class GetUserDetailsServiceTest {
         when(userRepository.findByProfileEmail(email)).thenReturn(Optional.of(domainUser));
 
         // When
-        UserDetails userDetails = getUserDetailsService.loadUserByUsername(email);
+        Optional<User> result = getUserDetailsService.loadUserByUsername(email);
 
         // Then
-        assertNotNull(userDetails);
-        assertEquals(email, userDetails.getUsername());
-        assertEquals("hashedPassword", userDetails.getPassword());
-        assertEquals(2, userDetails.getAuthorities().size());
-        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_USER")));
-        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+        assertTrue(result.isPresent());
+        assertEquals(domainUser, result.get());
     }
 
     @Test
-    void shouldThrowUsernameNotFoundException() {
+    void shouldReturnEmptyWhenUserNotFound() {
         // Given
         String email = "notfound@example.com";
         when(userRepository.findByProfileEmail(email)).thenReturn(Optional.empty());
 
-        // When & Then
-        UsernameNotFoundException exception = assertThrows(UsernameNotFoundException.class, () -> {
-            getUserDetailsService.loadUserByUsername(email);
-        });
+        // When
+        Optional<User> result = getUserDetailsService.loadUserByUsername(email);
 
-        assertEquals("User not found with email: " + email, exception.getMessage());
+        // Then
+        assertTrue(result.isEmpty());
+        verify(userRepository, times(1)).findByProfileEmail(email);
     }
 }

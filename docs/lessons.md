@@ -64,9 +64,10 @@ whenever a non-obvious failure or design decision cost real debugging time.
 - **There is no role-granting endpoint.** The register endpoint only creates default `USER`
   accounts. For role-based flows (admin/artist), seed `UserDocument`s directly in DynamoDB with a
   BCrypt/Argon2id-hashed password (`PasswordHasher`), then authenticate to obtain the token.
-- **Test against the real route.** `POST /api/v1/songs` does not exist; song upload lives at
-  `POST /api/v1/albums/{albumId}/songs` (multipart) and songs belong to albums, not artists. An IT
-  asserting a route/contract that doesn't exist hides missing/renamed endpoints.
+- **Test against the real route.** `POST /api/v1/songs` does not exist; song upload is a two-step
+  flow at `POST /api/v1/albums/{albumId}/songs` (presigned URL) then
+  `POST /api/v1/albums/{albumId}/songs/{songId}/confirm`. Songs belong to albums, not artists.
+  An IT asserting a route/contract that doesn't exist hides missing/renamed endpoints.
 
 ## Operations
 

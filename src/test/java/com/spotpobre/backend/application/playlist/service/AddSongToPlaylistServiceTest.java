@@ -1,7 +1,8 @@
 package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
-import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
+import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -18,8 +19,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AddSongToPlaylistServiceTest {
@@ -35,22 +43,20 @@ class AddSongToPlaylistServiceTest {
 
     @Test
     void shouldAddSongToPlaylistSuccessfully() {
-        // Given
         PlaylistId playlistId = new PlaylistId(UUID.randomUUID());
         SongId songId = new SongId(UUID.randomUUID());
-        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command = new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId);
+        UserId ownerId = UserId.generate();
+        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command =
+                new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId, ownerId);
 
-        Playlist playlist = Playlist.create("My Playlist", UserId.generate());
-        // Corrected: Provide a valid AlbumId when creating the song
+        Playlist playlist = Playlist.create("My Playlist", ownerId);
         Song song = Song.create("My Song", new AlbumId(UUID.randomUUID()), "storage-id");
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(playlist));
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.of(song));
 
-        // When
         Playlist updatedPlaylist = addSongToPlaylistService.addSongToPlaylist(command);
 
-        // Then
         assertNotNull(updatedPlaylist);
         assertEquals(1, updatedPlaylist.getSongs().size());
         assertTrue(updatedPlaylist.getSongs().contains(song));
@@ -58,15 +64,29 @@ class AddSongToPlaylistServiceTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenPlaylistNotFound() {
-        // Given
+    void shouldThrowForbiddenWhenCurrentUserIsNotOwner() {
         PlaylistId playlistId = new PlaylistId(UUID.randomUUID());
         SongId songId = new SongId(UUID.randomUUID());
-        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command = new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId);
+        Playlist playlist = Playlist.create("My Playlist", UserId.generate());
+        when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(playlist));
+
+        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command =
+                new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId, UserId.generate());
+
+        assertThrows(ForbiddenException.class, () -> addSongToPlaylistService.addSongToPlaylist(command));
+        verify(songMetadataRepository, never()).findById(any());
+        verify(playlistRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenPlaylistNotFound() {
+        PlaylistId playlistId = new PlaylistId(UUID.randomUUID());
+        SongId songId = new SongId(UUID.randomUUID());
+        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command =
+                new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId, UserId.generate());
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.empty());
 
-        // When & Then
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
             addSongToPlaylistService.addSongToPlaylist(command);
         });
@@ -78,17 +98,17 @@ class AddSongToPlaylistServiceTest {
 
     @Test
     void shouldThrowExceptionWhenSongNotFound() {
-        // Given
         PlaylistId playlistId = new PlaylistId(UUID.randomUUID());
         SongId songId = new SongId(UUID.randomUUID());
-        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command = new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId);
+        UserId ownerId = UserId.generate();
+        AddSongToPlaylistUseCase.AddSongToPlaylistCommand command =
+                new AddSongToPlaylistUseCase.AddSongToPlaylistCommand(playlistId, songId, ownerId);
 
-        Playlist playlist = Playlist.create("My Playlist", UserId.generate());
+        Playlist playlist = Playlist.create("My Playlist", ownerId);
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(playlist));
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.empty());
 
-        // When & Then
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
             addSongToPlaylistService.addSongToPlaylist(command);
         });

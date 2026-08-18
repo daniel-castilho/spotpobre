@@ -1,7 +1,9 @@
 package com.spotpobre.backend.application.user.port.in;
 
-import org.springframework.security.core.userdetails.UserDetails;
+import com.spotpobre.backend.domain.user.model.User;
+
+import java.util.Optional;
 
 public interface GetUserDetailsUseCase {
-    UserDetails loadUserByUsername(final String username);
+    Optional<User> loadUserByUsername(final String username);
 }
