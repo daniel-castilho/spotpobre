@@ -1,100 +1,136 @@
 # Spotpobre API
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring](https://img.shields.io/badge/Spring_Boot-3-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Spring](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-A Spotpobre API é um serviço de backend para streaming de música, construído com Java 21, Spring Boot 3 e uma rigorosa implementação de **Arquitetura Limpa (Clean Architecture)**. O projeto foi projetado para ser escalável, testável e independente de frameworks e tecnologias externas em seu núcleo de negócio.
+Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 3** and a strict
+**Clean Architecture**. Its business core is 100% framework-free: the `domain` layer holds pure Java
+entities, rich business rules and outbound port interfaces, which keeps the application scalable,
+testable and independent of external technologies.
 
-## Tabela de Conteúdos
+## Table of Contents
 
-- [Core Architecture](#core-architecture)
 - [Tech Stack](#tech-stack)
-- [Test Strategy](#test-strategy)
-- [Pré-requisitos](#pré-requisitos)
-- [Como Rodar Localmente](#como-rodar-localmente)
-- [Endpoints da API e Documentação](#endpoints-da-api-e-documentação)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-
-## Core Architecture
-
-A aplicação segue os princípios da Arquitetura Limpa, dividindo o código em três camadas principais, com uma regra de dependência estrita que aponta sempre para o centro:
-
-1.  **`domain` (Camada de Domínio):** O núcleo da aplicação. Contém as entidades de negócio (`User`, `Artist`, `Album`, `Song`, `Playlist`), a lógica de negócio rica e as interfaces das portas de saída (`UserRepository`, `AlbumRepository`). Esta camada é 100% Java puro, sem dependências de frameworks.
-
-2.  **`application` (Camada de Aplicação):** Orquestra o domínio para executar os casos de uso específicos da aplicação (`CreateAlbumUseCase`, `ToggleLikeUseCase`). Esta camada depende do `domain`, mas permanece ignorante da camada de `infrastructure`.
-
-3.  **`infrastructure` (Camada de Infraestrutura):** A camada mais externa. Contém todos os detalhes tecnológicos: controladores Spring Web, adaptadores de persistência (DynamoDB), adaptadores de armazenamento (S3), configuração de segurança (JWT), etc. Esta camada implementa as portas do domínio e depende da camada de aplicação.
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Getting Started](#getting-started)
+- [Commands](#commands)
+- [Testing](#testing)
+- [API & Documentation](#api--documentation)
+- [Current State](#current-state)
+- [Roadmap](#roadmap)
 
 ## Tech Stack
 
-| Categoria | Tecnologia |
+| Category | Technology |
 | :--- | :--- |
-| **Linguagem & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-3-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
-| **Build & Dependências** | ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white) |
-| **Segurança** | ![Spring Security](https://img.shields.io/badge/Spring_Security-6-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Tokens-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white) |
-| **Banco de Dados** | ![Amazon DynamoDB](https://img.shields.io/badge/Amazon_DynamoDB-4053D6?style=for-the-badge&logo=amazon-dynamodb&logoColor=white) |
-| **Armazenamento & Cache** | ![Amazon S3](https://img.shields.io/badge/Amazon_S3-569A31?style=for-the-badge&logo=amazon-s3&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white) |
-| **Documentação & Mapeamento** | ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) ![MapStruct](https://img.shields.io/badge/MapStruct-333333?style=for-the-badge&logo=mapstruct&logoColor=white) |
-| **Testes** | ![JUnit 5](https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white) ![Mockito](https://img.shields.io/badge/Mockito-D43A2A?style=for-the-badge&logo=mockito&logoColor=white) ![Testcontainers](https://img.shields.io/badge/Testcontainers-262261?style=for-the-badge&logo=testcontainers&logoColor=white) ![RestAssured](https://img.shields.io/badge/REST_Assured-000000?style=for-the-badge&logo=rest-assured&logoColor=white) |
-| **Ambiente de Dev** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![LocalStack](https://img.shields.io/badge/LocalStack-4A90E2?style=for-the-badge&logo=localstack&logoColor=white) |
+| **Language & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
+| **Build & Dependencies** | ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white) (with Maven Wrapper) |
+| **Security** | ![Spring Security](https://img.shields.io/badge/Spring_Security-6-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Tokens-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white) |
+| **Database** | ![Amazon DynamoDB](https://img.shields.io/badge/Amazon_DynamoDB-4053D6?style=for-the-badge&logo=amazon-dynamodb&logoColor=white) |
+| **Storage & Cache** | ![Amazon S3](https://img.shields.io/badge/Amazon_S3-569A31?style=for-the-badge&logo=amazon-s3&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white) |
+| **Documentation & Mapping** | ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) ![MapStruct](https://img.shields.io/badge/MapStruct-333333?style=for-the-badge&logo=mapstruct&logoColor=white) |
+| **Testing** | ![JUnit 5](https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white) ![Mockito](https://img.shields.io/badge/Mockito-D43A2A?style=for-the-badge&logo=mockito&logoColor=white) ![Testcontainers](https://img.shields.io/badge/Testcontainers-262261?style=for-the-badge&logo=testcontainers&logoColor=white) ![RestAssured](https://img.shields.io/badge/REST_Assured-000000?style=for-the-badge&logo=rest-assured&logoColor=white) |
+| **Local Dev** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![LocalStack](https://img.shields.io/badge/LocalStack-4A90E2?style=for-the-badge&logo=localstack&logoColor=white) |
 
-## Test Strategy
+- **Cloud:** `spring-cloud-aws` 3.4 (DynamoDB + S3 starters) and `aws-sdk` DynamoDB Enhanced Client.
+- **Auth:** Spring Security 6 with `jjwt` 0.12 JWT bearer tokens (1h default expiry, `JwtProperties`).
+- **API docs:** `springdoc-openapi` (Swagger UI) + **Actuator** (`health`, `info`, `metrics`).
+- **Logging:** `logstash-logback-encoder` for structured (JSON) logs.
 
-O projeto segue uma estratégia de testes abrangente para garantir a qualidade e a robustez do código:
+## Architecture
 
--   **Testes Unitários:** Focados nas camadas de `domain` e `application`. Eles usam **JUnit 5** e **Mockito** para testar a lógica de negócio e os casos de uso de forma isolada, sem depender de contexto Spring ou I/O.
--   **Testes de Integração "Slice":** Usam **Testcontainers** com **LocalStack** para iniciar um ambiente AWS real (mas local) e testar a integração da camada de persistência com o DynamoDB.
--   **Testes de Ponta a Ponta (E2E):** Usam **RestAssured** para fazer chamadas HTTP reais à aplicação completa, que roda em uma porta aleatória com o Testcontainers. Esses testes validam fluxos de usuário completos, desde o controlador até o banco de dados.
+The application follows the principles of Clean Architecture, split into three layers with a strict
+dependency rule that always points inward:
 
-## Pré-requisitos
+```
+src/main/java/com/spotpobre/backend/
+├── domain/           Entities, value objects & outbound port interfaces (zero framework imports)
+│   ├── album/
+│   ├── artist/
+│   ├── like/         Like entity + Strategy-friendly design (EntityType enum)
+│   ├── playlist/
+│   ├── song/
+│   └── user/
+├── application/      Use-case orchestration (pure Java, depends only on domain ports)
+│   ├── album/
+│   ├── artist/
+│   ├── like/         LikeStrategy + LikeStrategyFactory (song / artist / playlist)
+│   ├── playlist/
+│   ├── song/
+│   └── user/
+└── infrastructure/   Adapters: Spring Web controllers, DynamoDB persistence, S3 storage, JWT
+    ├── config/       Spring beans, security, cache, AWS & properties configuration
+    ├── persistence/  DynamoDB repository adapters (Enhanced Client), entities & mappers
+    ├── security/     JWT filter, UserDetailsService, SecurityConfig
+    ├── storage/      S3 adapter + CDN storage adapter (SongStoragePort)
+    └── web/          REST controllers, DTOs and MapStruct mappers
+```
 
-Antes de começar, certifique-se de ter os seguintes softwares instalados:
+**Boundary rules:**
+
+- `domain/` and `application/` never import `infrastructure` code or cloud/framework adapters
+  (no `infrastructure.*`, `software.amazon.*`, `io.awspring.*`, `org.mapstruct.*`,
+  `org.springdoc.*`, `org.springframework.web.*`).
+- `application/` implements use cases against the domain's outbound port interfaces; it stays
+  ignorant of `infrastructure/`.
+- `infrastructure/` implements the domain ports and depends on `application/` — nothing ever points
+  outward.
+- Persistence (DynamoDB), storage (S3) and streaming are swappable behind ports
+  (`AlbumRepository`, `SongStoragePort`, ...).
+
+> Known leak: the playlist pagination model `DynamoDbPage` (an `infrastructure.persistence.kv`
+> type) is currently imported by the playlist domain port and application use cases. Tracked as
+> technical debt in `AGENTS.md` — do not extend it.
+
+## Requirements
+
 - JDK 21
-- Maven 3.8+
-- Docker e Docker Compose
-- AWS CLI v2
+- Maven 3.8+ (or use the bundled `./mvnw` wrapper)
+- Docker and Docker Compose
+- AWS CLI v2 (optional, only to run the LocalStack setup commands)
 
-## Como Rodar Localmente
+## Getting Started
 
-Siga estes passos para configurar e rodar a aplicação em seu ambiente de desenvolvimento.
+### 1. Start the external services
 
-### 1. Iniciar os Serviços Externos
-
-Com o Docker rodando, inicie o LocalStack (para simular DynamoDB e S3) e o Redis usando o Docker Compose. Na raiz do projeto, execute:
+With Docker running, start LocalStack (to simulate DynamoDB and S3) and Redis via Docker Compose:
 
 ```sh
 docker-compose up -d
 ```
 
-### 2. Configurar o Ambiente LocalStack
+### 2. Configure LocalStack
 
-Com os contêineres rodando, abra um **novo terminal** e execute os seguintes comandos para criar as tabelas do DynamoDB e o bucket S3 necessários.
+In a **new terminal**, run the following commands to create the DynamoDB tables and the S3 bucket
+the application expects.
 
 ```sh
-# (Opcional) Crie um alias para facilitar os comandos
+# (Optional) alias to keep the commands short
 alias awslocal='aws --endpoint-url=http://localhost:4566'
 
-# 1. Criar o bucket S3
+# 1. Create the S3 bucket
 awslocal s3 mb s3://spotpobre-songs
 
-# 2. Criar as tabelas do DynamoDB com seus Índices Secundários Globais (GSIs)
-# Tabela de Usuários (GSI no email)
+# 2. Create the DynamoDB tables with their Global Secondary Indexes (GSIs)
+# Users table (GSI on profile.email)
 awslocal dynamodb create-table \
     --table-name Users \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=email,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=profile.email,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
                 \"IndexName\": \"email-index\",
-                \"KeySchema\": [{\"AttributeName\":\"email\",\"KeyType\":\"HASH\"}],
+                \"KeySchema\": [{\"AttributeName\":\"profile.email\",\"KeyType\":\"HASH\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             }
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Tabela de Playlists (GSI no ownerId)
+# Playlists table (GSI on ownerId)
 awslocal dynamodb create-table \
     --table-name Playlists \
     --attribute-definitions AttributeName=id,AttributeType=S AttributeName=ownerId,AttributeType=S \
@@ -109,29 +145,37 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Tabela de Músicas
+# Songs table (GSI for title search; searchPartition is a constant "SONG")
 awslocal dynamodb create-table \
     --table-name Songs \
-    --attribute-definitions AttributeName=id,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST
-
-# Tabela de Artistas (GSI para busca por nome)
-awslocal dynamodb create-table \
-    --table-name Artists \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=name,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=title,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
-                \"IndexName\": \"name-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"name\",\"KeyType\":\"HASH\"}],
+                \"IndexName\": \"title-search-index\",
+                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"title\",\"KeyType\":\"RANGE\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             }
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Tabela de Álbuns (GSI no artistId)
+# Artists table (GSI for name search; searchPartition is a constant "ARTIST")
+awslocal dynamodb create-table \
+    --table-name Artists \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=name,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --global-secondary-indexes \
+        "[
+            {
+                \"IndexName\": \"name-search-index\",
+                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"name\",\"KeyType\":\"RANGE\"}],
+                \"Projection\": {\"ProjectionType\":\"ALL\"}
+            }
+        ]" \
+    --billing-mode PAY_PER_REQUEST
+
+# Albums table (GSI on artistId)
 awslocal dynamodb create-table \
     --table-name Albums \
     --attribute-definitions AttributeName=id,AttributeType=S AttributeName=artistId,AttributeType=S \
@@ -146,7 +190,7 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Tabela de Likes (Adjacency List com GSI reverso)
+# Likes table (Adjacency List with reverse GSI)
 awslocal dynamodb create-table \
     --table-name Likes \
     --attribute-definitions AttributeName=userId,AttributeType=S AttributeName=entityCompositeKey,AttributeType=S \
@@ -161,83 +205,128 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-echo "Ambiente Localstack configurado com sucesso!"
+echo "LocalStack environment configured successfully!"
 ```
 
-### 3. Rodar a Aplicação
+> Note: the local `application.yaml` already points `aws.dynamodb.endpoint`, `aws.s3.endpoint` and
+> `spring.data.redis` at localhost (`4566` / `6379`), and the `jwt.secret` shown there is a dev-only
+> example. Override it via environment variables in production.
 
-Finalmente, você pode iniciar a aplicação Spring Boot. A forma mais simples é através do Maven:
+### 3. Run the application
 
 ```sh
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
-A aplicação estará disponível em `http://localhost:8080`.
+The application will be available at `http://localhost:8080`.
 
-## Endpoints da API e Documentação
+## Commands
 
-### Documentação Interativa (Swagger UI)
+| Purpose | Command |
+| :--- | :--- |
+| Run the dev server | `./mvnw spring-boot:run` |
+| Run unit + slice tests (fast; Docker only for the adapter test) | `./mvnw test` |
+| Run the E2E tests explicitly (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
+| Production build | `./mvnw clean package` |
+| Start external services (LocalStack + Redis) | `docker-compose up -d` |
+| Stop external services | `docker-compose down` |
 
-Com a aplicação rodando, acesse a documentação interativa da API no seu navegador:
+## Testing
+
+The project follows a comprehensive test strategy to guarantee quality and robustness:
+
+- **Unit tests** — focus on the `domain` and `application` layers. They use **JUnit 5** and
+  **Mockito** to exercise business rules and use cases in isolation, with no Spring context or I/O.
+  Run them with `./mvnw test` (no Docker required).
+- **Slice integration tests** — use **Testcontainers** with **LocalStack** to boot a real AWS
+  environment locally and validate the persistence layer against DynamoDB
+  (`DynamoDbPlaylistRepositoryAdapterTest`).
+- **End-to-end (E2E) tests** — use **RestAssured** against the full application on a random port
+  (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) with Testcontainers. They validate complete
+  user flows from controller to database (`AuthenticationFlowIT`, `ArtistSongFlowIT`,
+  `PlaylistFlowIT`). The `*IT` tests are not picked up by the default surefire run — execute them
+  explicitly with `./mvnw test -Dtest='*IT'`.
+
+## API & Documentation
+
+### Interactive documentation (Swagger UI)
+
+With the application running, open the interactive API docs:
 
 - **URL:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-Lá você poderá ver todos os endpoints, seus DTOs, e testá-los diretamente, incluindo a autenticação JWT.
+Browse every endpoint and DTO and try them out directly, including JWT authentication.
 
-### Resumo dos Endpoints
+### Endpoint summary
 
-| Entidade | Método | Endpoint | Descrição |
+| Entity | Method | Endpoint | Description |
 | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/api/v1/auth/register` | Registra um novo usuário. |
-| | `POST` | `/api/v1/auth/authenticate` | Autentica um usuário e retorna um JWT. |
-| **Users** | `GET` | `/api/v1/users/me` | Retorna o perfil do usuário autenticado. |
-| **Artists** | `POST` | `/api/v1/artists` | Cria um novo artista (requer `ROLE_ADMIN`). |
-| **Albums** | `POST` | `/api/v1/albums` | Cria um novo álbum para um artista. |
-| | `POST` | `/api/v1/albums/{albumId}/songs` | Faz o upload de uma nova música para um álbum. |
-| **Playlists** | `POST` | `/api/v1/playlists` | Cria uma nova playlist. |
-| | `GET` | `/api/v1/me/playlists` | Lista as playlists do usuário autenticado (paginado). |
-| | `GET` | `/api/v1/playlists/{id}` | Retorna os detalhes de uma playlist. |
-| | `PATCH` | `/api/v1/playlists/{id}` | Renomeia uma playlist. |
-| | `DELETE` | `/api/v1/playlists/{id}` | Apaga uma playlist. |
-| | `POST` | `/api/v1/playlists/{id}/songs/{songId}` | Adiciona uma música a uma playlist. |
-| | `DELETE` | `/api/v1/playlists/{id}/songs/{songId}` | Remove uma música de uma playlist. |
-| **Songs** | `GET` | `/api/v1/songs/{id}` | Retorna os metadados e a URL de streaming de uma música. |
-| **Search** | `GET` | `/api/v1/search/songs?query={q}` | Busca músicas por título. |
-| | `GET` | `/api/v1/search/artists?query={q}` | Busca artistas por nome. |
-| **Likes** | `POST` | `/api/v1/likes/toggle` | Curte ou descurte uma música, artista ou playlist. |
+| **Auth** | `POST` | `/api/v1/auth/register` | Register a new user. |
+| | `POST` | `/api/v1/auth/authenticate` | Authenticate a user and return a JWT. |
+| **Users** | `GET` | `/api/v1/users/me` | Return the authenticated user's profile. |
+| **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`). |
+| | `GET` | `/api/v1/artists/search?query={q}` | Search artists by name. |
+| **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. |
+| | `POST` | `/api/v1/albums/{albumId}/songs` | Upload a new song to an album. |
+| **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
+| | `GET` | `/api/v1/songs/search?query={q}` | Search songs by title. |
+| **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. |
+| | `GET` | `/api/v1/me/playlists` | List the authenticated user's playlists (paginated). |
+| | `GET` | `/api/v1/playlists/{playlistId}` | Return a playlist's details. |
+| | `PATCH` | `/api/v1/playlists/{playlistId}` | Rename a playlist. |
+| | `DELETE` | `/api/v1/playlists/{playlistId}` | Delete a playlist. |
+| | `POST` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Add a song to a playlist. |
+| | `DELETE` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Remove a song from a playlist. |
+| **Likes** | `POST` | `/api/v1/likes/toggle` | Like or unlike a song, artist or playlist. |
 
-### Endpoints de Monitoramento (Actuator)
+### Monitoring endpoints (Actuator)
 
-Os seguintes endpoints do Actuator estão expostos:
+- **Health:** `GET /actuator/health`
+- **Metrics:** `GET /actuator/metrics`
+- **Info:** `GET /actuator/info`
 
-- **Saúde da Aplicação:** `GET /actuator/health`
-- **Métricas:** `GET /actuator/metrics`
-- **Informações:** `GET /actuator/info`
+## Current State
 
-## Estrutura do Projeto
+The project is an early-stage backend (`0.0.1-SNAPSHOT`, no tagged releases yet) with the following
+already implemented on `main`:
 
-A estrutura de diretórios reflete a Arquitetura Limpa:
+- **Auth & users** — JWT registration/authentication, `ROLE_ADMIN` / `ROLE_ARTIST` / `ROLE_USER`,
+  profile endpoint. Passwords are hashed with **Argon2id** behind the domain `PasswordHasher` port
+  (adapter `SpringSecurityPasswordHasher`), so the hashing library is swappable without touching
+  the application layer.
+- **Catalog** — artists, albums and songs aggregates with rich domain models (`Album` aggregate,
+  `SongMetadata`, `SongFile`).
+- **Playlists** — full CRUD with owner authorization, paginated listing and song membership.
+- **Likes** — adjacency-list persistence with a reverse GSI; implemented as a Strategy family
+  (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
+- **Search** — songs by title and artists by name via DynamoDB GSIs.
+- **Storage & streaming** — S3-backed `SongStoragePort` with a CDN storage adapter and Redis-backed
+  caching.
+- **Hardening** — global exception handling with structured validation errors and correct DynamoDB
+  pagination (cursor-based, no silent data leaks).
 
-```
-src/main/java/com/spotpobre/backend/
-├── domain/
-│   ├── album/
-│   ├── artist/
-│   │   ├── model/      # Entidades e Value Objects (Artist, ArtistId)
-│   │   └── port/       # Interfaces de repositório (ArtistRepository)
-│   ├── playlist/
-│   └── user/
-├── application/
-│   ├── album/
-│   ├── artist/
-│   │   ├── port/in/    # Interfaces de Casos de Uso (CreateArtistUseCase)
-│   │   └── service/    # Implementações dos Casos de Uso (CreateArtistService)
-│   ├── playlist/
-│   └── user/
-└── infrastructure/
-    ├── config/         # Configuração do Spring, Beans, Segurança, Propriedades
-    ├── persistence/    # Adaptadores de persistência (DynamoDB)
-    ├── security/       # Lógica de JWT, UserDetailsService
-    ├── storage/        # Adaptadores de armazenamento (S3)
-    └── web/            # Controladores, DTOs e Mappers da API
-```
+## Roadmap
+
+Deliberately not implemented yet (candidate backlog):
+
+- Streaming / chunked song upload (today multipart upload is buffered as a `byte[]`)
+- Pagination on more list endpoints (artists, albums, search results)
+- Rate limiting and per-user quotas
+- Email verification and password recovery
+- Production environment shape (`application-prod.yaml` is currently empty; JWT secret, AWS
+  endpoints and Redis host must come from env vars in real deployments)
+- CI pipeline and dependency/security gates
+
+## Documentation
+
+| Document | Purpose |
+| :--- | :--- |
+| `README.md` | This file — overview, architecture, setup and testing |
+| `CHANGELOG.md` | Release history (Keep a Changelog); update policy in `AGENTS.md` rule 8 |
+| `AGENTS.md` | Rules for AI agents and human contributors |
+| `docs/coding-standards.md` | Day-to-day coding standards (Java / Spring Boot / Maven) |
+| `docs/testing-playbook.md` | Testing pyramid, patterns, regression checklist & smoke |
+| `docs/lessons.md` | Durable lessons learned from debugging and design decisions |
+| `docs/twelve-factor.md` | Twelve-Factor App reference & compliance matrix |
+| `docker-compose.yaml` | LocalStack (DynamoDB, S3) + Redis for local development |
+| `pom.xml` | Dependency, build and annotation-processor configuration |

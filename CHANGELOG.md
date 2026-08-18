@@ -1,0 +1,75 @@
+# Changelog
+
+All notable changes to Spotpobre API will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project
+intends to follow [Semantic Versioning](https://semver.org/) starting from its first tag.
+
+## [Unreleased]
+
+### Added
+
+- **Twelve-Factor compliance hardening.**
+  - Factor 3 — production config contract: `application-prod.yaml` binds every env-specific value
+    from env vars and `ProdConfigValidator` (prod profile only) aborts startup with a clear message
+    when a required variable is missing (fail fast; no silent fallback to dev defaults).
+  - Factor 9 — graceful shutdown: `server.shutdown: graceful` with a 30s per-phase timeout.
+  - Factor 11 — structured logging: `logback-spring.xml` wires `logstash-logback-encoder`
+    (JSON lines via `LogstashEncoder` on the `json` profile; default profile keeps the console
+    pattern).
+  - Factor 5 — CI workflow added (`.github/workflows/ci.yml`): unit+slice tests, the `*IT` E2E
+    suite and `./mvnw clean package` on every push/PR.
+- **Password hashing behind a domain port.** New `PasswordHasher` port in
+  `domain/user/port/` implemented by the `SpringSecurityPasswordHasher` adapter
+  (`infrastructure/security/adapter`). The application layer depends only on the port, so the
+  hashing library can be swapped by changing one `PasswordEncoder` bean without touching business
+  code.
+- **Argon2id password hashing.** The `SecurityConfig` `PasswordEncoder` bean switched from BCrypt
+  to `Argon2PasswordEncoder` (Spring Security defaults for 5.8+); BouncyCastle
+  (`bcprov-jdk18on`) added to satisfy Argon2. (Dependency approved by human — AGENTS rule 5.)
+- **`POST /api/v1/albums/{albumId}/songs` secured with `ROLE_ARTIST`.** The song upload route
+  (previously only `authenticated()`) now enforces the artist role explicitly.
+- **Unit tests for album, likes and error handling.** `CreateAlbumServiceTest`,
+  `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`,
+  `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest`, `GlobalExceptionHandlerTest`.
+- **Testcontainers upgraded to 1.21.4** (docker-java in 1.19.x cannot talk to Docker 29+).
+- **`docs/lessons.md`** — durable lessons from the infra/test hardening (Testcontainers, DynamoDB
+  empty-page crashes, GSI drift, context-cache vs. container lifecycle, Argon2/BouncyCastle,
+  authority prefix mismatch, IT authoring).
+- **`CHANGELOG.md`** — this file; update policy copied from the `tycoma` project (AGENTS rule 8,
+  `docs/coding-standards.md` § Doc sync and § 12).
+
+### Changed
+
+- **Authorities standardized on the `ROLE_` prefix.** `SecurityConfig` now uses `hasRole(...)`
+  (matching `GetUserDetailsService`, which builds `ROLE_<NAME>`); JWT claims in
+  `AuthenticationController` carry the same prefix. Previously `hasAuthority(Role.ADMIN.name())`
+  never matched, causing silent 403s.
+- **`GlobalExceptionHandler` 500 log is diagnostic.** It now logs `method`, `URI` and exception
+  class + message alongside the stack trace (`Unexpected error on POST /api/v1/auth/register:
+  ...`).
+- **README LocalStack setup block corrected** to the real schema (Users GSI on `profile.email`,
+  Artists/Songs search indexes on `searchPartition` + `name`/`title`).
+- **README Current State / Roadmap synced** (Argon2id; upload flow exercised end-to-end).
+
+### Fixed
+
+- **DynamoDB empty-page crashes.** `findByProfileEmail` used `page.items().get(0)` and the
+  playlist/like queries used `iterator().next()`; all now stream empty pages safely
+  (`IndexOutOfBoundsException` / `NoSuchElementException` on fresh tables).
+- **Missing `title-search-index` in the Songs schema.** `searchByTitle` queried an index that was
+  neither in `DynamoDbConfig` nor the README setup block; schema, provisioning and docs aligned.
+- **Wrong-password authentication returned 500** (leaking behaviour); now a generic 401 via
+  `BadCredentialsException` handling, pinned by tests.
+- **E2E tests were unrunnable** against the local stack and had drifted from the real contract:
+  reworked `AuthenticationFlowIT` / `ArtistSongFlowIT` / `PlaylistFlowIT` to provision schema in
+  `AbstractIntegrationTest`, share one LocalStack container per JVM, seed role-bearing users
+  directly, and exercise the real upload route.
+
+### Deferred
+
+- Production environment shape (`application-prod.yaml` empty; JWT secret, AWS endpoints and
+  Redis host from env vars in real deployments).
+- Streaming / chunked song upload (today multipart upload is buffered as a `byte[]`).
+- Pagination on more list endpoints; rate limiting; email verification and password recovery.
+- CI pipeline and dependency/security gates.
