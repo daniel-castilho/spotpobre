@@ -12,6 +12,7 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.services.dynamodb.model.Select; // Corrected import
 
 import java.util.Optional;
@@ -78,6 +79,6 @@ public class DynamoDbLikeRepositoryAdapter implements LikeRepository {
                 .select(Select.COUNT)
                 .build();
 
-        return index.query(query).iterator().next().count();
+        return index.query(query).stream().findFirst().map(Page::count).orElse(0);
     }
 }

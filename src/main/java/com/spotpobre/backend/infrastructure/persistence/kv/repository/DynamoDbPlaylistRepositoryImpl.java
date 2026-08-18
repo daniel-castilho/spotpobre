@@ -54,9 +54,9 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
             requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
         }
 
-        Page<PlaylistDocument> page = index.query(requestBuilder.build()).iterator().next();
-        List<PlaylistDocument> documents = page.items();
-        String nextToken = cursorHelper.encodeCursor(page.lastEvaluatedKey());
+        Optional<Page<PlaylistDocument>> page = index.query(requestBuilder.build()).stream().findFirst();
+        List<PlaylistDocument> documents = page.map(Page::items).orElse(List.of());
+        String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
 
         return new DynamoDbPage<>(documents, nextToken);
     }

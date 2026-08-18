@@ -2,6 +2,8 @@ package com.spotpobre.backend.application.user.service;
 
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.domain.user.model.User;
+import com.spotpobre.backend.domain.user.model.UserProfile;
+import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,7 +13,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -25,7 +26,7 @@ class RegisterUserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordHasher passwordHasher;
 
     @InjectMocks
     private RegisterUserService registerUserService;
@@ -39,7 +40,7 @@ class RegisterUserServiceTest {
         String hashedPassword = "hashedPassword123";
 
         when(userRepository.findByProfileEmail(command.email())).thenReturn(Optional.empty());
-        when(passwordEncoder.encode(command.password())).thenReturn(hashedPassword);
+        when(passwordHasher.encode(command.password())).thenReturn(hashedPassword);
 
         // When
         User registeredUser = registerUserService.registerUser(command);
@@ -63,7 +64,8 @@ class RegisterUserServiceTest {
         RegisterUserUseCase.RegisterUserCommand command = new RegisterUserUseCase.RegisterUserCommand(
                 "Existing User", "existing@example.com", "password123", "CA"
         );
-        User existingUser = mock(User.class);
+        User existingUser = User.createWithLocalPassword(
+                new UserProfile("Existing User", "existing@example.com", "CA"), "hashedPassword");
 
         when(userRepository.findByProfileEmail(command.email())).thenReturn(Optional.of(existingUser));
 
@@ -74,7 +76,7 @@ class RegisterUserServiceTest {
 
         assertEquals("User with email " + command.email() + " already exists.", exception.getMessage());
         verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(any());
+        verify(passwordHasher, never()).encode(any());
     }
 
     @ParameterizedTest

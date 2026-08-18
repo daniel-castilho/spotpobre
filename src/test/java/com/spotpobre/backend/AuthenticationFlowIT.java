@@ -1,5 +1,6 @@
 package com.spotpobre.backend;
 
+import com.spotpobre.backend.infrastructure.web.dto.request.AuthenticationRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RegisterRequest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -53,5 +54,38 @@ class AuthenticationFlowIT extends AbstractIntegrationTest {
                 .statusCode(200)
                 .body("email", equalTo("integration.test@example.com"))
                 .body("name", equalTo("Integration Test User"));
+    }
+
+    @Test
+    void shouldReturn401WhenAuthenticatingWithWrongPassword() {
+        // 1. Register a new user
+        RegisterRequest registerRequest = new RegisterRequest(
+                "Integration Wrong Password User",
+                "integration.wrong-password@example.com",
+                "password123",
+                "US"
+        );
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(registerRequest)
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(200);
+
+        // 2. Authenticate with the wrong password -> 401, and never leak user existence
+        AuthenticationRequest wrongPassword = new AuthenticationRequest(
+                "integration.wrong-password@example.com",
+                "wrong-password"
+        );
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(wrongPassword)
+                .when()
+                .post("/api/v1/auth/authenticate")
+                .then()
+                .statusCode(401);
     }
 }

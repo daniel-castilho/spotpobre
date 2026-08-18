@@ -1,9 +1,16 @@
 package com.spotpobre.backend.infrastructure.config;
 
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
-import com.spotpobre.backend.infrastructure.persistence.kv.entity.*;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.AlbumDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserProfileDocument;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
@@ -35,6 +42,7 @@ public class DynamoDbConfig {
                     .build();
 
     @Bean
+    @DependsOn("prodConfigValidator")
     public DynamoDbClient dynamoDbClient() {
         return DynamoDbClient.builder()
                 .credentialsProvider(DefaultCredentialsProvider.create())
@@ -53,7 +61,8 @@ public class DynamoDbConfig {
         return TableSchema.builder(SongDocument.class)
                 .newItemSupplier(SongDocument::new)
                 .addAttribute(String.class, a -> a.name("id").getter(SongDocument::getId).setter(SongDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
-                .addAttribute(String.class, a -> a.name("title").getter(SongDocument::getTitle).setter(SongDocument::setTitle))
+                .addAttribute(String.class, a -> a.name("title").getter(SongDocument::getTitle).setter(SongDocument::setTitle).tags(StaticAttributeTags.secondarySortKey("title-search-index")))
+                .addAttribute(String.class, a -> a.name("searchPartition").getter(doc -> "SONG").setter((doc, val) -> {}).tags(StaticAttributeTags.secondaryPartitionKey("title-search-index")))
                 .addAttribute(String.class, a -> a.name("albumId").getter(song -> song.getAlbumId() != null ? song.getAlbumId().toString() : null).setter((song, albumId) -> song.setAlbumId(albumId != null ? UUID.fromString(albumId) : null)))
                 .addAttribute(String.class, a -> a.name("storageId").getter(SongDocument::getStorageId).setter(SongDocument::setStorageId))
                 .build();

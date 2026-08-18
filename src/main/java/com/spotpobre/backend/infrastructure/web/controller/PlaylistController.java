@@ -1,6 +1,12 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
-import com.spotpobre.backend.application.playlist.port.in.*;
+import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.DeletePlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
+import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase;
+import com.spotpobre.backend.application.playlist.port.in.RemoveSongFromPlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.UpdatePlaylistDetailsUseCase;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -18,7 +24,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 import java.util.UUID;
@@ -34,7 +48,7 @@ public class PlaylistController {
     private final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase;
     private final UpdatePlaylistDetailsUseCase updatePlaylistDetailsUseCase;
     private final RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase;
-    private final DeletePlaylistUseCase deletePlaylistUseCase; // Inject
+    private final DeletePlaylistUseCase deletePlaylistUseCase;
     private final PlaylistApiMapper mapper;
     private final UserRepository userRepository;
 

@@ -1,18 +1,23 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
-import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase; // Import
+import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
 import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.ArtistResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.ArtistApiMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page; // Import
-import org.springframework.data.domain.Pageable; // Import
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/artists")
@@ -20,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class ArtistController {
 
     private final CreateArtistUseCase createArtistUseCase;
-    private final SearchArtistsUseCase searchArtistsUseCase; // Inject
+    private final SearchArtistsUseCase searchArtistsUseCase;
     private final ArtistApiMapper mapper;
 
     @PostMapping

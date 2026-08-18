@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Unit + slice tests
+        run: ./mvnw test
+
+      - name: E2E tests (Docker / Testcontainers)
+        run: ./mvnw test -Dtest='*IT' -DfailIfNoTests=false
+
+      - name: Production build
+        run: ./mvnw clean package

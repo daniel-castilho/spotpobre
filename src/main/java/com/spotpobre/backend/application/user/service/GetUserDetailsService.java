@@ -12,11 +12,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class GetUserDetailsUseCaseService implements GetUserDetailsUseCase {
+public class GetUserDetailsService implements GetUserDetailsUseCase {
 
     private final UserRepository userRepository;
 
-    public GetUserDetailsUseCaseService(final UserRepository userRepository) {
+    public GetUserDetailsService(final UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 

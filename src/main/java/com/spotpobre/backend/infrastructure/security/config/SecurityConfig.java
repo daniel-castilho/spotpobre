@@ -15,7 +15,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -38,17 +38,20 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                        // Admin-only endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasAuthority(Role.ADMIN.name())
+                        // Admin-only endpoints (authorities carry the ROLE_ prefix, see GetUserDetailsService)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasRole(Role.ADMIN.name())
 
-                        // Artist-only endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/v1/songs").hasAuthority(Role.ARTIST.name())
+                        // Artist-only endpoints (upload song)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/albums/*/songs").hasRole(Role.ARTIST.name())
 
                         // Endpoints for any authenticated user
                         .requestMatchers("/api/v1/users/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/albums/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/likes/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/playlists").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/playlists/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/playlists/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/playlists/**").authenticated() // Added rule for DELETE
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/playlists/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/playlists/**").authenticated()
                         .requestMatchers("/api/v1/me/playlists").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/songs/**").authenticated()
@@ -79,6 +82,10 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Argon2id — modern memory-hard hashing (PHC winner). Defaults for Spring Security 5.8+:
+        // salt 16 bytes, hash 32 bytes, parallelism 1, memory 16 MB, iterations 2.
+        // Swapping algorithms only requires changing this bean (the core depends on the
+        // PasswordHasher port, implemented by SpringSecurityPasswordHasher).
+        return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 }

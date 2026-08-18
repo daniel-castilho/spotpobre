@@ -1,0 +1,27 @@
+# Production configuration contract (Twelve-Factor factor 3 — config from environment).
+#
+# Activate with `SPRING_PROFILES_ACTIVE=prod`. Every value below MUST come from the
+# environment (relaxed binding: JWT_SECRET, AWS_REGION, ...). If a required variable is
+# undefined, Spring fails at startup with "Could not resolve placeholder '...'" — the app
+# refuses to boot on missing/insecure configuration instead of silently using dev defaults.
+#
+# Never put real values here and never fall back to the dev defaults in application.yaml.
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+aws:
+  region: ${AWS_REGION}
+  dynamodb:
+    endpoint: ${AWS_DYNAMODB_ENDPOINT}
+  s3:
+    endpoint: ${AWS_S3_ENDPOINT}
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+
+jwt:
+  # Required in prod: a strong, long random secret (e.g. `openssl rand -base64 48`).
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:1h}

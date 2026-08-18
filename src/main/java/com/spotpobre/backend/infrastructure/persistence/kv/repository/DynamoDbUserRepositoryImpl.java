@@ -32,6 +32,8 @@ public class DynamoDbUserRepositoryImpl implements DynamoDbUserRepository {
     @Override
     public Optional<UserDocument> findByProfileEmail(final String email) {
         final QueryConditional queryConditional = QueryConditional.keyEqualTo(Key.builder().partitionValue(email).build());
-        return emailIndex.query(queryConditional).stream().findFirst().map(page -> page.items().get(0));
+        return emailIndex.query(queryConditional).stream()
+                .flatMap(page -> page.items().stream())
+                .findFirst();
     }
 }

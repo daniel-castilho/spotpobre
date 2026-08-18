@@ -3,16 +3,16 @@ package com.spotpobre.backend.application.user.service;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserProfile;
+import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 public class RegisterUserService implements RegisterUserUseCase {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHasher passwordHasher;
 
     @Override
     @Transactional
@@ -31,7 +31,7 @@ public class RegisterUserService implements RegisterUserUseCase {
                 command.country()
         );
 
-        final String hashedPassword = passwordEncoder.encode(command.password());
+        final String hashedPassword = passwordHasher.encode(command.password());
 
         final User newUser = User.createWithLocalPassword(profile, hashedPassword);
 

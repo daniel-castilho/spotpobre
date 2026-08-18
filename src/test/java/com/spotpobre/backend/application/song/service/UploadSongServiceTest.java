@@ -46,7 +46,7 @@ class UploadSongServiceTest {
         );
         String expectedStorageId = "storage-key-12345";
 
-        when(albumRepository.findById(albumId)).thenReturn(Optional.of(mock(Album.class)));
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
         when(songStoragePort.saveSong(any(SongFile.class))).thenReturn(expectedStorageId);
 
         // When
@@ -74,7 +74,7 @@ class UploadSongServiceTest {
                 "Failing Song", albumId, new byte[]{}, "audio/mpeg"
         );
 
-        when(albumRepository.findById(albumId)).thenReturn(Optional.of(mock(Album.class)));
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
         when(songStoragePort.saveSong(any(SongFile.class))).thenThrow(new RuntimeException("S3 is down"));
 
         // When & Then

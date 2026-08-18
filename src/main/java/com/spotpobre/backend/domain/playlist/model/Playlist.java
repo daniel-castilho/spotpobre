@@ -20,6 +20,8 @@ import java.util.List;
 @NoArgsConstructor
 public class Playlist {
 
+    public static final int MAX_SONGS = 100;
+
     private PlaylistId id;
     private String name;
     private UserId ownerId;
@@ -36,8 +38,8 @@ public class Playlist {
     }
 
     public void addSong(final Song song) {
-        if (songs.size() >= 100) {
-            throw new IllegalStateException("Playlist cannot have more than 100 songs.");
+        if (songs.size() >= MAX_SONGS) {
+            throw new IllegalStateException("Playlist cannot have more than " + MAX_SONGS + " songs.");
         }
         this.songs.add(song);
     }

@@ -19,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class GetUserDetailsUseCaseServiceTest {
+class GetUserDetailsServiceTest {
 
     @Mock
     private UserRepository userRepository;
 
     @InjectMocks
-    private GetUserDetailsUseCaseService getUserDetailsUseCaseService;
+    private GetUserDetailsService getUserDetailsService;
 
     @Test
     void shouldLoadUserByUsernameSuccessfully() {
@@ -37,7 +37,7 @@ class GetUserDetailsUseCaseServiceTest {
         when(userRepository.findByProfileEmail(email)).thenReturn(Optional.of(domainUser));
 
         // When
-        UserDetails userDetails = getUserDetailsUseCaseService.loadUserByUsername(email);
+        UserDetails userDetails = getUserDetailsService.loadUserByUsername(email);
 
         // Then
         assertNotNull(userDetails);
@@ -56,7 +56,7 @@ class GetUserDetailsUseCaseServiceTest {
 
         // When & Then
         UsernameNotFoundException exception = assertThrows(UsernameNotFoundException.class, () -> {
-            getUserDetailsUseCaseService.loadUserByUsername(email);
+            getUserDetailsService.loadUserByUsername(email);
         });
 
         assertEquals("User not found with email: " + email, exception.getMessage());

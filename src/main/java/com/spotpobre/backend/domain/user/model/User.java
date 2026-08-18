@@ -20,6 +20,8 @@ import java.util.Set;
 @NoArgsConstructor
 public class User {
 
+    public static final int MAX_PLAYLISTS_PER_USER = 10;
+
     private UserId id;
     private UserProfile profile;
     private String password; // Can be null for OAuth2 users
@@ -46,8 +48,8 @@ public class User {
     }
 
     public Playlist createPlaylist(final String name) {
-        if (playlists.size() >= 10) {
-            throw new IllegalStateException("User cannot have more than 10 playlists.");
+        if (playlists.size() >= MAX_PLAYLISTS_PER_USER) {
+            throw new IllegalStateException("User cannot have more than " + MAX_PLAYLISTS_PER_USER + " playlists.");
         }
         final Playlist playlist = Playlist.create(name, this.id);
         this.playlists.add(playlist);

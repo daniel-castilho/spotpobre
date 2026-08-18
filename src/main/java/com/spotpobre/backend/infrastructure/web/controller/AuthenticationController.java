@@ -36,7 +36,7 @@ public class AuthenticationController {
         final User registeredUser = registerUserUseCase.registerUser(command);
 
         var authorities = registeredUser.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
                 .collect(Collectors.toList());
 
         final UserDetails userDetails = new org.springframework.security.core.userdetails.User(
@@ -55,7 +55,7 @@ public class AuthenticationController {
         final User authenticatedUser = authenticateUserUseCase.authenticate(command);
 
         var authorities = authenticatedUser.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
                 .collect(Collectors.toList());
 
         final UserDetails userDetails = new org.springframework.security.core.userdetails.User(

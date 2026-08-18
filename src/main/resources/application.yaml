@@ -2,10 +2,16 @@ spring:
   application:
     name: Spotpobre
 
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   data:
     redis:
       host: localhost
       port: 6379
+
+server:
+  shutdown: graceful
 
 aws:
   region: us-east-1
