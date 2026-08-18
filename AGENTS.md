@@ -144,8 +144,9 @@ src/main/java/com/spotpobre/backend/
 
 ## Releases
 
-- The project has **no tagged releases yet** (`0.0.1-SNAPSHOT`, 21 commits on `main`). Tag only
-  when a milestone meets its Definition of Done and the human asks for it.
+- The first annotated tag (`v0.1.0`) was created on commit `f0716a7` covering playlist ownership
+  (IDOR fix), presigned S3 upload, and test hardening. Tag only when a milestone meets its
+  Definition of Done and the human asks for it.
 - Before tagging:
   1. Add a high-level entry to `CHANGELOG.md` (or promote the `Unreleased` block to a version).
   2. Update `README.md` → "Current State".

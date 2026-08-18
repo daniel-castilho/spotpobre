@@ -9,6 +9,9 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **`S3SongStorageAdapterTest`** — LocalStack slice test for the song storage adapter:
+  `generateUploadUrl` → direct PUT to presigned URL → `confirmUpload` → `getStreamingUrl` →
+  HTTP GET on signed URL returns 200 with correct `Content-Type` and byte-identical body.
 - **Direct-to-S3 song upload via presigned URLs.** The API no longer accepts audio as `byte[]` or
   `MultipartFile`. `POST /api/v1/albums/{albumId}/songs` (`ROLE_ARTIST`) validates content type
   and size (max 500 MB), persists song metadata, and returns short-lived (10 min) presigned PUT
@@ -97,6 +100,17 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   The `currentUserId` is injected from the security context in every controller mutation path — never
   trusted from the request body. Covered by unit tests (per-service forbidden/not-found cases) and
   E2E A-versus-B tests in `PlaylistFlowIT`.
+- **Song streaming URL now points to the correct S3 object.** `S3SongStorageAdapter.getStreamingUrl`
+  uses the storage key persisted during upload (the UUID stored on the `Song` aggregate as `storageId`),
+  not the `SongId`. `GetSongStreamUrlService` loads the `Song`, extracts `getStorageId()`, and passes
+  it to `SongStoragePort.getStreamingUrl(storageKey)`. Previously the signed URL referenced a non-existent
+  object key. Covered by `S3SongStorageAdapterTest` (LocalStack round-trip: upload → confirm → stream → download)
+  and `ArtistSongFlowIT.shouldDownloadSongContentViaSignedStreamingUrl()` (full E2E: presigned PUT + signed GET
+  returns HTTP 200 with correct `Content-Type: audio/mpeg` and byte-identical body).
+- **RestAssured query-parameter double-encoding bypassed in presigned-URL tests.** The presigned PUT and
+  GET URLs produced by LocalStack 3.x contain query parameters (e.g. `X-Amz-Content-Sha256`) that
+  RestAssured re-encodes (`%` → `%25`), causing signature mismatches. Tests that hit signed URLs now use
+  the JDK `HttpClient` directly, preserving the original encoding.
 - **DynamoDB empty-page crashes.** `findByProfileEmail` used `page.items().get(0)` and the
   playlist/like queries used `iterator().next()`; all now stream empty pages safely
   (`IndexOutOfBoundsException` / `NoSuchElementException` on fresh tables).
