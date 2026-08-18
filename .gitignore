@@ -4,6 +4,14 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Local runtime state (LocalStack volume from docker-compose) ###
+/.localstack/
+
+### Environment files ###
+.env
+.env.*
+!*.env.example
+
 ### STS ###
 .apt_generated
 .classpath
