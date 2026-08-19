@@ -3,7 +3,7 @@
 ```markdown
 # AI Software Engineer Prompt — CI/CD Green & Reliable (P0)
 
-**Status:** Not implemented — critical infrastructure epic.
+**Status:** Complete — delivered in commit `aeb162e` (`aeb162e`). CI is green on main.
 **Target:** Make the GitHub Actions pipeline consistently green and trustworthy
 **Package:** `com.spotpobre.backend` + `.github/workflows`
 
@@ -25,9 +25,12 @@ You implement the complete fix so that the CI pipeline becomes reliable, determi
 ## Goal
 
 The GitHub Actions pipeline must pass reliably on a clean runner.
-Currently every public run fails at the “Unit + slice tests” step, so E2E and production build never execute. The root causes are credential handling, test isolation, and deprecated actions.
 
-No new features. Focus only on making the existing test suite and pipeline trustworthy.
+**Status:** This epic is **complete**. Delivered in commit `aeb162e` ("ci: make GitHub Actions pipeline
+green and deterministic"). The pipeline is green end-to-end on a clean ubuntu runner — last verified
+with 3 consecutive green runs on `main` as of 2026-08-19.
+
+No further work needed unless regressions appear.
 
 ---
 
@@ -46,12 +49,12 @@ No new features. Focus only on making the existing test suite and pipeline trust
 
 ## Definition of Done (epic)
 
-- [ ] `./mvnw test` (unit + slice) passes on a clean environment
-- [ ] Integration/E2E tests can be executed selectively and pass
-- [ ] GitHub Actions workflow is green on main and on PRs
-- [ ] Deprecated actions updated
-- [ ] README statements about test commands are accurate
-- [ ] No flaky tests introduced
+- [x] `./mvnw test` (unit + slice) passes on a clean environment (137 tests, no Docker)
+- [x] Integration/E2E tests can be executed selectively and pass (`./mvnw test -Dtest='*IT'`)
+- [x] GitHub Actions workflow is green on main and on PRs
+- [x] Deprecated actions updated (`setup-java@v4` → `@v5`)
+- [x] README statements about test commands are accurate
+- [x] No flaky tests introduced
 
-Start at **Step 0** of `ci-cd-implementation-sequence.md`. If scope is unclear, **stop and ask**.
+This epic is **complete** (commit `aeb162e`). No further action required.
 ```

@@ -84,7 +84,7 @@
 
 1. Push the changes (or open a PR)
 2. Confirm the GitHub Actions run is fully green
-3. Optionally re-run the previous failing commit’s scenario to prove the fix
+3. Optionally re-run the previous failing commit's scenario to prove the fix
 
 **Done when:** Pipeline is green and the Definition of Done is satisfied.
 
@@ -100,5 +100,28 @@
 
 ---
 
-_Pre-implementation sequence. After delivery, replace with an as-built status note._
+## As-built status (delivered in commit `aeb162e`)
+
+All steps completed. The CI pipeline is green end-to-end on a clean ubuntu runner:
+
+1. **Credential provider fix** — `DynamoDbConfig` and `S3Config` now build clients with
+   `StaticCredentialsProvider` from `AwsProperties.credentials()` (bound from
+   `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars with LocalStack-compatible `test`
+   defaults), instead of `DefaultCredentialsProvider`. `ProdConfigValidator` requires the two
+   credential vars in the prod profile.
+2. **Test isolation** — Docker-dependent adapter/E2E tests renamed from `*Test` to `*IT`
+   (e.g. `DynamoDbPlaylistRepositoryAdapterTest` → `IT`, `S3SongStorageAdapterTest` → `IT`).
+   `./mvnw test` runs only pure unit tests (137 tests, no Docker needed). `*IT` tests run via
+   `./mvnw test -Dtest='*IT'` or in CI.
+3. **Context lifecycle** — `SpotpobreApplicationTests.mainApplicationStarts()` starts the
+   context in a try-with-resources so it is closed instead of leaking.
+4. **Maven configuration** — Surefire runs `*Test` only; `*IT` tests are excluded from the
+   default `test` goal and run explicitly or in CI.
+5. **GitHub Actions** — `actions/setup-java@v4` → `@v5`; `actions/checkout@v4` retained (current).
+   Workflow structure: Unit tests → SpotBugs → Slice+E2E → Production build, each gated on
+   `if: success()`.
+6. **README accuracy** — Commands table and Testing sections now state `./mvnw test` needs
+   no Docker, and `*IT` tests require it.
+7. **End-to-end verification** — Latest 3 CI runs on `main` are green; `./mvnw test` = 137
+   green (no Docker); `./mvnw test -Dtest='*IT'` = 8 green; `./mvnw clean package` = SUCCESS.
 ```

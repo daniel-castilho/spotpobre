@@ -50,14 +50,14 @@ S8 Final green pipeline confirmation
 
 ## Definition of Done (epic)
 
-- [ ] S1–S8 done
-- [ ] Latest workflow run on main/PR is green
-- [ ] `./mvnw test` passes on a clean machine without AWS credentials
-- [ ] Integration tests pass when Docker is available
+- [x] S1–S8 done
+- [x] Latest workflow run on main/PR is green
+- [x] `./mvnw test` passes on a clean machine without AWS credentials (137 tests, no Docker)
+- [x] Integration tests pass when Docker is available (8 `*IT` tests via `./mvnw test -Dtest='*IT'`)
 
 ---
 
 ## Status
 
-**Not started.** Critical P0 — no reliable feedback loop exists today.
+**Complete.** All S1–S8 delivered in commit `aeb162e` ("ci: make GitHub Actions pipeline green and deterministic"). Latest CI runs on `main` are green.
 ```

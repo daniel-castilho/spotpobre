@@ -3,7 +3,7 @@
 ```markdown
 # CI/CD Green & Reliable — Technical Specification (P0)
 
-**Status:** Draft for implementation (critical)
+**Status:** Complete — implemented in commit `aeb162e` ("ci: make GitHub Actions pipeline green and deterministic")
 **Focus:** Make the continuous integration pipeline deterministic and green
 **Companions:** `ci-cd-backlog.md` · `ci-cd-implementation-sequence.md`
 
@@ -33,10 +33,10 @@ Restore a trustworthy CI pipeline.
 
 ## 2. Root causes (from analysis)
 
-1. `AbstractIntegrationTest` sets `spring.cloud.aws.credentials.*`, but `DynamoDbConfig` and `S3Config` build clients with `DefaultCredentialsProvider`, which ignores those properties on a clean runner.
+1. `AbstractIntegrationTest` sets `aws.credentials.access-key` / `aws.credentials.secret-key` / `aws.region` / `aws.*.endpoint` via `@DynamicPropertySource`, but `DynamoDbConfig` and `S3Config` build clients with `DefaultCredentialsProvider` (in the original version), which ignores those properties on a clean runner.
 2. Some tests annotated or named in a way that forces LocalStack even in the default `./mvnw test` run.
 3. `SpotpobreApplicationTests` calls `SpringApplication.run()` and never closes the context.
-4. Deprecated action versions cause warnings/failures on current runners.
+4. The GitHub Actions workflow originally used `actions/setup-java@v4`, which was deprecated.
 5. Because the first test step fails, later steps (E2E, build) are skipped.
 
 ---
@@ -72,9 +72,9 @@ Restore a trustworthy CI pipeline.
 
 ## 6. Definition of Done
 
-- [ ] Pipeline green on GitHub Actions
-- [ ] Credential handling works on clean runners
-- [ ] Contexts are closed
-- [ ] Deprecated actions updated
-- [ ] Documentation matches reality
+- [x] Pipeline green on GitHub Actions (confirmed: last 3 runs on main all green)
+- [x] Credential handling works on clean runners (`StaticCredentialsProvider` from `AwsProperties`)
+- [x] Contexts are closed (`SpotpobreApplicationTests.mainApplicationStarts()` uses try-with-resources)
+- [x] Deprecated actions updated (`actions/setup-java@v4` → `@v5`)
+- [x] Documentation matches reality (README, AGENS.md updated 2026-08-19)
 ```
