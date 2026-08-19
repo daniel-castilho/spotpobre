@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -133,5 +134,61 @@ class InitiateSongUploadServiceTest {
         assertThrows(RuntimeException.class, () -> initiateSongUploadService.initiateUpload(command));
 
         verify(songMetadataRepository, never()).save(any());
+    }
+
+    @Test
+    void initiateUpload_metadataSaveFailure_multipartUploadIsAborted() {
+        AlbumId albumId = new AlbumId(UUID.randomUUID());
+        InitiateSongUploadUseCase.InitiateSongUploadCommand command =
+                new InitiateSongUploadUseCase.InitiateSongUploadCommand(
+                        "Song", albumId, "audio/mpeg", 200L * 1024 * 1024
+                );
+        String storageKey = "storage-key-12345";
+        String multipartUploadId = "upload-id-12345";
+        PresignedUploadResult upload = new PresignedUploadResult(
+                storageKey,
+                multipartUploadId,
+                Instant.now().plusSeconds(600),
+                true,
+                List.of(
+                        new PresignedUploadPart(1, "https://s3.example/part1"),
+                        new PresignedUploadPart(2, "https://s3.example/part2")
+                )
+        );
+
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
+        when(songStoragePort.generateUploadUrl(any(SongUploadCommand.class))).thenReturn(upload);
+        doThrow(new RuntimeException("DynamoDB is down"))
+                .when(songMetadataRepository).save(any(Song.class));
+
+        assertThrows(RuntimeException.class, () -> initiateSongUploadService.initiateUpload(command));
+
+        verify(songStoragePort, times(1)).abortUpload(storageKey, multipartUploadId);
+    }
+
+    @Test
+    void initiateUpload_metadataSaveFailure_singlePartUploadHasNothingToAbort() {
+        AlbumId albumId = new AlbumId(UUID.randomUUID());
+        InitiateSongUploadUseCase.InitiateSongUploadCommand command =
+                new InitiateSongUploadUseCase.InitiateSongUploadCommand(
+                        "Song", albumId, "audio/mpeg", 1024L
+                );
+        String storageKey = "storage-key-12345";
+        PresignedUploadResult upload = new PresignedUploadResult(
+                storageKey,
+                null,
+                Instant.now().plusSeconds(600),
+                false,
+                List.of(new PresignedUploadPart(1, "https://s3.example/put"))
+        );
+
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
+        when(songStoragePort.generateUploadUrl(any(SongUploadCommand.class))).thenReturn(upload);
+        doThrow(new RuntimeException("DynamoDB is down"))
+                .when(songMetadataRepository).save(any(Song.class));
+
+        assertThrows(RuntimeException.class, () -> initiateSongUploadService.initiateUpload(command));
+
+        verify(songStoragePort, never()).abortUpload(any(), any());
     }
 }

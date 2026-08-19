@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 import com.spotpobre.backend.domain.common.pagination.PageRequest;
 import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
+import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.user.model.UserId;
@@ -28,14 +29,26 @@ public class DynamoDbPlaylistRepositoryAdapter implements PlaylistRepository {
     }
 
     @Override
-    public void save(final Playlist playlist) {
-        final PlaylistDocument document = mapper.toDocument(playlist);
-        dynamoDbPlaylistRepository.save(document);
+    public void create(final Playlist playlist) {
+        dynamoDbPlaylistRepository.create(mapper.toDocument(playlist));
+    }
+
+    @Override
+    public void update(final Playlist playlist) {
+        final boolean updated = dynamoDbPlaylistRepository.update(mapper.toDocument(playlist));
+        if (!updated) {
+            throw new PlaylistConcurrentModificationException(playlist.getId());
+        }
     }
 
     @Override
     public void deleteById(final PlaylistId id) {
         dynamoDbPlaylistRepository.deleteById(id.value());
+    }
+
+    @Override
+    public long countByOwnerId(final UserId ownerId) {
+        return dynamoDbPlaylistRepository.countByOwnerId(ownerId.value());
     }
 
     @Override

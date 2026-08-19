@@ -4,7 +4,6 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
-import java.util.List;
 import java.util.UUID;
 
 @DynamoDbBean
@@ -13,7 +12,6 @@ public class AlbumDocument {
     private String name;
     private UUID artistId;
     private String coverArtUrl;
-    private List<SongDocument> songs;
 
     @DynamoDbPartitionKey
     public String getId() { return id; }
@@ -28,7 +26,4 @@ public class AlbumDocument {
 
     public String getCoverArtUrl() { return coverArtUrl; }
     public void setCoverArtUrl(String coverArtUrl) { this.coverArtUrl = coverArtUrl; }
-
-    public List<SongDocument> getSongs() { return songs; }
-    public void setSongs(List<SongDocument> songs) { this.songs = songs; }
 }

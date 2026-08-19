@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public interface DynamoDbUserRepository {
     UserDocument save(final UserDocument userDocument);
+    boolean registerNew(final UserDocument userDocument);
     Optional<UserDocument> findById(final UUID id);
     Optional<UserDocument> findByProfileEmail(final String email);
 }

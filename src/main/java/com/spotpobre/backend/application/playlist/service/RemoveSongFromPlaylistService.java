@@ -21,7 +21,7 @@ public class RemoveSongFromPlaylistService implements RemoveSongFromPlaylistUseC
         PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
         playlist.removeSong(command.songId());
-        playlistRepository.save(playlist);
+        playlistRepository.update(playlist);
         return playlist;
     }
 }

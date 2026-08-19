@@ -7,9 +7,12 @@ import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongUploadCommand;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
-import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class InitiateSongUploadService implements InitiateSongUploadUseCase {
+
+    private static final Logger logger = LoggerFactory.getLogger(InitiateSongUploadService.class);
 
     private final SongStoragePort songStoragePort;
     private final SongMetadataRepository songMetadataRepository;
@@ -26,7 +29,6 @@ public class InitiateSongUploadService implements InitiateSongUploadUseCase {
     }
 
     @Override
-    @Transactional
     public InitiateSongUploadResult initiateUpload(final InitiateSongUploadCommand command) {
         albumRepository.findById(command.albumId())
                 .orElseThrow(() -> new IllegalArgumentException("Album not found: " + command.albumId()));
@@ -38,7 +40,21 @@ public class InitiateSongUploadService implements InitiateSongUploadUseCase {
         final PresignedUploadResult upload = songStoragePort.generateUploadUrl(uploadCommand);
 
         final Song song = Song.create(command.title(), command.albumId(), upload.storageKey());
-        songMetadataRepository.save(song);
+
+        try {
+            songMetadataRepository.save(song);
+        } catch (RuntimeException e) {
+            // S3 and DynamoDB are separate systems: if metadata persistence fails after a multipart
+            // upload was created in S3, abort it so no orphan upload is left behind. Single-part
+            // presigned URLs have nothing to clean up. The failure is rethrown so the caller sees it.
+            if (upload.multipartUploadId() != null) {
+                songStoragePort.abortUpload(upload.storageKey(), upload.multipartUploadId());
+            } else {
+                logger.warn("Metadata save failed after generating presigned upload for key {}; " +
+                        "no object was created yet, nothing to abort.", upload.storageKey());
+            }
+            throw e;
+        }
 
         return new InitiateSongUploadResult(song, upload);
     }

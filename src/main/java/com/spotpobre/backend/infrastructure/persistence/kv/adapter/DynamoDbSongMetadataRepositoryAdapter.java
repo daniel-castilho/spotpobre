@@ -1,5 +1,6 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 
+import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.common.pagination.PageRequest;
 import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -32,6 +33,12 @@ public class DynamoDbSongMetadataRepositoryAdapter implements SongMetadataReposi
     public void save(final Song song) {
         final SongDocument document = mapper.toDocument(song);
         dynamoDbSongMetadataRepository.save(document);
+    }
+
+    @Override
+    public PageResult<Song> findByAlbumId(final AlbumId albumId, final PageRequest pageRequest) {
+        return dynamoDbSongMetadataRepository.findByAlbumId(albumId.value(), pageRequest)
+                .map(mapper::toDomain);
     }
 
     @Override

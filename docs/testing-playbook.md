@@ -16,7 +16,8 @@ Sources: `AGENTS.md` · `docs/coding-standards.md` · colocated `*Test` / `*IT` 
 2. **Application unit** — use-case services with **mocked domain ports only**; happy path +
    rejection + ownership/authorization behaviour.
 3. **Slice integration (selective)** — real DynamoDB/S3 adapters behind Testcontainers +
-   LocalStack (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`). Requires Docker;
+   LocalStack (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`,
+   `PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT`). Requires Docker;
    run explicitly as `*IT`.
 4. **End-to-end** — RestAssured against the full app on `RANDOM_PORT` (`AuthenticationFlowIT`,
    `ArtistSongFlowIT`, `PlaylistFlowIT`). Requires Docker; run explicitly.
@@ -79,7 +80,8 @@ assert against `infrastructure` internals from `domain`/`application` tests.
 | Likes            | `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`, `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest` | Toggle add/remove; strategy dispatch; entity-existence guards |
 | Error mapping    | `infrastructure/web/exception/GlobalExceptionHandlerTest`          | 400/401/403/500 mapping, incl. `BadCredentialsException` → 401 |
 | Domain models    | `domain/<feature>/model/*Test`                                     | Entity invariants (no mocks)                              |
-| Slice (DynamoDB) | `infrastructure/.../DynamoDbPlaylistRepositoryAdapterIT`         | Real adapter against LocalStack                           |
+| Slice (DynamoDB) | `infrastructure/.../DynamoDbPlaylistRepositoryAdapterIT`, `PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT` | Real adapter + data-consistency invariants against LocalStack |
+| Slice (S3)       | `infrastructure/.../S3SongStorageAdapterIT`                          | Full storage round-trip against LocalStack                   |
 | E2E flows        | `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT`       | Full HTTP flows on `RANDOM_PORT`                          |
 
 When you change behaviour covered above, **extend the existing file** instead of inventing a

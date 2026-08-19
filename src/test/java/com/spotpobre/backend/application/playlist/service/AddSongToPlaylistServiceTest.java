@@ -60,7 +60,7 @@ class AddSongToPlaylistServiceTest {
         assertNotNull(updatedPlaylist);
         assertEquals(1, updatedPlaylist.getSongs().size());
         assertTrue(updatedPlaylist.getSongs().contains(song));
-        verify(playlistRepository, times(1)).save(playlist);
+        verify(playlistRepository, times(1)).update(playlist);
     }
 
     @Test
@@ -75,7 +75,7 @@ class AddSongToPlaylistServiceTest {
 
         assertThrows(ForbiddenException.class, () -> addSongToPlaylistService.addSongToPlaylist(command));
         verify(songMetadataRepository, never()).findById(any());
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).update(any());
     }
 
     @Test
@@ -93,7 +93,7 @@ class AddSongToPlaylistServiceTest {
 
         assertEquals("Playlist not found", exception.getMessage());
         verify(songMetadataRepository, never()).findById(any());
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).update(any());
     }
 
     @Test
@@ -114,6 +114,6 @@ class AddSongToPlaylistServiceTest {
         });
 
         assertEquals("Song not found", exception.getMessage());
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).update(any());
     }
 }

@@ -5,6 +5,47 @@ All notable changes to Spotpobre API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project
 intends to follow [Semantic Versioning](https://semver.org/) starting from its first tag.
 
+## [0.3.0] - 2026-08-18
+
+### Added
+
+- **Data consistency & modelling guarantees** (`docs/data-model-decisions.md` records the
+  single-source-of-truth decisions):
+  - Playlists live only in the `Playlists` table (`ownerId-index`); the embedded `playlists`
+    collection was removed from the `User` aggregate and the `Users` table.
+  - Album songs live only in the `Songs` table; new `albumId-index` GSI + `findByAlbumId` on
+    `SongMetadataRepository` replace the removed embedded `Album.songs`.
+  - `MAX_PLAYLISTS_PER_USER = 10` is enforced persistently (`PlaylistRepository.countByOwnerId`)
+    before creating a playlist.
+  - User registration is atomic against duplicate emails: `UserRepository.createIfEmailNotExists`
+    writes the user + an email marker in a single `TransactWriteItems` against the new `UserEmails`
+    table (`attribute_not_exists`), with retry on transient transaction conflicts.
+  - Playlist mutations use optimistic locking: `Playlist` carries a `version`; `create`/`update`
+    use conditional writes (`attribute_not_exists(id)` / `version = :expected`) and a stale write
+    throws `PlaylistConcurrentModificationException`.
+  - `SongStoragePort.abortUpload` removes an orphan S3 multipart upload when metadata persistence
+    fails after `generateUploadUrl`; `@Transactional` removed from the song upload services (it
+    gave a false sense of atomicity across S3 and DynamoDB).
+- **New integration tests (LocalStack):** `PlaylistLimitAndConcurrencyIT` (10th succeeds / 11th
+  rejected, stale concurrent update rejected), `EmailUniquenessIT` (duplicate email rejected,
+  only one concurrent registration with the same email succeeds), `AlbumSongConsistencyIT`
+  (album song query reflects the uploaded song).
+
+### Changed
+
+- **Data model:** `Users` and `Albums` tables no longer store nested collections; `Songs` gained
+  the `albumId-index` GSI; new `UserEmails` table. README LocalStack setup block and
+  `AbstractIntegrationTest` provisioning updated to match.
+- **`PlaylistRepository`** now exposes `create` / `update` / `countByOwnerId` instead of `save`.
+- **`RegisterUserService`** no longer pre-checks the email with a non-atomic read; it relies on
+  the atomic `createIfEmailNotExists` write.
+
+### Deferred
+
+- Production deployment runtime shape (how the artifact is shipped/run — container image, platform).
+- E2E tests not yet wired into the build via the failsafe plugin (they run via
+  `./mvnw test -Dtest='*IT'` and in the CI workflow).
+
 ## [0.2.0] - 2026-08-19
 
 ### Added

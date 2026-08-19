@@ -31,6 +31,11 @@ public class DynamoDbUserRepositoryAdapter implements UserRepository {
     }
 
     @Override
+    public boolean createIfEmailNotExists(final User user) {
+        return dynamoDbUserRepository.registerNew(mapper.toDocument(user));
+    }
+
+    @Override
     public void save(final User user) {
         final UserDocument document = mapper.toDocument(user);
         dynamoDbUserRepository.save(document);

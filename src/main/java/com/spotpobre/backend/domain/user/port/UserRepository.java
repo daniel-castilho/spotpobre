@@ -8,5 +8,6 @@ import java.util.Optional;
 public interface UserRepository {
     Optional<User> findById(final UserId id);
     Optional<User> findByProfileEmail(final String email);
+    boolean createIfEmailNotExists(final User user);
     void save(final User user);
 }

@@ -1,9 +1,7 @@
 package com.spotpobre.backend.domain.album.model;
 
 import com.spotpobre.backend.domain.artist.model.ArtistId;
-import com.spotpobre.backend.domain.song.model.Song;
 
-import java.util.List;
 import java.util.Objects;
 
 public class Album {
@@ -12,14 +10,12 @@ public class Album {
     private ArtistId artistId;
     private String name;
     private String coverArtUrl;
-    private List<Song> songs;
 
     private Album(final Builder builder) {
         this.id = builder.id;
         this.artistId = builder.artistId;
         this.name = builder.name;
         this.coverArtUrl = builder.coverArtUrl;
-        this.songs = builder.songs;
     }
 
     public static Builder builder() {
@@ -46,10 +42,6 @@ public class Album {
         return coverArtUrl;
     }
 
-    public List<Song> getSongs() {
-        return songs;
-    }
-
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -61,13 +53,12 @@ public class Album {
         return Objects.equals(id, other.id)
                 && Objects.equals(artistId, other.artistId)
                 && Objects.equals(name, other.name)
-                && Objects.equals(coverArtUrl, other.coverArtUrl)
-                && Objects.equals(songs, other.songs);
+                && Objects.equals(coverArtUrl, other.coverArtUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, artistId, name, coverArtUrl, songs);
+        return Objects.hash(id, artistId, name, coverArtUrl);
     }
 
     @Override
@@ -76,7 +67,6 @@ public class Album {
                 + ", artistId=" + artistId
                 + ", name='" + name + '\''
                 + ", coverArtUrl='" + coverArtUrl + '\''
-                + ", songs=" + songs
                 + '}';
     }
 
@@ -85,7 +75,6 @@ public class Album {
         private ArtistId artistId;
         private String name;
         private String coverArtUrl;
-        private List<Song> songs;
 
         private Builder() {
         }
@@ -107,11 +96,6 @@ public class Album {
 
         public Builder coverArtUrl(final String coverArtUrl) {
             this.coverArtUrl = coverArtUrl;
-            return this;
-        }
-
-        public Builder songs(final List<Song> songs) {
-            this.songs = songs;
             return this;
         }
 

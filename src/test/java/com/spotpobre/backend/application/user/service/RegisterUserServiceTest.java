@@ -2,7 +2,6 @@ package com.spotpobre.backend.application.user.service;
 
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.domain.user.model.User;
-import com.spotpobre.backend.domain.user.model.UserProfile;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -13,8 +12,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -39,8 +36,8 @@ class RegisterUserServiceTest {
         );
         String hashedPassword = "hashedPassword123";
 
-        when(userRepository.findByProfileEmail(command.email())).thenReturn(Optional.empty());
         when(passwordHasher.encode(command.password())).thenReturn(hashedPassword);
+        when(userRepository.createIfEmailNotExists(any(User.class))).thenReturn(true);
 
         // When
         User registeredUser = registerUserService.registerUser(command);
@@ -51,11 +48,12 @@ class RegisterUserServiceTest {
         assertEquals(hashedPassword, registeredUser.getPassword());
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).save(userCaptor.capture());
-        
+        verify(userRepository, times(1)).createIfEmailNotExists(userCaptor.capture());
+
         User savedUser = userCaptor.getValue();
         assertEquals(hashedPassword, savedUser.getPassword());
         assertTrue(savedUser.getRoles().contains(com.spotpobre.backend.domain.user.model.Role.USER));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -64,10 +62,9 @@ class RegisterUserServiceTest {
         RegisterUserUseCase.RegisterUserCommand command = new RegisterUserUseCase.RegisterUserCommand(
                 "Existing User", "existing@example.com", "password123", "CA"
         );
-        User existingUser = User.createWithLocalPassword(
-                new UserProfile("Existing User", "existing@example.com", "CA"), "hashedPassword");
 
-        when(userRepository.findByProfileEmail(command.email())).thenReturn(Optional.of(existingUser));
+        when(passwordHasher.encode(command.password())).thenReturn("hashedPassword123");
+        when(userRepository.createIfEmailNotExists(any(User.class))).thenReturn(false);
 
         // When & Then
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
@@ -76,7 +73,7 @@ class RegisterUserServiceTest {
 
         assertEquals("User with email " + command.email() + " already exists.", exception.getMessage());
         verify(userRepository, never()).save(any());
-        verify(passwordHasher, never()).encode(any());
+        verify(passwordHasher, times(1)).encode(command.password());
     }
 
     @ParameterizedTest

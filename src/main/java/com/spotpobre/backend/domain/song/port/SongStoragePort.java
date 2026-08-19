@@ -12,5 +12,7 @@ public interface SongStoragePort {
 
     void confirmUpload(ConfirmUploadCommand command);
 
+    void abortUpload(String storageKey, String multipartUploadId);
+
     URI getStreamingUrl(String storageKey);
 }

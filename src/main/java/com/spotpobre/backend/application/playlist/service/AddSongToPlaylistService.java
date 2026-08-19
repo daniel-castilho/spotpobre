@@ -31,7 +31,7 @@ public class AddSongToPlaylistService implements AddSongToPlaylistUseCase {
 
         playlist.addSong(song);
 
-        playlistRepository.save(playlist);
+        playlistRepository.update(playlist);
 
         return playlist;
     }

@@ -1,5 +1,7 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,30 @@ public class DynamoDbSongMetadataRepositoryImpl implements DynamoDbSongMetadataR
     @Override
     public Optional<SongDocument> findById(final UUID id) {
         return Optional.ofNullable(songTable.getItem(Key.builder().partitionValue(id.toString()).build()));
+    }
+
+    @Override
+    public PageResult<SongDocument> findByAlbumId(final UUID albumId, final PageRequest pageRequest) {
+        DynamoDbIndex<SongDocument> index = songTable.index("albumId-index");
+        QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(k -> k.partitionValue(albumId.toString())))
+                .limit(pageRequest.pageSize())
+                .build();
+
+        List<SongDocument> documents = index.query(queryRequest).stream()
+                .flatMap(page -> page.items().stream())
+                .collect(Collectors.toList());
+
+        return new PageResult<>(
+                documents,
+                documents.size(),
+                1,
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                false,
+                pageRequest.pageNumber() > 0,
+                null
+        );
     }
 
     @Override

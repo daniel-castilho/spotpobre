@@ -5,7 +5,7 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.AlbumDocument;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring", uses = {SongPersistenceMapper.class, UuidMapper.class})
+@Mapper(componentModel = "spring", uses = UuidMapper.class)
 public interface AlbumPersistenceMapper {
 
     @Mapping(source = "id", target = "id", qualifiedByName = "stringToAlbumId")

@@ -3,10 +3,8 @@ package com.spotpobre.backend.infrastructure.persistence.kv.entity;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 
 @DynamoDbBean
 public class UserDocument {
@@ -14,7 +12,6 @@ public class UserDocument {
     private UserProfileDocument profile;
     private String password;
     private Set<String> roles;
-    private List<PlaylistDocument> playlists;
 
     public UserDocument() {
     }
@@ -24,7 +21,6 @@ public class UserDocument {
         this.profile = builder.profile;
         this.password = builder.password;
         this.roles = builder.roles;
-        this.playlists = builder.playlists;
     }
 
     @DynamoDbPartitionKey
@@ -60,14 +56,6 @@ public class UserDocument {
         this.roles = roles;
     }
 
-    public List<PlaylistDocument> getPlaylists() {
-        return playlists;
-    }
-
-    public void setPlaylists(List<PlaylistDocument> playlists) {
-        this.playlists = playlists;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -76,13 +64,12 @@ public class UserDocument {
         return Objects.equals(id, that.id) &&
                Objects.equals(profile, that.profile) &&
                Objects.equals(password, that.password) &&
-               Objects.equals(roles, that.roles) &&
-               Objects.equals(playlists, that.playlists);
+               Objects.equals(roles, that.roles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, profile, password, roles, playlists);
+        return Objects.hash(id, profile, password, roles);
     }
 
     @Override
@@ -92,7 +79,6 @@ public class UserDocument {
                ", profile=" + profile +
                ", password='" + (password != null ? "[PROTECTED]" : "null") + '\'' +
                ", roles=" + roles +
-               ", playlists=" + playlists +
                '}';
     }
 
@@ -105,7 +91,6 @@ public class UserDocument {
         private UserProfileDocument profile;
         private String password;
         private Set<String> roles;
-        private List<PlaylistDocument> playlists;
 
         private Builder() {
         }
@@ -127,11 +112,6 @@ public class UserDocument {
 
         public Builder roles(Set<String> roles) {
             this.roles = roles;
-            return this;
-        }
-
-        public Builder playlists(List<PlaylistDocument> playlists) {
-            this.playlists = playlists;
             return this;
         }
 

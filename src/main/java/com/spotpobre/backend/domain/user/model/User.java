@@ -1,10 +1,6 @@
 package com.spotpobre.backend.domain.user.model;
 
-import com.spotpobre.backend.domain.playlist.model.Playlist;
-
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -16,14 +12,12 @@ public class User {
     private UserProfile profile;
     private String password; // Can be null for OAuth2 users
     private Set<Role> roles;
-    private List<Playlist> playlists;
 
     private User(final Builder builder) {
         this.id = builder.id;
         this.profile = builder.profile;
         this.password = builder.password;
         this.roles = builder.roles;
-        this.playlists = builder.playlists;
     }
 
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
@@ -39,7 +33,6 @@ public class User {
                 .profile(profile)
                 .password(password)
                 .roles(defaultRoles)
-                .playlists(new ArrayList<>())
                 .build();
     }
 
@@ -53,7 +46,6 @@ public class User {
                 .profile(profile)
                 .password(null)
                 .roles(defaultRoles)
-                .playlists(new ArrayList<>())
                 .build();
     }
 
@@ -75,19 +67,6 @@ public class User {
 
     public Set<Role> getRoles() {
         return roles;
-    }
-
-    public List<Playlist> getPlaylists() {
-        return playlists;
-    }
-
-    public Playlist createPlaylist(final String name) {
-        if (playlists.size() >= MAX_PLAYLISTS_PER_USER) {
-            throw new IllegalStateException("User cannot have more than " + MAX_PLAYLISTS_PER_USER + " playlists.");
-        }
-        final Playlist playlist = Playlist.create(name, this.id);
-        this.playlists.add(playlist);
-        return playlist;
     }
 
     public void updateProfile(final UserProfile newProfile) {
@@ -113,13 +92,12 @@ public class User {
         return Objects.equals(id, other.id)
                 && Objects.equals(profile, other.profile)
                 && Objects.equals(password, other.password)
-                && Objects.equals(roles, other.roles)
-                && Objects.equals(playlists, other.playlists);
+                && Objects.equals(roles, other.roles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, profile, password, roles, playlists);
+        return Objects.hash(id, profile, password, roles);
     }
 
     @Override
@@ -129,7 +107,6 @@ public class User {
                 + ", profile=" + profile
                 + ", password=" + (password != null ? "[PROTECTED]" : "null")
                 + ", roles=" + roles
-                + ", playlists=" + playlists
                 + '}';
     }
 
@@ -138,7 +115,6 @@ public class User {
         private UserProfile profile;
         private String password;
         private Set<Role> roles;
-        private List<Playlist> playlists;
 
         private Builder() {
         }
@@ -160,11 +136,6 @@ public class User {
 
         public Builder roles(final Set<Role> roles) {
             this.roles = roles;
-            return this;
-        }
-
-        public Builder playlists(final List<Playlist> playlists) {
-            this.playlists = playlists;
             return this;
         }
 

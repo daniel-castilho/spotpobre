@@ -82,10 +82,12 @@ public abstract class AbstractIntegrationTest {
         createBucketIfMissing(s3);
         createTableIfMissing(dynamoDb, "Users", "id", null,
                 gsi("email-index", "profile.email"));
+        createTableIfMissing(dynamoDb, "UserEmails", "email", null);
         createTableIfMissing(dynamoDb, "Playlists", "id", null,
                 gsi("ownerId-index", "ownerId"));
         createTableIfMissing(dynamoDb, "Songs", "id", null,
-                gsi("title-search-index", "searchPartition", "title"));
+                gsi("title-search-index", "searchPartition", "title"),
+                gsi("albumId-index", "albumId"));
         createTableIfMissing(dynamoDb, "Artists", "id", null,
                 gsi("name-search-index", "searchPartition", "name"));
         createTableIfMissing(dynamoDb, "Albums", "id", null,

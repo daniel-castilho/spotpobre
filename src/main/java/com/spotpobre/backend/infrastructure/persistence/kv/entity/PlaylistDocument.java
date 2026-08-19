@@ -14,6 +14,7 @@ public class PlaylistDocument {
     private String name;
     private UUID ownerId;
     private List<SongDocument> songs;
+    private Long version;
 
     public PlaylistDocument() {
     }
@@ -23,6 +24,7 @@ public class PlaylistDocument {
         this.name = builder.name;
         this.ownerId = builder.ownerId;
         this.songs = builder.songs;
+        this.version = builder.version;
     }
 
     @DynamoDbPartitionKey
@@ -58,6 +60,14 @@ public class PlaylistDocument {
         this.songs = songs;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -66,12 +76,13 @@ public class PlaylistDocument {
         return Objects.equals(id, that.id) &&
                Objects.equals(name, that.name) &&
                Objects.equals(ownerId, that.ownerId) &&
-               Objects.equals(songs, that.songs);
+               Objects.equals(songs, that.songs) &&
+               Objects.equals(version, that.version);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, ownerId, songs);
+        return Objects.hash(id, name, ownerId, songs, version);
     }
 
     @Override
@@ -81,6 +92,7 @@ public class PlaylistDocument {
                ", name='" + name + '\'' +
                ", ownerId=" + ownerId +
                ", songs=" + songs +
+               ", version=" + version +
                '}';
     }
 
@@ -93,6 +105,7 @@ public class PlaylistDocument {
         private String name;
         private UUID ownerId;
         private List<SongDocument> songs;
+        private Long version;
 
         private Builder() {
         }
@@ -114,6 +127,11 @@ public class PlaylistDocument {
 
         public Builder songs(List<SongDocument> songs) {
             this.songs = songs;
+            return this;
+        }
+
+        public Builder version(Long version) {
+            this.version = version;
             return this;
         }
 

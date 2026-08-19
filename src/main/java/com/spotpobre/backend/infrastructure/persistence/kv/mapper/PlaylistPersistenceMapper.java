@@ -22,7 +22,4 @@ public interface PlaylistPersistenceMapper {
     @Mapping(source = "ownerId", target = "ownerId", qualifiedByName = "stringToUserId")
     @Mapping(source = "songs", target = "songs")
     Playlist toDomain(final PlaylistDocument document);
-
-    List<PlaylistDocument> toDocumentList(List<Playlist> playlists);
-    List<Playlist> toDomainList(List<PlaylistDocument> documents);
 }

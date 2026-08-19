@@ -16,12 +16,14 @@ public class Playlist {
     private String name;
     private UserId ownerId;
     private List<Song> songs;
+    private long version;
 
     private Playlist(final Builder builder) {
         this.id = builder.id;
         this.name = builder.name;
         this.ownerId = builder.ownerId;
         this.songs = builder.songs != null ? builder.songs : new ArrayList<>();
+        this.version = builder.version;
     }
 
     public static Playlist create(final String name, final UserId ownerId) {
@@ -36,6 +38,7 @@ public class Playlist {
                 .name(name)
                 .ownerId(ownerId)
                 .songs(new ArrayList<>())
+                .version(0L)
                 .build();
     }
 
@@ -61,6 +64,14 @@ public class Playlist {
 
     public List<Song> getSongs() {
         return songs;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void setVersion(final long version) {
+        this.version = version;
     }
 
     public void addSong(final Song song) {
@@ -113,6 +124,7 @@ public class Playlist {
         private String name;
         private UserId ownerId;
         private List<Song> songs;
+        private long version;
 
         private Builder() {
         }
@@ -134,6 +146,11 @@ public class Playlist {
 
         public Builder songs(final List<Song> songs) {
             this.songs = songs;
+            return this;
+        }
+
+        public Builder version(final long version) {
+            this.version = version;
             return this;
         }
 

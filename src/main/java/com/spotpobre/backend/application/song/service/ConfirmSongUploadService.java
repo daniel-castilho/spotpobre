@@ -5,7 +5,6 @@ import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
-import org.springframework.transaction.annotation.Transactional;
 
 public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
 
@@ -21,7 +20,6 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
     }
 
     @Override
-    @Transactional
     public Song confirmUpload(final ConfirmSongUploadCommand command) {
         final Song song = songMetadataRepository.findById(command.songId())
                 .orElseThrow(() -> new IllegalArgumentException("Song not found: " + command.songId()));

@@ -9,10 +9,13 @@ import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.util.List;
 import java.util.Map;
@@ -27,9 +30,37 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     private final DynamoDbCursorHelper cursorHelper;
 
     @Override
-    public PlaylistDocument save(final PlaylistDocument playlistDocument) {
-        playlistTable.putItem(playlistDocument);
-        return playlistDocument;
+    public boolean create(final PlaylistDocument playlistDocument) {
+        try {
+            playlistTable.putItem(PutItemEnhancedRequest.builder(PlaylistDocument.class)
+                    .item(playlistDocument)
+                    .conditionExpression(Expression.builder()
+                            .expression("attribute_not_exists(id)")
+                            .build())
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean update(final PlaylistDocument playlistDocument) {
+        final long expectedVersion = playlistDocument.getVersion();
+        playlistDocument.setVersion(expectedVersion + 1);
+        try {
+            playlistTable.putItem(PutItemEnhancedRequest.builder(PlaylistDocument.class)
+                    .item(playlistDocument)
+                    .conditionExpression(Expression.builder()
+                            .expression("attribute_exists(id) AND version = :expected")
+                            .expressionValues(Map.of(
+                                    ":expected", AttributeValue.builder().n(String.valueOf(expectedVersion)).build()))
+                            .build())
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
     }
 
     @Override
@@ -40,6 +71,17 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     @Override
     public void deleteById(final UUID id) {
         playlistTable.deleteItem(Key.builder().partitionValue(id.toString()).build());
+    }
+
+    @Override
+    public long countByOwnerId(final UUID ownerId) {
+        DynamoDbIndex<PlaylistDocument> index = playlistTable.index("ownerId-index");
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(k -> k.partitionValue(ownerId.toString())))
+                .build();
+        return index.query(request).stream()
+                .flatMap(page -> page.items().stream())
+                .count();
     }
 
     @Override

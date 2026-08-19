@@ -8,8 +8,11 @@ import com.spotpobre.backend.domain.song.model.SongUploadCommand;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
@@ -43,6 +46,8 @@ public class S3SongStorageAdapter implements SongStoragePort {
 
     static final Duration PRESIGNED_URL_TTL = Duration.ofMinutes(10);
 
+    private static final Logger logger = LoggerFactory.getLogger(S3SongStorageAdapter.class);
+
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final AwsProperties awsProperties;
@@ -65,6 +70,25 @@ public class S3SongStorageAdapter implements SongStoragePort {
             return;
         }
         verifyObjectExists(command.storageKey());
+    }
+
+    @Override
+    public void abortUpload(final String storageKey, final String multipartUploadId) {
+        if (multipartUploadId == null || multipartUploadId.isBlank()) {
+            // Single-part presigned uploads do not create an object until the client PUTs it,
+            // so there is nothing to clean up.
+            return;
+        }
+        try {
+            s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
+                    .bucket(bucket())
+                    .key(storageKey)
+                    .uploadId(multipartUploadId)
+                    .build());
+        } catch (Exception e) {
+            logger.warn("Failed to abort orphan multipart upload for storage key {}: {}",
+                    storageKey, e.getMessage(), e);
+        }
     }
 
     @Override

@@ -8,8 +8,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DynamoDbPlaylistRepository {
-    PlaylistDocument save(final PlaylistDocument playlistDocument);
+    boolean create(final PlaylistDocument playlistDocument);
+    boolean update(final PlaylistDocument playlistDocument);
     Optional<PlaylistDocument> findById(final UUID id);
-    void deleteById(final UUID id); // New method
+    void deleteById(final UUID id);
+    long countByOwnerId(final UUID ownerId);
     PageResult<PlaylistDocument> findByOwnerId(final UUID ownerId, final PageRequest pageRequest, final String exclusiveStartKey);
 }

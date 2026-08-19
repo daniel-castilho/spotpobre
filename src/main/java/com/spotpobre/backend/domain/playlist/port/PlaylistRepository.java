@@ -10,7 +10,9 @@ import java.util.Optional;
 
 public interface PlaylistRepository {
     Optional<Playlist> findById(final PlaylistId id);
-    void save(final Playlist playlist);
-    void deleteById(final PlaylistId id); // New method
+    void create(final Playlist playlist);
+    void update(final Playlist playlist);
+    void deleteById(final PlaylistId id);
+    long countByOwnerId(final UserId ownerId);
     PageResult<Playlist> findByOwnerId(final UserId ownerId, final PageRequest pageRequest, final String exclusiveStartKey);
 }

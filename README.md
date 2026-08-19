@@ -127,6 +127,13 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
+# UserEmails table (email uniqueness sentinel used during registration)
+awslocal dynamodb create-table \
+    --table-name UserEmails \
+    --attribute-definitions AttributeName=email,AttributeType=S \
+    --key-schema AttributeName=email,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+
 # Playlists table (GSI on ownerId)
 awslocal dynamodb create-table \
     --table-name Playlists \
@@ -142,16 +149,21 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Songs table (GSI for title search; searchPartition is a constant "SONG")
+# Songs table (GSIs for title search and album lookup; searchPartition is a constant "SONG")
 awslocal dynamodb create-table \
     --table-name Songs \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=title,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=title,AttributeType=S AttributeName=albumId,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
                 \"IndexName\": \"title-search-index\",
                 \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"title\",\"KeyType\":\"RANGE\"}],
+                \"Projection\": {\"ProjectionType\":\"ALL\"}
+            },
+            {
+                \"IndexName\": \"albumId-index\",
+                \"KeySchema\": [{\"AttributeName\":\"albumId\",\"KeyType\":\"HASH\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             }
         ]" \
@@ -311,6 +323,14 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   `*IT` slice + E2E suite (Testcontainers), then `./mvnw clean package` on every push/PR.
   `DynamoDbConfig` / `S3Config` build AWS clients with `StaticCredentialsProvider` from
   `AwsProperties` (env-overridable), so tests work on clean runners with LocalStack.
+- **Data consistency & modelling** — every relationship has a single source of truth:
+  playlists live only in the `Playlists` table (`ownerId-index`), album songs only in the `Songs`
+  table (`albumId-index`); the `Users` / `Albums` aggregates no longer embed collections.
+  `MAX_PLAYLISTS_PER_USER = 10` is enforced against persistent state, user registration is
+  atomic against duplicate emails (`TransactWriteItems` + `UserEmails` uniqueness table), playlist
+  mutations use optimistic locking (`version` + conditional writes), and a failed metadata save
+  after a multipart S3 upload aborts the orphan upload. Decisions are recorded in
+  `docs/data-model-decisions.md`.
 
 ## Roadmap
 

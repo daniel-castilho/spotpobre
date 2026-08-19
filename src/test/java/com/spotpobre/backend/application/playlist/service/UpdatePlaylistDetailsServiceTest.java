@@ -48,7 +48,7 @@ class UpdatePlaylistDetailsServiceTest {
 
         assertNotNull(updatedPlaylist);
         assertEquals(newName, updatedPlaylist.getName());
-        verify(playlistRepository, times(1)).save(updatedPlaylist);
+        verify(playlistRepository, times(1)).update(updatedPlaylist);
     }
 
     @Test
@@ -62,7 +62,7 @@ class UpdatePlaylistDetailsServiceTest {
                         playlistId, "Hijacked", UserId.generate());
 
         assertThrows(ForbiddenException.class, () -> updatePlaylistDetailsService.updatePlaylistDetails(command));
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).update(any());
     }
 
     @Test
@@ -79,6 +79,6 @@ class UpdatePlaylistDetailsServiceTest {
         });
 
         assertEquals("Playlist not found", exception.getMessage());
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).update(any());
     }
 }

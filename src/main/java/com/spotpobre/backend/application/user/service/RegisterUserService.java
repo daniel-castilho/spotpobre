@@ -21,10 +21,6 @@ public class RegisterUserService implements RegisterUserUseCase {
             throw new IllegalArgumentException("Registration command cannot be null.");
         }
 
-        userRepository.findByProfileEmail(command.email()).ifPresent(user -> {
-            throw new IllegalStateException("User with email " + command.email() + " already exists.");
-        });
-
         final UserProfile profile = new UserProfile(
                 command.name(),
                 command.email(),
@@ -35,7 +31,9 @@ public class RegisterUserService implements RegisterUserUseCase {
 
         final User newUser = User.createWithLocalPassword(profile, hashedPassword);
 
-        userRepository.save(newUser);
+        if (!userRepository.createIfEmailNotExists(newUser)) {
+            throw new IllegalStateException("User with email " + command.email() + " already exists.");
+        }
 
         return newUser;
     }

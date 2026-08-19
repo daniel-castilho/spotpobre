@@ -1,13 +1,10 @@
 package com.spotpobre.backend.domain.user.model;
 
-import com.spotpobre.backend.domain.playlist.model.Playlist;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,8 +30,6 @@ class UserTest {
         assertNotNull(user.getRoles());
         assertEquals(1, user.getRoles().size());
         assertTrue(user.getRoles().contains(Role.USER));
-        assertNotNull(user.getPlaylists());
-        assertTrue(user.getPlaylists().isEmpty());
     }
 
     @Test
@@ -92,35 +87,5 @@ class UserTest {
         assertEquals(1, user.getRoles().size());
         assertFalse(user.getRoles().contains(Role.USER));
         assertTrue(user.getRoles().contains(Role.ADMIN));
-    }
-
-    @Test
-    void shouldAddPlaylistSuccessfully() {
-        // Given
-        User user = User.createWithLocalPassword(validProfile, "pass");
-
-        // When
-        Playlist newPlaylist = user.createPlaylist("My Favorite Songs");
-
-        // Then
-        assertNotNull(user.getPlaylists());
-        assertEquals(1, user.getPlaylists().size());
-        assertEquals(newPlaylist, user.getPlaylists().get(0));
-        assertEquals("My Favorite Songs", user.getPlaylists().get(0).getName());
-    }
-
-    @Test
-    void shouldThrowExceptionWhenPlaylistLimitIsReached() {
-        // Given
-        User user = User.createWithLocalPassword(validProfile, "pass");
-        IntStream.range(0, 10).forEach(i -> user.createPlaylist("Playlist " + i));
-
-        // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-            user.createPlaylist("One More Playlist");
-        });
-
-        assertEquals("User cannot have more than 10 playlists.", exception.getMessage());
-        assertEquals(10, user.getPlaylists().size());
     }
 }

@@ -220,9 +220,15 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
   no silent casts.
 - Business invariants stay in the `domain` model, never in `*Document` entities.
 - **GSIs drive lookups**: `email-index` (Users), `ownerId-index` (Playlists),
-  `name-search-index` (Artists), `artistId-index` (Albums), `entityId-index` (Likes reverse).
+  `albumId-index` (Songs), `title-search-index` (Songs), `name-search-index` (Artists),
+  `artistId-index` (Albums), `entityId-index` (Likes reverse). The `UserEmails` table is a
+  uniqueness sentinel used by registration (`TransactWriteItems`).
   When adding a new query shape, add the GSI in `docker-compose`/LocalStack setup and in the
   README setup block, not by scanning.
+- **Concurrency-safe writes**: registration uses `attribute_not_exists` inside a transaction;
+  playlist mutations carry a `version` attribute and are persisted with a conditional write
+  (`version = :expected`) that fails with `PlaylistConcurrentModificationException` on a stale
+  snapshot. See `docs/data-model-decisions.md`.
 - Pagination on DynamoDB uses `DynamoDbCursorHelper` for the playlist cursor; results are exposed
   to the core as `PageResult` (domain type). Search index queries use `PageResult` too — never
   import Spring Data types into `domain/`/`application/`.

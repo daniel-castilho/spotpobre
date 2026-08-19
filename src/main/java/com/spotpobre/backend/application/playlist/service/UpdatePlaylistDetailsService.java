@@ -21,7 +21,7 @@ public class UpdatePlaylistDetailsService implements UpdatePlaylistDetailsUseCas
         PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
         playlist.updateDetails(command.newName());
-        playlistRepository.save(playlist);
+        playlistRepository.update(playlist);
         return playlist;
     }
 }

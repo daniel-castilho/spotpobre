@@ -7,6 +7,7 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserEmailDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserProfileDocument;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -69,7 +70,7 @@ public class DynamoDbConfig {
                 .addAttribute(String.class, a -> a.name("id").getter(SongDocument::getId).setter(SongDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
                 .addAttribute(String.class, a -> a.name("title").getter(SongDocument::getTitle).setter(SongDocument::setTitle).tags(StaticAttributeTags.secondarySortKey("title-search-index")))
                 .addAttribute(String.class, a -> a.name("searchPartition").getter(doc -> "SONG").setter((doc, val) -> {}).tags(StaticAttributeTags.secondaryPartitionKey("title-search-index")))
-                .addAttribute(String.class, a -> a.name("albumId").getter(song -> song.getAlbumId() != null ? song.getAlbumId().toString() : null).setter((song, albumId) -> song.setAlbumId(albumId != null ? UUID.fromString(albumId) : null)))
+                .addAttribute(String.class, a -> a.name("albumId").getter(song -> song.getAlbumId() != null ? song.getAlbumId().toString() : null).setter((song, albumId) -> song.setAlbumId(albumId != null ? UUID.fromString(albumId) : null)).tags(StaticAttributeTags.secondaryPartitionKey("albumId-index")))
                 .addAttribute(String.class, a -> a.name("storageId").getter(SongDocument::getStorageId).setter(SongDocument::setStorageId))
                 .build();
     }
@@ -80,14 +81,13 @@ public class DynamoDbConfig {
     }
 
     @Bean
-    public TableSchema<AlbumDocument> albumTableSchema(final TableSchema<SongDocument> songTableSchema) {
+    public TableSchema<AlbumDocument> albumTableSchema() {
         return TableSchema.builder(AlbumDocument.class)
                 .newItemSupplier(AlbumDocument::new)
                 .addAttribute(String.class, a -> a.name("id").getter(AlbumDocument::getId).setter(AlbumDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
                 .addAttribute(String.class, a -> a.name("name").getter(AlbumDocument::getName).setter(AlbumDocument::setName))
                 .addAttribute(String.class, a -> a.name("artistId").getter(album -> album.getArtistId() != null ? album.getArtistId().toString() : null).setter((album, artistId) -> album.setArtistId(artistId != null ? UUID.fromString(artistId) : null)).tags(StaticAttributeTags.secondaryPartitionKey("artistId-index")))
                 .addAttribute(String.class, a -> a.name("coverArtUrl").getter(AlbumDocument::getCoverArtUrl).setter(AlbumDocument::setCoverArtUrl))
-                .addAttribute(EnhancedType.listOf(EnhancedType.documentOf(SongDocument.class, songTableSchema)), a -> a.name("songs").getter(AlbumDocument::getSongs).setter(AlbumDocument::setSongs))
                 .build();
     }
 
@@ -104,6 +104,7 @@ public class DynamoDbConfig {
                 .addAttribute(String.class, a -> a.name("name").getter(PlaylistDocument::getName).setter(PlaylistDocument::setName))
                 .addAttribute(String.class, a -> a.name("ownerId").getter(playlist -> playlist.getOwnerId() != null ? playlist.getOwnerId().toString() : null).setter((playlist, ownerId) -> playlist.setOwnerId(ownerId != null ? UUID.fromString(ownerId) : null)).tags(StaticAttributeTags.secondaryPartitionKey("ownerId-index")))
                 .addAttribute(EnhancedType.listOf(EnhancedType.documentOf(SongDocument.class, songTableSchema)), a -> a.name("songs").getter(PlaylistDocument::getSongs).setter(PlaylistDocument::setSongs))
+                .addAttribute(Long.class, a -> a.name("version").getter(PlaylistDocument::getVersion).setter(PlaylistDocument::setVersion))
                 .build();
     }
 
@@ -128,14 +129,13 @@ public class DynamoDbConfig {
     }
 
     @Bean
-    public TableSchema<UserDocument> userTableSchema(final TableSchema<PlaylistDocument> playlistTableSchema) {
+    public TableSchema<UserDocument> userTableSchema() {
         return TableSchema.builder(UserDocument.class)
                 .newItemSupplier(UserDocument::new)
                 .addAttribute(String.class, a -> a.name("id").getter(UserDocument::getId).setter(UserDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
                 .addAttribute(EnhancedType.documentOf(UserProfileDocument.class, USER_PROFILE_TABLE_SCHEMA), a -> a.name("profile").getter(UserDocument::getProfile).setter(UserDocument::setProfile))
                 .addAttribute(String.class, a -> a.name("password").getter(UserDocument::getPassword).setter(UserDocument::setPassword))
                 .addAttribute(EnhancedType.setOf(String.class), a -> a.name("roles").getter(UserDocument::getRoles).setter(UserDocument::setRoles))
-                .addAttribute(EnhancedType.listOf(EnhancedType.documentOf(PlaylistDocument.class, playlistTableSchema)), a -> a.name("playlists").getter(UserDocument::getPlaylists).setter(UserDocument::setPlaylists))
                 .addAttribute(String.class, a -> a.name("profile.email").getter(userDoc -> userDoc.getProfile() != null ? userDoc.getProfile().getEmail() : null).setter((userDoc, email) -> { if (userDoc.getProfile() != null) { userDoc.getProfile().setEmail(email); } }).tags(StaticAttributeTags.secondaryPartitionKey("email-index")))
                 .build();
     }
@@ -143,6 +143,11 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<UserDocument> userTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<UserDocument> userTableSchema) {
         return enhancedClient.table("Users", userTableSchema);
+    }
+
+    @Bean
+    public DynamoDbTable<UserEmailDocument> userEmailTable(final DynamoDbEnhancedClient enhancedClient) {
+        return enhancedClient.table("UserEmails", TableSchema.fromBean(UserEmailDocument.class));
     }
 
     @Bean

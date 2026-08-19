@@ -46,7 +46,7 @@ class DynamoDbPlaylistRepositoryAdapterIT extends AbstractIntegrationTest {
         Playlist playlist = Playlist.create("My Test Playlist", ownerId);
 
         // When
-        playlistRepository.save(playlist);
+        playlistRepository.create(playlist);
         Playlist foundPlaylist = playlistRepository.findById(playlist.getId()).orElse(null);
 
         // Then
@@ -54,5 +54,6 @@ class DynamoDbPlaylistRepositoryAdapterIT extends AbstractIntegrationTest {
         assertEquals(playlist.getId(), foundPlaylist.getId());
         assertEquals("My Test Playlist", foundPlaylist.getName());
         assertEquals(ownerId, foundPlaylist.getOwnerId());
+        assertEquals(0L, foundPlaylist.getVersion());
     }
 }

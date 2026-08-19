@@ -27,7 +27,6 @@ public class CreateAlbumService implements CreateAlbumUseCase {
                 .name(command.name())
                 .artistId(command.artistId())
                 .coverArtUrl(command.coverArtUrl())
-                .songs(new java.util.ArrayList<>())
                 .build();
 
         albumRepository.save(album);

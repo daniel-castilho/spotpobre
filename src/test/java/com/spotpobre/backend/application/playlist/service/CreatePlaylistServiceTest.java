@@ -42,6 +42,7 @@ class CreatePlaylistServiceTest {
 
         // 3. Mock the repository to return this specific user when searched by its ID
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        when(playlistRepository.countByOwnerId(ownerId)).thenReturn(0L);
 
         // When
         Playlist createdPlaylist = createPlaylistService.createPlaylist(command);
@@ -53,7 +54,26 @@ class CreatePlaylistServiceTest {
         assertEquals(ownerId, createdPlaylist.getOwnerId());
         
         // Verify that the save method was called on the repository
-        verify(playlistRepository, times(1)).save(any(Playlist.class));
+        verify(playlistRepository, times(1)).create(any(Playlist.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenPlaylistLimitIsReached() {
+        // Given
+        User owner = User.createWithLocalPassword(new UserProfile("Owner", "owner@test.com", "BR"), "pass");
+        UserId ownerId = owner.getId();
+        CreatePlaylistUseCase.CreatePlaylistCommand command = new CreatePlaylistUseCase.CreatePlaylistCommand("Eleventh Playlist", ownerId);
+
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        when(playlistRepository.countByOwnerId(ownerId)).thenReturn(10L);
+
+        // When & Then
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+            createPlaylistService.createPlaylist(command);
+        });
+
+        assertEquals("User cannot have more than 10 playlists.", exception.getMessage());
+        verify(playlistRepository, never()).create(any());
     }
 
     @Test
@@ -72,6 +92,7 @@ class CreatePlaylistServiceTest {
         assertEquals("User not found", exception.getMessage());
         
         // Verify that save was never called
-        verify(playlistRepository, never()).save(any());
+        verify(playlistRepository, never()).create(any());
+        verify(playlistRepository, never()).countByOwnerId(any());
     }
 }

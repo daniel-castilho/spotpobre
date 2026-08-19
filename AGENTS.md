@@ -134,10 +134,11 @@ src/main/java/com/spotpobre/backend/
   Domain tests instantiate pure entities (no mocks, no Spring); application tests mock the domain
   ports only. Name tests `*Test` (e.g. `CreatePlaylistServiceTest`). `./mvnw test` runs **only**
   these — no Docker, no AWS credentials.
-- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterIT` boots **Testcontainers** with
-  **LocalStack** to exercise the DynamoDB adapter for real; `S3SongStorageAdapterIT` exercises the
-  full storage round-trip (upload → confirm → stream → download). Both are `*IT` classes (requires
-  Docker).
+- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterIT` and the data-consistency ITs
+  (`PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT`) boot
+  **Testcontainers** with **LocalStack** to exercise the DynamoDB adapters for real;
+  `S3SongStorageAdapterIT` exercises the full storage round-trip (upload → confirm → stream →
+  download). All are `*IT` classes (requires Docker).
 - **End-to-end:** `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT` use **RestAssured**
   against the full application on a random port (`@SpringBootTest(webEnvironment =
   RANDOM_PORT)`) with Testcontainers. Run all `*IT` classes explicitly with
@@ -171,6 +172,11 @@ new violations — flag them to the human instead.
 - **E2E tests not wired into the build via failsafe.** No failsafe plugin, so `*IT` tests only run
   via `-Dtest='*IT'`. The GitHub Actions workflow now runs them in a dedicated step, so CI covers
   them; adding failsafe + `mvn verify` would make the full gate a single command locally.
+- **Playlist-limit check is count-then-insert.** `CreatePlaylistService` enforces
+  `MAX_PLAYLISTS_PER_USER` with `countByOwnerId` before insert; two strictly simultaneous creates
+  could both pass the count and exceed 10. Documented as accepted for P1 in
+  `docs/data-model-decisions.md` — closing it needs a conditional/transactional insert or a
+  dedicated counter.
 
 ## Notes
 

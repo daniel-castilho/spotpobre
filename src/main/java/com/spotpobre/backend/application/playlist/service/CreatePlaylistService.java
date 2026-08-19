@@ -24,9 +24,13 @@ public class CreatePlaylistService implements CreatePlaylistUseCase {
         final User user = userRepository.findById(command.ownerId())
                 .orElseThrow(() -> new IllegalStateException("User not found"));
 
-        final Playlist playlist = user.createPlaylist(command.name());
+        if (playlistRepository.countByOwnerId(command.ownerId()) >= User.MAX_PLAYLISTS_PER_USER) {
+            throw new IllegalStateException("User cannot have more than " + User.MAX_PLAYLISTS_PER_USER + " playlists.");
+        }
 
-        playlistRepository.save(playlist);
+        final Playlist playlist = Playlist.create(command.name(), user.getId());
+
+        playlistRepository.create(playlist);
 
         return playlist;
     }
