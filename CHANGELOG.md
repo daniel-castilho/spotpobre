@@ -35,6 +35,10 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 - **Exception type hardening.** `ConfirmSongUploadService` now throws `NotFoundException` instead of
   `IllegalArgumentException` for business rule violations (song not belonging to album, storage key mismatch),
   mapping to HTTP 404 with the standard error envelope instead of 400.
+- **Architectural purity.** `PlaylistController` and `LikeController` refactored to depend only on
+  application inbound ports (`*UseCase`); direct `UserRepository` calls removed and replaced with
+  `GetCurrentUserUseCase` application service; controllers become thin translation layers; public API
+  behaviour unchanged.
 - **Data model:** Songs/Artists tables carry `searchTitle`/`searchName` (lowercased at save time);
   the search GSIs' sort keys moved from `title`/`name` to `searchTitle`/`searchName`. README
   LocalStack setup block and `AbstractIntegrationTest` provisioning updated. Existing rows written
