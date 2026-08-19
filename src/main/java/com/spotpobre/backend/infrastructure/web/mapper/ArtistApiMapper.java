@@ -6,11 +6,9 @@ import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.ArtistResponse;
+import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 
 import java.util.stream.Collectors;
 
@@ -23,11 +21,11 @@ public interface ArtistApiMapper {
     // Removed @Mapping(source = "songs", target = "songs")
     ArtistResponse toResponse(final Artist artist);
 
-    default Page<ArtistResponse> toResponsePage(final PageResult<Artist> page, final Pageable pageable) {
-        return new PageImpl<>(
+    default PageResponse<ArtistResponse> toPageResponse(final PageResult<Artist> page) {
+        return new PageResponse<>(
                 page.content().stream().map(this::toResponse).collect(Collectors.toList()),
-                pageable,
-                page.totalElements()
+                page.nextPageToken(),
+                page.hasNext()
         );
     }
 }

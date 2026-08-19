@@ -34,10 +34,18 @@ whenever a non-obvious failure or design decision cost real debugging time.
   `...stream().flatMap(page -> page.items().stream()).findFirst()` and
   `...stream().findFirst().map(Page::count).orElse(0)`. `Page.count()` returns `Integer`, not `long`.
 - **README schema drift bit us twice**: the Users GSI partition key is the nested `profile.email`
-  (not `email`), and the Artists/Songs search indexes are `searchPartition` (HASH) + `name`/`title`
-  (RANGE), with the search partition being a constant. The `title-search-index` was missing from the
+  (not `email`), and the Artists/Songs search indexes are `searchPartition` (HASH) + `searchName`/
+  `searchTitle` (RANGE) — the lowercased, write-time-normalized sort keys — with the search
+  partition being a constant. The `title-search-index` was missing from the
   `DynamoDbConfig` schema entirely (querying it would 500). Keep the `awslocal` block in README in
   sync with `DynamoDbConfig` — the IT provisioning is the enforcement.
+- **DynamoDB `begins_with` is case-sensitive.** Lowercasing only the query (not the stored sort
+  key) silently returns nothing for mixed-case data; lowercasing both — query and a stored
+  `searchTitle`/`searchName` written at save time — gives case-insensitive prefix search.
+- **Cursor tokens must not serialize SDK `AttributeValue` objects.** Jackson cannot round-trip
+  `software.amazon.awssdk.services.dynamodb.model.AttributeValue`; encode the key map as its scalar
+  strings (with a type prefix) instead. The original `DynamoDbCursorHelper` only worked because no
+  test ever produced a non-empty `LastEvaluatedKey`.
 
 ## Password hashing (BCrypt → Argon2id)
 

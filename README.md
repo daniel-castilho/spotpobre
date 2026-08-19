@@ -149,16 +149,17 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Songs table (GSIs for title search and album lookup; searchPartition is a constant "SONG")
+# Songs table (GSIs for title search and album lookup; searchPartition is a constant "SONG";
+# searchTitle is the write-time lowercased title used as the title-search-index sort key)
 awslocal dynamodb create-table \
     --table-name Songs \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=title,AttributeType=S AttributeName=albumId,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=searchTitle,AttributeType=S AttributeName=albumId,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
                 \"IndexName\": \"title-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"title\",\"KeyType\":\"RANGE\"}],
+                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"searchTitle\",\"KeyType\":\"RANGE\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             },
             {
@@ -169,16 +170,17 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
-# Artists table (GSI for name search; searchPartition is a constant "ARTIST")
+# Artists table (GSI for name search; searchPartition is a constant "ARTIST";
+# searchName is the write-time lowercased name used as the name-search-index sort key)
 awslocal dynamodb create-table \
     --table-name Artists \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=name,AttributeType=S \
+    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=searchName,AttributeType=S \
     --key-schema AttributeName=id,KeyType=HASH \
     --global-secondary-indexes \
         "[
             {
                 \"IndexName\": \"name-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"name\",\"KeyType\":\"RANGE\"}],
+                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"searchName\",\"KeyType\":\"RANGE\"}],
                 \"Projection\": {\"ProjectionType\":\"ALL\"}
             }
         ]" \
@@ -275,12 +277,12 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `POST` | `/api/v1/auth/authenticate` | Authenticate a user and return a JWT. |
 | **Users** | `GET` | `/api/v1/users/me` | Return the authenticated user's profile. |
 | **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`). |
-| | `GET` | `/api/v1/artists/search?query={q}` | Search artists by name. |
+| | `GET` | `/api/v1/artists/search?query={q}&limit={n}&cursor={token}` | Search artists by name (case-insensitive, cursor-paginated; `limit` max 50). |
 | **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. |
 | | `POST` | `/api/v1/albums/{albumId}/songs` | Initiate a song upload (`ROLE_ARTIST`): validates type/size and returns short-lived presigned PUT URL(s). Files over 100 MB get S3 multipart part URLs. The API never accepts file bytes. |
 | | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
 | **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
-| | `GET` | `/api/v1/songs/search?query={q}` | Search songs by title. |
+| | `GET` | `/api/v1/songs/search?query={q}&limit={n}&cursor={token}` | Search songs by title (case-insensitive, cursor-paginated; `limit` max 50). |
 | **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. |
 | | `GET` | `/api/v1/me/playlists` | List the authenticated user's playlists (paginated). |
 | | `GET` | `/api/v1/playlists/{playlistId}` | Return a playlist's details. |
@@ -314,7 +316,9 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 - **Playlists** — full CRUD with owner authorization (IDOR fixed: authenticated users can only mutate playlists they own; 403 returned for unauthorized access), paginated listing and song membership.
 - **Likes** — adjacency-list persistence with a reverse GSI; implemented as a Strategy family
   (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
-- **Search** — songs by title and artists by name via DynamoDB GSIs.
+- **Search** — songs by title and artists by name via DynamoDB GSIs, case-insensitive (write-time
+  normalized `searchTitle`/`searchName` sort keys) and cursor-paginated (`ExclusiveStartKey` +
+  `nextPageToken`/`hasNext`; `limit` capped at 50).
 - **Storage & streaming** — S3-backed `SongStoragePort` with a CDN storage adapter and Redis-backed
   caching.
 - **Hardening** — global exception handling with structured validation errors and correct DynamoDB
@@ -336,7 +340,7 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 
 Deliberately not implemented yet (candidate backlog):
 
-- Pagination on more list endpoints (artists, albums, search results)
+- Pagination on more list endpoints (artists, albums)
 - Rate limiting and per-user quotas
 - Email verification and password recovery
 - Production deployment runtime shape (how the artifact is shipped/run — the env-var contract is

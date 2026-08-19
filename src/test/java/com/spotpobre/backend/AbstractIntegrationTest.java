@@ -86,10 +86,10 @@ public abstract class AbstractIntegrationTest {
         createTableIfMissing(dynamoDb, "Playlists", "id", null,
                 gsi("ownerId-index", "ownerId"));
         createTableIfMissing(dynamoDb, "Songs", "id", null,
-                gsi("title-search-index", "searchPartition", "title"),
+                gsi("title-search-index", "searchPartition", "searchTitle"),
                 gsi("albumId-index", "albumId"));
         createTableIfMissing(dynamoDb, "Artists", "id", null,
-                gsi("name-search-index", "searchPartition", "name"));
+                gsi("name-search-index", "searchPartition", "searchName"));
         createTableIfMissing(dynamoDb, "Albums", "id", null,
                 gsi("artistId-index", "artistId"));
         createTableIfMissing(dynamoDb, "Likes", "userId", "entityCompositeKey",

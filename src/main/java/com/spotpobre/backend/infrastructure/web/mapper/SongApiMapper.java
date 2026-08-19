@@ -7,14 +7,12 @@ import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.UuidMapper;
 import com.spotpobre.backend.infrastructure.web.dto.response.InitiateSongUploadResponse;
+import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.PresignedUploadPartResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.SongDetailsResponse;
 import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 
 import java.net.URI;
 import java.util.stream.Collectors;
@@ -31,11 +29,11 @@ public interface SongApiMapper {
     @Mapping(source = "albumId", target = "albumId", qualifiedByName = "albumIdToUuid") // Changed
     SongResponse toSongResponse(final Song song);
 
-    default Page<SongResponse> toResponsePage(final PageResult<Song> page, final Pageable pageable) {
-        return new PageImpl<>(
+    default PageResponse<SongResponse> toPageResponse(final PageResult<Song> page) {
+        return new PageResponse<>(
                 page.content().stream().map(this::toSongResponse).collect(Collectors.toList()),
-                pageable,
-                page.totalElements()
+                page.nextPageToken(),
+                page.hasNext()
         );
     }
 

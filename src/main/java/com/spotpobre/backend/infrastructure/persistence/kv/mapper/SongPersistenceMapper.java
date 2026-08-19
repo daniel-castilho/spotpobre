@@ -12,6 +12,7 @@ public interface SongPersistenceMapper {
 
     @Mapping(source = "id", target = "id", qualifiedByName = "songIdToUuid")
     @Mapping(source = "albumId", target = "albumId", qualifiedByName = "albumIdToUuid")
+    @Mapping(target = "searchTitle", expression = "java(song.getTitle() == null ? null : song.getTitle().toLowerCase())")
     SongDocument toDocument(final Song song);
 
     @Mapping(source = "id", target = "id", qualifiedByName = "stringToSongId")

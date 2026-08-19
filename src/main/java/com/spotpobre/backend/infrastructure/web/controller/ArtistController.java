@@ -7,11 +7,10 @@ import com.spotpobre.backend.domain.common.pagination.PageRequest;
 import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateArtistRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.ArtistResponse;
+import com.spotpobre.backend.infrastructure.web.dto.response.PageResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.ArtistApiMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,15 +38,17 @@ public class ArtistController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<ArtistResponse>> searchArtists(
+    public ResponseEntity<PageResponse<ArtistResponse>> searchArtists(
             @RequestParam("query") final String query,
-            final Pageable pageable
+            @RequestParam(defaultValue = "20") final int limit,
+            @RequestParam(required = false) final String cursor
     ) {
         final var command = new SearchArtistsUseCase.SearchArtistsCommand(
                 query,
-                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
+                PageRequest.of(0, limit),
+                cursor
         );
         final PageResult<Artist> artistPage = searchArtistsUseCase.searchArtists(command);
-        return ResponseEntity.ok(mapper.toResponsePage(artistPage, pageable));
+        return ResponseEntity.ok(mapper.toPageResponse(artistPage));
     }
 }

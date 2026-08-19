@@ -3,14 +3,13 @@ package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 import com.spotpobre.backend.domain.common.pagination.PageRequest;
 import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
@@ -24,6 +23,7 @@ import java.util.stream.Collectors;
 public class DynamoDbSongMetadataRepositoryImpl implements DynamoDbSongMetadataRepository {
 
     private final DynamoDbTable<SongDocument> songTable;
+    private final DynamoDbCursorHelper cursorHelper;
 
     @Override
     public SongDocument save(final SongDocument songDocument) {
@@ -61,22 +61,31 @@ public class DynamoDbSongMetadataRepositoryImpl implements DynamoDbSongMetadataR
     }
 
     @Override
-    public Page<SongDocument> searchByTitle(final String titleQuery, final Pageable pageable) {
+    public PageResult<SongDocument> searchByTitle(final String titleQuery, final PageRequest pageRequest, final String exclusiveStartKey) {
         DynamoDbIndex<SongDocument> index = songTable.index("title-search-index");
-        QueryConditional queryConditional = QueryConditional
-                .sortBeginsWith(k -> k.partitionValue("SONG").sortValue(titleQuery.toLowerCase()));
+        QueryEnhancedRequest.Builder requestBuilder = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional
+                        .sortBeginsWith(k -> k.partitionValue("SONG").sortValue(titleQuery.toLowerCase())))
+                .limit(pageRequest.pageSize());
 
-        QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
-                .queryConditional(queryConditional)
-                .limit(pageable.getPageSize())
-                .build();
+        if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
+            requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
+        }
 
-        List<SongDocument> results = index.query(queryRequest)
-                .stream()
-                .flatMap(page -> page.items().stream())
-                .collect(Collectors.toList());
+        Optional<Page<SongDocument>> page = index.query(requestBuilder.build()).stream().findFirst();
+        List<SongDocument> documents = page.map(Page::items).orElse(List.of());
+        String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
+        boolean hasNext = nextToken != null;
 
-        // Note: DynamoDB query pagination is more complex. This is a simplified implementation.
-        return new PageImpl<>(results, pageable, results.size());
+        return new PageResult<>(
+                documents,
+                documents.size(),
+                1,
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                hasNext,
+                pageRequest.pageNumber() > 0,
+                nextToken
+        );
     }
 }

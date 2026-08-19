@@ -13,8 +13,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SearchArtistsServiceTest {
@@ -30,10 +34,10 @@ class SearchArtistsServiceTest {
         // Given
         String query = "test";
         PageRequest pageRequest = PageRequest.of(0, 10);
-        SearchArtistsUseCase.SearchArtistsCommand command = new SearchArtistsUseCase.SearchArtistsCommand(query, pageRequest);
+        SearchArtistsUseCase.SearchArtistsCommand command = new SearchArtistsUseCase.SearchArtistsCommand(query, pageRequest, null);
         PageResult<Artist> expectedPage = new PageResult<>(Collections.emptyList(), 0L, 0, 0, 10, false, false, null);
 
-        when(artistRepository.searchByName(query, pageRequest)).thenReturn(expectedPage);
+        when(artistRepository.searchByName(query, pageRequest, null)).thenReturn(expectedPage);
 
         // When
         PageResult<Artist> resultPage = searchArtistsService.searchArtists(command);
@@ -41,6 +45,35 @@ class SearchArtistsServiceTest {
         // Then
         assertNotNull(resultPage);
         assertEquals(expectedPage, resultPage);
-        verify(artistRepository, times(1)).searchByName(query, pageRequest);
+        verify(artistRepository, times(1)).searchByName(query, pageRequest, null);
+    }
+
+    @Test
+    void shouldForwardCursorToRepository() {
+        // Given
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        SearchArtistsUseCase.SearchArtistsCommand command =
+                new SearchArtistsUseCase.SearchArtistsCommand("test", pageRequest, "opaque-cursor");
+        PageResult<Artist> expectedPage = new PageResult<>(Collections.emptyList(), 0L, 0, 0, 10, false, false, null);
+
+        when(artistRepository.searchByName("test", pageRequest, "opaque-cursor")).thenReturn(expectedPage);
+
+        // When
+        searchArtistsService.searchArtists(command);
+
+        // Then
+        verify(artistRepository, times(1)).searchByName("test", pageRequest, "opaque-cursor");
+    }
+
+    @Test
+    void shouldRejectPageSizeAboveMaximum() {
+        // Given
+        PageRequest pageRequest = PageRequest.of(0, PageRequest.MAX_PAGE_SIZE + 1);
+        SearchArtistsUseCase.SearchArtistsCommand command = new SearchArtistsUseCase.SearchArtistsCommand("test", pageRequest, null);
+
+        // When / Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> searchArtistsService.searchArtists(command));
+        assertEquals("pageSize must not exceed " + PageRequest.MAX_PAGE_SIZE, exception.getMessage());
     }
 }

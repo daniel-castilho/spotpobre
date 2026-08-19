@@ -68,7 +68,8 @@ public class DynamoDbConfig {
         return TableSchema.builder(SongDocument.class)
                 .newItemSupplier(SongDocument::new)
                 .addAttribute(String.class, a -> a.name("id").getter(SongDocument::getId).setter(SongDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
-                .addAttribute(String.class, a -> a.name("title").getter(SongDocument::getTitle).setter(SongDocument::setTitle).tags(StaticAttributeTags.secondarySortKey("title-search-index")))
+                .addAttribute(String.class, a -> a.name("title").getter(SongDocument::getTitle).setter(SongDocument::setTitle))
+                .addAttribute(String.class, a -> a.name("searchTitle").getter(SongDocument::getSearchTitle).setter(SongDocument::setSearchTitle).tags(StaticAttributeTags.secondarySortKey("title-search-index")))
                 .addAttribute(String.class, a -> a.name("searchPartition").getter(doc -> "SONG").setter((doc, val) -> {}).tags(StaticAttributeTags.secondaryPartitionKey("title-search-index")))
                 .addAttribute(String.class, a -> a.name("albumId").getter(song -> song.getAlbumId() != null ? song.getAlbumId().toString() : null).setter((song, albumId) -> song.setAlbumId(albumId != null ? UUID.fromString(albumId) : null)).tags(StaticAttributeTags.secondaryPartitionKey("albumId-index")))
                 .addAttribute(String.class, a -> a.name("storageId").getter(SongDocument::getStorageId).setter(SongDocument::setStorageId))
@@ -118,7 +119,8 @@ public class DynamoDbConfig {
         return TableSchema.builder(ArtistDocument.class)
                 .newItemSupplier(ArtistDocument::new)
                 .addAttribute(String.class, a -> a.name("id").getter(ArtistDocument::getId).setter(ArtistDocument::setId).tags(StaticAttributeTags.primaryPartitionKey()))
-                .addAttribute(String.class, a -> a.name("name").getter(ArtistDocument::getName).setter(ArtistDocument::setName).tags(StaticAttributeTags.secondarySortKey("name-search-index")))
+                .addAttribute(String.class, a -> a.name("name").getter(ArtistDocument::getName).setter(ArtistDocument::setName))
+                .addAttribute(String.class, a -> a.name("searchName").getter(ArtistDocument::getSearchName).setter(ArtistDocument::setSearchName).tags(StaticAttributeTags.secondarySortKey("name-search-index")))
                 .addAttribute(String.class, a -> a.name("searchPartition").getter(doc -> "ARTIST").setter((doc, val) -> {}).tags(StaticAttributeTags.secondaryPartitionKey("name-search-index")))
                 .build();
     }

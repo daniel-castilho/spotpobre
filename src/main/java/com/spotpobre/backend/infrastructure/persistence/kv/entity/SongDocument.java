@@ -10,6 +10,7 @@ import java.util.UUID;
 public class SongDocument {
     private String id;
     private String title;
+    private String searchTitle;
     private UUID albumId;
     private String storageId;
 
@@ -31,6 +32,14 @@ public class SongDocument {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getSearchTitle() {
+        return searchTitle;
+    }
+
+    public void setSearchTitle(String searchTitle) {
+        this.searchTitle = searchTitle;
     }
 
     public UUID getAlbumId() {
@@ -56,12 +65,13 @@ public class SongDocument {
         SongDocument that = (SongDocument) o;
         return Objects.equals(id, that.id) &&
                Objects.equals(title, that.title) &&
+               Objects.equals(searchTitle, that.searchTitle) &&
                Objects.equals(albumId, that.albumId) &&
                Objects.equals(storageId, that.storageId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, title, albumId, storageId);
+        return Objects.hash(id, title, searchTitle, albumId, storageId);
     }
 }

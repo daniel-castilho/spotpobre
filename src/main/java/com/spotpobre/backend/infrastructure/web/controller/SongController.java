@@ -12,8 +12,6 @@ import com.spotpobre.backend.infrastructure.web.dto.response.SongDetailsResponse
 import com.spotpobre.backend.infrastructure.web.dto.response.SongResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.SongApiMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,16 +33,18 @@ public class SongController {
     private final SongApiMapper mapper;
 
     @GetMapping("/search")
-    public ResponseEntity<Page<SongResponse>> searchSongs(
+    public ResponseEntity<PageResponse<SongResponse>> searchSongs(
             @RequestParam("query") final String query,
-            final Pageable pageable
+            @RequestParam(defaultValue = "20") final int limit,
+            @RequestParam(required = false) final String cursor
     ) {
         final var command = new SearchSongsUseCase.SearchSongsCommand(
                 query,
-                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
+                PageRequest.of(0, limit),
+                cursor
         );
         final PageResult<Song> songPage = searchSongsUseCase.searchSongs(command);
-        return ResponseEntity.ok(mapper.toResponsePage(songPage, pageable));
+        return ResponseEntity.ok(mapper.toPageResponse(songPage));
     }
 
     @GetMapping("/{songId}")

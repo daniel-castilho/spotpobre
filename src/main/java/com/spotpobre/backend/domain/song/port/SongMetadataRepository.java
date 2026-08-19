@@ -12,5 +12,5 @@ public interface SongMetadataRepository {
     Optional<Song> findById(final SongId id);
     void save(final Song song);
     PageResult<Song> findByAlbumId(final AlbumId albumId, final PageRequest pageRequest);
-    PageResult<Song> searchByTitle(final String titleQuery, final PageRequest pageRequest);
+    PageResult<Song> searchByTitle(final String titleQuery, final PageRequest pageRequest, final String exclusiveStartKey);
 }

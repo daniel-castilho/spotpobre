@@ -177,8 +177,11 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
   DTOs, `@Valid` in controllers. Centralized errors (see § 8).
 - **Pagination**: pure domain types `PageRequest`/`PageResult` in `domain/common/pagination` used
   by ports, use cases and services. Adapters translate to the storage-native mechanism; the web
-  layer adapts results back to the REST shape (Spring `Page` for search, `PageResponse` + cursor
-  for playlists). Controllers may use Spring Data `Pageable`/`Page` at the boundary.
+  layer adapts results back to the REST shape (`PageResponse` + cursor token for playlists and for
+  song/artist search). Search and playlist listing use DynamoDB cursor pagination
+  (`ExclusiveStartKey` via `DynamoDbCursorHelper`), never fake offset pagination. Controllers may
+  use Spring Data `Pageable`/`Page` only at the boundary where it is unavoidable; search endpoints
+  take `limit` + `cursor`.
 
 ---
 
@@ -225,13 +228,17 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
   uniqueness sentinel used by registration (`TransactWriteItems`).
   When adding a new query shape, add the GSI in `docker-compose`/LocalStack setup and in the
   README setup block, not by scanning.
+- **Search is case-insensitive via write-time normalization.** The search GSIs sort on a
+  lowercased copy of the display value: `searchTitle` (Songs) and `searchName` (Artists), set by
+  the persistence mappers on save; the query lowercases the input before `sortBeginsWith`.
+  Rows written before this scheme will not be searchable — re-provision the tables (dev).
 - **Concurrency-safe writes**: registration uses `attribute_not_exists` inside a transaction;
   playlist mutations carry a `version` attribute and are persisted with a conditional write
   (`version = :expected`) that fails with `PlaylistConcurrentModificationException` on a stale
   snapshot. See `docs/data-model-decisions.md`.
-- Pagination on DynamoDB uses `DynamoDbCursorHelper` for the playlist cursor; results are exposed
-  to the core as `PageResult` (domain type). Search index queries use `PageResult` too — never
-  import Spring Data types into `domain/`/`application/`.
+- Cursor pagination on DynamoDB uses `DynamoDbCursorHelper` (Base64-url of the scalar key map)
+  for playlists and search; results are exposed to the core as `PageResult` (domain type) with
+  `nextPageToken`/`hasNext`. Never import Spring Data types into `domain/`/`application/`.
 - **Redis** (reactive starter): cache only. TTLs are set per cache (`CacheConfig`, e.g. `userCache`
   5 min). Never store secrets or large blobs. `disableCachingNullValues()`.
 - Schema/tables: created via `awslocal dynamodb create-table ...` in the README setup block

@@ -9,6 +9,12 @@ package com.spotpobre.backend.domain.common.pagination;
  */
 public record PageRequest(int pageNumber, int pageSize, Sort sort) {
 
+    /**
+     * Upper bound for any single page, enforced by the search use cases (S8 of the
+     * search-pagination epic). Kept in the domain so all layers agree on the limit.
+     */
+    public static final int MAX_PAGE_SIZE = 50;
+
     public PageRequest {
         if (pageNumber < 0) {
             throw new IllegalArgumentException("pageNumber must not be negative");

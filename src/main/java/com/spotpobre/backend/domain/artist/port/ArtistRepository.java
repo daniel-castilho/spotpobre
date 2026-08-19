@@ -10,5 +10,5 @@ import java.util.Optional;
 public interface ArtistRepository {
     Optional<Artist> findById(final ArtistId id);
     void save(final Artist artist);
-    PageResult<Artist> searchByName(final String nameQuery, final PageRequest pageRequest);
+    PageResult<Artist> searchByName(final String nameQuery, final PageRequest pageRequest, final String exclusiveStartKey);
 }

@@ -69,7 +69,8 @@ public class PlaylistApiMapper {
 
         return new PageResponse<>(
                 content,
-                playlistPage.nextPageToken()
+                playlistPage.nextPageToken(),
+                playlistPage.hasNext()
         );
     }
 }

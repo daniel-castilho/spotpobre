@@ -125,8 +125,8 @@ src/main/java/com/spotpobre/backend/
   rule (rule 7).
 - Pagination: pure domain types `PageRequest`/`PageResult` in `domain/common/pagination` are used
   by ports, use cases and services. Adapters translate to/from the storage-native mechanism and the
-  web layer adapts them back to the REST response (Spring `Page` for search, `PageResponse` +
-  cursor token for playlists).
+  web layer adapts them back to the REST response (`PageResponse` + cursor token for playlists and
+  for song/artist search).
 
 ## Testing
 
@@ -134,8 +134,9 @@ src/main/java/com/spotpobre/backend/
   Domain tests instantiate pure entities (no mocks, no Spring); application tests mock the domain
   ports only. Name tests `*Test` (e.g. `CreatePlaylistServiceTest`). `./mvnw test` runs **only**
   these — no Docker, no AWS credentials.
-- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterIT` and the data-consistency ITs
-  (`PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT`) boot
+- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterIT`, the data-consistency ITs
+  (`PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT`) and the
+  search-pagination ITs (`SongSearchPaginationIT`, `ArtistSearchPaginationIT`) boot
   **Testcontainers** with **LocalStack** to exercise the DynamoDB adapters for real;
   `S3SongStorageAdapterIT` exercises the full storage round-trip (upload → confirm → stream →
   download). All are `*IT` classes (requires Docker).

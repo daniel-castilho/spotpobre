@@ -11,6 +11,7 @@ import java.util.List;
 public interface ArtistPersistenceMapper {
 
     @Mapping(source = "id", target = "id", qualifiedByName = "artistIdToUuid")
+    @Mapping(target = "searchName", expression = "java(artist.getName() == null ? null : artist.getName().toLowerCase())")
     ArtistDocument toDocument(final Artist artist);
 
     @Mapping(source = "id", target = "id", qualifiedByName = "stringToArtistId")

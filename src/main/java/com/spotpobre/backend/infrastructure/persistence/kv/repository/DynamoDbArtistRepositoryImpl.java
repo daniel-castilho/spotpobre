@@ -1,27 +1,28 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.repository;
 
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
+import com.spotpobre.backend.domain.common.pagination.PageResult;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.model.DynamoDbCursorHelper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
 public class DynamoDbArtistRepositoryImpl implements DynamoDbArtistRepository {
 
     private final DynamoDbTable<ArtistDocument> artistTable;
+    private final DynamoDbCursorHelper cursorHelper;
 
     @Override
     public ArtistDocument save(final ArtistDocument artistDocument) {
@@ -35,21 +36,31 @@ public class DynamoDbArtistRepositoryImpl implements DynamoDbArtistRepository {
     }
 
     @Override
-    public Page<ArtistDocument> searchByName(final String nameQuery, final Pageable pageable) {
+    public PageResult<ArtistDocument> searchByName(final String nameQuery, final PageRequest pageRequest, final String exclusiveStartKey) {
         DynamoDbIndex<ArtistDocument> index = artistTable.index("name-search-index");
-        QueryConditional queryConditional = QueryConditional
-                .sortBeginsWith(k -> k.partitionValue("ARTIST").sortValue(nameQuery.toLowerCase()));
+        QueryEnhancedRequest.Builder requestBuilder = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional
+                        .sortBeginsWith(k -> k.partitionValue("ARTIST").sortValue(nameQuery.toLowerCase())))
+                .limit(pageRequest.pageSize());
 
-        QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
-                .queryConditional(queryConditional)
-                .limit(pageable.getPageSize())
-                .build();
+        if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
+            requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
+        }
 
-        List<ArtistDocument> results = index.query(queryRequest)
-                .stream()
-                .flatMap(page -> page.items().stream())
-                .collect(Collectors.toList());
+        Optional<Page<ArtistDocument>> page = index.query(requestBuilder.build()).stream().findFirst();
+        List<ArtistDocument> documents = page.map(Page::items).orElse(List.of());
+        String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
+        boolean hasNext = nextToken != null;
 
-        return new PageImpl<>(results, pageable, results.size());
+        return new PageResult<>(
+                documents,
+                documents.size(),
+                1,
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                hasNext,
+                pageRequest.pageNumber() > 0,
+                nextToken
+        );
     }
 }

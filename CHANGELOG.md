@@ -5,6 +5,47 @@ All notable changes to Spotpobre API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project
 intends to follow [Semantic Versioning](https://semver.org/) starting from its first tag.
 
+## [0.4.0] - 2026-08-18
+
+### Added
+
+- **Case-insensitive search (songs + artists).** Search GSIs now sort on write-time normalized
+  keys (`searchTitle` for `title-search-index`, `searchName` for `name-search-index`) instead of
+  the raw display value; the query lowercases the input before `sortBeginsWith`, so `test`,
+  `TEST` and `Test` return the same results.
+- **Real cursor pagination for search.** `/api/v1/songs/search` and `/api/v1/artists/search`
+  moved from fake offset pagination to DynamoDB cursor pagination: they accept `limit` + optional
+  `cursor` and return `content` + `nextPageToken` + `hasNext` (`PageResponse`). The old
+  `page`/`size`/`sort` params were removed — an intentional API change.
+- **Max page size.** `PageRequest.MAX_PAGE_SIZE = 50`; search use cases reject larger sizes with
+  a 400 (`pageSize must not exceed 50`). Malformed cursor tokens are rejected with a 400 instead
+  of a 500.
+- **Honest pagination metadata.** `PageResponse` now carries `hasNext` (playlist listing and
+  search); playlist listing already reported a real `nextPageToken` from `LastEvaluatedKey`.
+- **New integration tests (LocalStack):** `SongSearchPaginationIT`, `ArtistSearchPaginationIT`
+  (mixed-case search returns the same results, pages advance via the cursor, invalid cursor
+  rejected).
+- **Fixed latent `DynamoDbCursorHelper` bug**: cursor encode/decode serialized the SDK
+  `AttributeValue` map directly (Jackson cannot round-trip it); it now stores the scalar key map
+  with a type prefix. The encode path had never been exercised before (no test produced a non-empty
+  `LastEvaluatedKey`).
+
+### Changed
+
+- **Data model:** Songs/Artists tables carry `searchTitle`/`searchName` (lowercased at save time);
+  the search GSIs' sort keys moved from `title`/`name` to `searchTitle`/`searchName`. README
+  LocalStack setup block and `AbstractIntegrationTest` provisioning updated. Existing rows written
+  before this change are not searchable until the tables are re-provisioned (dev only).
+- **Ports:** `SongMetadataRepository.searchByTitle` and `ArtistRepository.searchByName` take an
+  `exclusiveStartKey` cursor; `SearchSongsCommand`/`SearchArtistsCommand` carry it as `cursor`.
+- **Web:** search endpoints return `PageResponse` instead of Spring `Page`.
+
+### Deferred
+
+- Production deployment runtime shape (how the artifact is shipped/run — container image, platform).
+- E2E tests not yet wired into the build via the failsafe plugin (they run via
+  `./mvnw test -Dtest='*IT'` and in the CI workflow).
+
 ## [0.3.0] - 2026-08-18
 
 ### Added

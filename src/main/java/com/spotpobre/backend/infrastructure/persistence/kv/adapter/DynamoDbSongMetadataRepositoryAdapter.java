@@ -10,8 +10,6 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.mapper.SongPersistenceMapper;
 import com.spotpobre.backend.infrastructure.persistence.kv.repository.DynamoDbSongMetadataRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -42,18 +40,8 @@ public class DynamoDbSongMetadataRepositoryAdapter implements SongMetadataReposi
     }
 
     @Override
-    public PageResult<Song> searchByTitle(final String titleQuery, final PageRequest pageRequest) {
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNumber(), pageRequest.pageSize());
-        Page<SongDocument> documentPage = dynamoDbSongMetadataRepository.searchByTitle(titleQuery, pageable);
-        return new PageResult<>(
-                documentPage.getContent().stream().map(mapper::toDomain).toList(),
-                documentPage.getTotalElements(),
-                documentPage.getTotalPages(),
-                pageRequest.pageNumber(),
-                pageRequest.pageSize(),
-                documentPage.hasNext(),
-                documentPage.hasPrevious(),
-                null
-        );
+    public PageResult<Song> searchByTitle(final String titleQuery, final PageRequest pageRequest, final String exclusiveStartKey) {
+        return dynamoDbSongMetadataRepository.searchByTitle(titleQuery, pageRequest, exclusiveStartKey)
+                .map(mapper::toDomain);
     }
 }

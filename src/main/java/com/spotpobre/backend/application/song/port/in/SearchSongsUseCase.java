@@ -8,6 +8,6 @@ public interface SearchSongsUseCase {
 
     PageResult<Song> searchSongs(final SearchSongsCommand command);
 
-    record SearchSongsCommand(String query, PageRequest pageRequest) {
+    record SearchSongsCommand(String query, PageRequest pageRequest, String cursor) {
     }
 }

@@ -9,6 +9,7 @@ import java.util.Objects;
 public class ArtistDocument {
     private String id;
     private String name;
+    private String searchName;
 
     public ArtistDocument() {
     }
@@ -30,17 +31,26 @@ public class ArtistDocument {
         this.name = name;
     }
 
+    public String getSearchName() {
+        return searchName;
+    }
+
+    public void setSearchName(String searchName) {
+        this.searchName = searchName;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ArtistDocument that = (ArtistDocument) o;
         return Objects.equals(id, that.id) &&
-               Objects.equals(name, that.name);
+               Objects.equals(name, that.name) &&
+               Objects.equals(searchName, that.searchName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name);
+        return Objects.hash(id, name, searchName);
     }
 }
