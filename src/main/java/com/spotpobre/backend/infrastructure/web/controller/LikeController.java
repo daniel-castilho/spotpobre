@@ -1,6 +1,7 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
+import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.infrastructure.web.dto.request.ToggleLikeRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.LikeResponse;

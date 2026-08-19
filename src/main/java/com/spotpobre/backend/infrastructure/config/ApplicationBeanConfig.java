@@ -41,6 +41,7 @@ import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.application.user.service.AuthenticationService;
 import com.spotpobre.backend.application.user.service.GetCurrentUserService;
 import com.spotpobre.backend.application.user.service.GetUserDetailsService;
+import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
