@@ -32,6 +32,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **JaCoCo coverage reporting (S1).** Added `jacoco-maven-plugin` 0.8.9 with `prepare-agent` and `report` goals; `./mvnw test` now generates coverage reports in `target/site/jacoco/`. Surefire `argLine` updated to `@{argLine}` for agent integration.
 - **Exception type hardening.** `ConfirmSongUploadService` now throws `NotFoundException` instead of
   `IllegalArgumentException` for business rule violations (song not belonging to album, storage key mismatch),
   mapping to HTTP 404 with the standard error envelope instead of 400.
