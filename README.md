@@ -322,7 +322,9 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 - **Storage & streaming** — S3-backed `SongStoragePort` with a CDN storage adapter and Redis-backed
   caching.
 - **Hardening** — global exception handling with structured validation errors and correct DynamoDB
-  pagination (cursor-based, no silent data leaks).
+  pagination (cursor-based, no silent data leaks). `ConfirmSongUploadService` now returns 404 with
+  the standard error envelope when a song does not belong to the specified album or the storage key
+  does not match the song record.
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then the
   `*IT` slice + E2E suite (Testcontainers), then `./mvnw clean package` on every push/PR.
   `DynamoDbConfig` / `S3Config` build AWS clients with `StaticCredentialsProvider` from

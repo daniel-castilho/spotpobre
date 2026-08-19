@@ -2,6 +2,7 @@ package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -67,7 +68,7 @@ class ConfirmSongUploadServiceTest {
 
         when(songMetadataRepository.findById(song.getId())).thenReturn(Optional.of(song));
 
-        assertThrows(IllegalArgumentException.class, () -> confirmSongUploadService.confirmUpload(command));
+        assertThrows(NotFoundException.class, () -> confirmSongUploadService.confirmUpload(command));
         verify(songStoragePort, never()).confirmUpload(any());
     }
 
@@ -82,7 +83,7 @@ class ConfirmSongUploadServiceTest {
 
         when(songMetadataRepository.findById(song.getId())).thenReturn(Optional.of(song));
 
-        assertThrows(IllegalArgumentException.class, () -> confirmSongUploadService.confirmUpload(command));
+        assertThrows(NotFoundException.class, () -> confirmSongUploadService.confirmUpload(command));
         verify(songStoragePort, never()).confirmUpload(any());
     }
 
@@ -96,7 +97,7 @@ class ConfirmSongUploadServiceTest {
 
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> confirmSongUploadService.confirmUpload(command));
+        assertThrows(NotFoundException.class, () -> confirmSongUploadService.confirmUpload(command));
         verify(songStoragePort, never()).confirmUpload(any());
     }
 }

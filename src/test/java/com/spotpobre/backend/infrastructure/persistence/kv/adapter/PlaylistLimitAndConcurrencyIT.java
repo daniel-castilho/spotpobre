@@ -3,8 +3,9 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 import com.spotpobre.backend.AbstractIntegrationTest;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.domain.album.model.AlbumId;
-import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
+import com.spotpobre.backend.domain.playlist.model.Playlist;
+import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.user.model.User;
@@ -44,7 +45,7 @@ class PlaylistLimitAndConcurrencyIT extends AbstractIntegrationTest {
             assertNotNull(created);
         }
 
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        ConflictException exception = assertThrows(ConflictException.class, () ->
                 createPlaylistUseCase.createPlaylist(
                         new CreatePlaylistUseCase.CreatePlaylistCommand("Eleventh", ownerId)));
 

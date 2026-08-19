@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -22,13 +23,13 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
     @Override
     public Song confirmUpload(final ConfirmSongUploadCommand command) {
         final Song song = songMetadataRepository.findById(command.songId())
-                .orElseThrow(() -> new IllegalArgumentException("Song not found: " + command.songId()));
+                .orElseThrow(() -> new NotFoundException("Song not found: " + command.songId()));
 
         if (!song.getAlbumId().equals(command.albumId())) {
-            throw new IllegalArgumentException("Song does not belong to album: " + command.albumId());
+            throw new NotFoundException("Song does not belong to album: " + command.albumId());
         }
         if (!song.getStorageId().equals(command.storageKey())) {
-            throw new IllegalArgumentException("Storage key does not match the song record.");
+            throw new NotFoundException("Storage key does not match the song record.");
         }
 
         songStoragePort.confirmUpload(new ConfirmUploadCommand(
