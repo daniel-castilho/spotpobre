@@ -9,9 +9,19 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
-- **`S3SongStorageAdapterTest`** — LocalStack slice test for the song storage adapter:
+- **`S3SongStorageAdapterIT`** — LocalStack slice test for the song storage adapter:
   `generateUploadUrl` → direct PUT to presigned URL → `confirmUpload` → `getStreamingUrl` →
   HTTP GET on signed URL returns 200 with correct `Content-Type` and byte-identical body.
+- **CI/CD pipeline made green and deterministic.** The GitHub Actions workflow
+  (`.github/workflows/ci.yml`) now runs pure unit tests, then the `*IT` slice + E2E suite, then
+  `./mvnw clean package`, gating each step on the previous one. Deprecated
+  `actions/setup-java@v4` updated to `@v5`. `DynamoDbConfig` and `S3Config` build AWS clients with
+  `StaticCredentialsProvider` from `AwsProperties.credentials()` (bound from `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` env vars with LocalStack-compatible defaults), so tests authenticate
+  against LocalStack on clean runners instead of relying on `DefaultCredentialsProvider` (which
+  ignored the test properties). `ProdConfigValidator` now also requires the two credential
+  variables in prod. `SpotpobreApplicationTests` closes the Spring context it starts (try-with-
+  resources instead of a leaked `main()`).
 - **Direct-to-S3 song upload via presigned URLs.** The API no longer accepts audio as `byte[]` or
   `MultipartFile`. `POST /api/v1/albums/{albumId}/songs` (`ROLE_ARTIST`) validates content type
   and size (max 500 MB), persists song metadata, and returns short-lived (10 min) presigned PUT
@@ -104,7 +114,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   uses the storage key persisted during upload (the UUID stored on the `Song` aggregate as `storageId`),
   not the `SongId`. `GetSongStreamUrlService` loads the `Song`, extracts `getStorageId()`, and passes
   it to `SongStoragePort.getStreamingUrl(storageKey)`. Previously the signed URL referenced a non-existent
-  object key. Covered by `S3SongStorageAdapterTest` (LocalStack round-trip: upload → confirm → stream → download)
+  object key. Covered by `S3SongStorageAdapterIT` (LocalStack round-trip: upload → confirm → stream → download)
   and `ArtistSongFlowIT.shouldDownloadSongContentViaSignedStreamingUrl()` (full E2E: presigned PUT + signed GET
   returns HTTP 200 with correct `Content-Type: audio/mpeg` and byte-identical body).
 - **RestAssured query-parameter double-encoding bypassed in presigned-URL tests.** The presigned PUT and
@@ -125,7 +135,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Deferred
 
-- Production environment shape (`application-prod.yaml` empty; JWT secret, AWS endpoints and
-  Redis host from env vars in real deployments).
+- Production deployment runtime shape (how the artifact is shipped/run — container image, platform;
+  the env-var contract itself is defined in `application-prod.yaml`).
 - Pagination on more list endpoints; rate limiting; email verification and password recovery.
-- CI pipeline and dependency/security gates.
+- Additional quality gates (JaCoCo coverage, SpotBugs, dependency/security scanning).

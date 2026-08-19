@@ -15,8 +15,9 @@ Sources: `AGENTS.md` · `docs/coding-standards.md` · colocated `*Test` / `*IT` 
    `UserTest`). **No mocks**, no Spring.
 2. **Application unit** — use-case services with **mocked domain ports only**; happy path +
    rejection + ownership/authorization behaviour.
-3. **Slice integration (selective)** — real DynamoDB adapter behind Testcontainers + LocalStack
-   (`DynamoDbPlaylistRepositoryAdapterTest`). Requires Docker.
+3. **Slice integration (selective)** — real DynamoDB/S3 adapters behind Testcontainers +
+   LocalStack (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`). Requires Docker;
+   run explicitly as `*IT`.
 4. **End-to-end** — RestAssured against the full app on `RANDOM_PORT` (`AuthenticationFlowIT`,
    `ArtistSongFlowIT`, `PlaylistFlowIT`). Requires Docker; run explicitly.
 5. **Smoke** — `docker-compose up -d` + LocalStack setup + `./mvnw spring-boot:run`; exercise the
@@ -31,15 +32,15 @@ assert against `infrastructure` internals from `domain`/`application` tests.
 ## Runner & layout
 
 ```bash
-./mvnw test                 # fast unit + slice loop (Docker only for the adapter test)
-./mvnw test -Dtest='*IT'    # E2E explicitly (Docker + LocalStack)
+./mvnw test                 # pure unit tests, no Docker
+./mvnw test -Dtest='*IT'    # slice + E2E explicitly (Docker + LocalStack)
 ./mvnw clean package        # full build gate
 ```
 
 - Tests live in `src/test/java/...` mirrored to production packages:
   - `.../domain/<feature>/model/*Test.java`
   - `.../application/<feature>/service/*ServiceTest.java`
-  - `.../infrastructure/persistence/kv/adapter/*AdapterTest.java`
+  - `.../infrastructure/persistence/kv/adapter/*AdapterIT.java`
   - `.../*IT.java` for end-to-end flows.
 - English names: `register_duplicateEmail_throws`, or descriptive `should reject a duplicate email`.
 - Assert with JUnit 5 `org.junit.jupiter.api.Assertions`. AssertJ's `assertThat` appears only in the
@@ -78,7 +79,7 @@ assert against `infrastructure` internals from `domain`/`application` tests.
 | Likes            | `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`, `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest` | Toggle add/remove; strategy dispatch; entity-existence guards |
 | Error mapping    | `infrastructure/web/exception/GlobalExceptionHandlerTest`          | 400/401/403/500 mapping, incl. `BadCredentialsException` → 401 |
 | Domain models    | `domain/<feature>/model/*Test`                                     | Entity invariants (no mocks)                              |
-| Slice (DynamoDB) | `infrastructure/.../DynamoDbPlaylistRepositoryAdapterTest`         | Real adapter against LocalStack                           |
+| Slice (DynamoDB) | `infrastructure/.../DynamoDbPlaylistRepositoryAdapterIT`         | Real adapter against LocalStack                           |
 | E2E flows        | `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT`       | Full HTTP flows on `RANDOM_PORT`                          |
 
 When you change behaviour covered above, **extend the existing file** instead of inventing a

@@ -14,13 +14,23 @@ public record AwsProperties(
         @NotBlank
         String region,
         @Valid
+        CredentialsProperties credentials,
+        @Valid
         S3Properties s3,
         @Valid
         DynamoDbProperties dynamodb
 ) {
+    public record CredentialsProperties(
+            @NotBlank
+            String accessKey,
+            @NotBlank
+            String secretKey
+    ) {
+    }
+
     public record S3Properties(
             @NotBlank
-            String endpoint, // Changed from URI to String
+            String endpoint,
             @NotBlank
             String bucketName
     ) {
@@ -28,7 +38,7 @@ public record AwsProperties(
 
     public record DynamoDbProperties(
             @NotBlank
-            String endpoint // Changed from URI to String
+            String endpoint
     ) {
     }
 }

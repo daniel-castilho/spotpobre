@@ -11,17 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Unit + slice tests
+      - name: Unit tests
         run: ./mvnw test
 
-      - name: E2E tests (Docker / Testcontainers)
+      - name: Slice + E2E tests (Docker / Testcontainers)
+        if: success()
         run: ./mvnw test -Dtest='*IT' -DfailIfNoTests=false
 
       - name: Production build
+        if: success()
         run: ./mvnw clean package

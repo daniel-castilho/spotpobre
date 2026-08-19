@@ -16,7 +16,7 @@ import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class DynamoDbPlaylistRepositoryAdapterTest extends AbstractIntegrationTest {
+class DynamoDbPlaylistRepositoryAdapterIT extends AbstractIntegrationTest {
 
     @Autowired
     private PlaylistRepository playlistRepository;

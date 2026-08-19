@@ -48,9 +48,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("aws.s3.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString());
         registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString());
 
-        // AWS Credentials for LocalStack using Spring Cloud AWS specific properties
-        registry.add("spring.cloud.aws.credentials.access-key", localstack::getAccessKey);
-        registry.add("spring.cloud.aws.credentials.secret-key", localstack::getSecretKey);
+        // AWS Credentials for LocalStack — used by DynamoDbConfig and S3Config which build
+        // clients with StaticCredentialsProvider from AwsProperties.credentials().
+        registry.add("aws.credentials.access-key", localstack::getAccessKey);
+        registry.add("aws.credentials.secret-key", localstack::getSecretKey);
 
         // AWS Region
         registry.add("aws.region", localstack::getRegion);

@@ -3,7 +3,8 @@ package com.spotpobre.backend.infrastructure.config;
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -23,17 +24,27 @@ public class S3Config {
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(
+                                awsProperties.credentials().accessKey(),
+                                awsProperties.credentials().secretKey()
+                        )
+                ))
                 .region(Region.of(awsProperties.region()))
-                .endpointOverride(URI.create(awsProperties.s3().endpoint())) // Convert String to URI
-                .forcePathStyle(true) // Required for Localstack
+                .endpointOverride(URI.create(awsProperties.s3().endpoint()))
+                .forcePathStyle(true)
                 .build();
     }
 
     @Bean
     public S3Presigner s3Presigner() {
         return S3Presigner.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(
+                                awsProperties.credentials().accessKey(),
+                                awsProperties.credentials().secretKey()
+                        )
+                ))
                 .region(Region.of(awsProperties.region()))
                 .endpointOverride(URI.create(awsProperties.s3().endpoint()))
                 .serviceConfiguration(S3Configuration.builder()

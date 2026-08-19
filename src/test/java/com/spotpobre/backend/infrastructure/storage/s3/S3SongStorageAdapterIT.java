@@ -16,7 +16,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class S3SongStorageAdapterTest extends AbstractIntegrationTest {
+class S3SongStorageAdapterIT extends AbstractIntegrationTest {
 
     @Autowired
     private S3SongStorageAdapter adapter;

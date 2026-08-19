@@ -11,7 +11,8 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserProfileDoc
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -45,7 +46,12 @@ public class DynamoDbConfig {
     @DependsOn("prodConfigValidator")
     public DynamoDbClient dynamoDbClient() {
         return DynamoDbClient.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(
+                                awsProperties.credentials().accessKey(),
+                                awsProperties.credentials().secretKey()
+                        )
+                ))
                 .region(Region.of(awsProperties.region()))
                 .endpointOverride(URI.create(awsProperties.dynamodb().endpoint()))
                 .build();

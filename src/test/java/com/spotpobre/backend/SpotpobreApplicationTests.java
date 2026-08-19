@@ -2,8 +2,9 @@ package com.spotpobre.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SpotpobreApplicationTests {
 
     @Autowired
-    private ApplicationContext applicationContext;
+    private ConfigurableApplicationContext applicationContext;
 
     @Test
     void contextLoads() {
@@ -20,6 +21,10 @@ class SpotpobreApplicationTests {
 
     @Test
     void mainApplicationStarts() {
-        SpotpobreApplication.main(new String[]{});
+        try (ConfigurableApplicationContext context =
+                     SpringApplication.run(SpotpobreApplication.class)) {
+            assertThat(context).isNotNull();
+            assertThat(context.isActive()).isTrue();
+        }
     }
 }

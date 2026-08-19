@@ -57,17 +57,18 @@ task.
 | Purpose | Command |
 | :--- | :--- |
 | Run the dev server | `./mvnw spring-boot:run` → http://localhost:8080 |
-| Unit + slice tests (fast; Docker only for the adapter test) | `./mvnw test` |
-| Run the E2E tests explicitly (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
+| Run pure unit tests (no Docker needed) | `./mvnw test` |
+| Run slice + E2E tests explicitly (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
 | Interactive API docs | http://localhost:8080/swagger-ui.html |
 
-> Prefer the fast unit-test loop (`./mvnw test`); the `*IT` E2E tests are **not** picked up by the
-> default surefire run (no failsafe plugin yet) — run them explicitly after infrastructure changes.
-> Any change touching persistence, storage or security should also be smoke-tested against
-> `docker-compose up -d` + the LocalStack setup commands in `README.md`.
+> Prefer the fast unit-test loop (`./mvnw test`); it needs **no Docker**. The slice integration and
+> E2E tests (`*IT` classes — e.g. `DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`,
+> `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT`) are **not** picked up by the default
+> surefire run (no failsafe plugin yet) — run them explicitly with `./mvnw test -Dtest='*IT'` after
+> infrastructure changes, or on a machine with Docker.
 
 ## Architecture
 
@@ -131,12 +132,16 @@ src/main/java/com/spotpobre/backend/
 
 - **JUnit 5 + Mockito** unit tests live in `src/test/java/.../domain` and `.../application`.
   Domain tests instantiate pure entities (no mocks, no Spring); application tests mock the domain
-  ports only. Name tests `*Test` (e.g. `CreatePlaylistServiceTest`).
-- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterTest` boots **Testcontainers** with
-  **LocalStack** to exercise the DynamoDB adapter for real (requires Docker).
+  ports only. Name tests `*Test` (e.g. `CreatePlaylistServiceTest`). `./mvnw test` runs **only**
+  these — no Docker, no AWS credentials.
+- **Slice integration:** `DynamoDbPlaylistRepositoryAdapterIT` boots **Testcontainers** with
+  **LocalStack** to exercise the DynamoDB adapter for real; `S3SongStorageAdapterIT` exercises the
+  full storage round-trip (upload → confirm → stream → download). Both are `*IT` classes (requires
+  Docker).
 - **End-to-end:** `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT` use **RestAssured**
   against the full application on a random port (`@SpringBootTest(webEnvironment =
-  RANDOM_PORT)`) with Testcontainers. Run explicitly with `./mvnw test -Dtest='*IT'`.
+  RANDOM_PORT)`) with Testcontainers. Run all `*IT` classes explicitly with
+  `./mvnw test -Dtest='*IT'`.
 - Test method names: `method_condition_expectedResult` or descriptive `should ...`.
 - After significant changes run `./mvnw clean package` and smoke-test against
   `docker-compose up -d` (plus the LocalStack setup commands from `README.md`).
@@ -163,8 +168,9 @@ new violations — flag them to the human instead.
   artifact is shipped/run (container image, platform) is still undocumented.
   `application-dev.yaml` is intentionally empty — dev uses the baked defaults in
   `application.yaml`.
-- **E2E tests not wired into the build.** No failsafe plugin, so `*IT` tests only run via
-  `-Dtest='*IT'`. Consider adding failsafe + `mvn verify` once CI exists.
+- **E2E tests not wired into the build via failsafe.** No failsafe plugin, so `*IT` tests only run
+  via `-Dtest='*IT'`. The GitHub Actions workflow now runs them in a dedicated step, so CI covers
+  them; adding failsafe + `mvn verify` would make the full gate a single command locally.
 
 ## Notes
 

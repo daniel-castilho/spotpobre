@@ -23,6 +23,8 @@ public class ProdConfigValidator implements InitializingBean {
     private static final List<String> REQUIRED_PROPERTIES = List.of(
             "jwt.secret",
             "aws.region",
+            "aws.credentials.access-key",
+            "aws.credentials.secret-key",
             "aws.dynamodb.endpoint",
             "aws.s3.endpoint",
             "aws.s3.bucket-name",

@@ -239,7 +239,7 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
 | ------------------- | ----------------------------- | ------------------------------------------------------------ |
 | Domain unit         | JUnit 5                       | Pure entities/value objects, **no mocks**                    |
 | Application unit    | JUnit 5 + Mockito             | Mock the **domain ports only**; happy path + rejection       |
-| Slice integration   | Testcontainers + LocalStack   | Real DynamoDB adapter (`DynamoDbPlaylistRepositoryAdapterTest`) |
+| Slice integration   | Testcontainers + LocalStack   | Real DynamoDB/S3 adapters (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`) |
 | End-to-end          | RestAssured + Testcontainers  | `*IT` on `RANDOM_PORT`; run explicitly `-Dtest='*IT'`        |
 
 - Method/test names: `method_condition_expectedResult` or descriptive `should ...`.

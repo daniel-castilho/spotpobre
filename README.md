@@ -222,8 +222,8 @@ The application will be available at `http://localhost:8080`.
 | Purpose | Command |
 | :--- | :--- |
 | Run the dev server | `./mvnw spring-boot:run` |
-| Run unit + slice tests (fast; Docker only for the adapter test) | `./mvnw test` |
-| Run the E2E tests explicitly (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
+| Run pure unit tests (no Docker needed) | `./mvnw test` |
+| Run slice + E2E tests (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
@@ -236,13 +236,14 @@ The project follows a comprehensive test strategy to guarantee quality and robus
   **Mockito** to exercise business rules and use cases in isolation, with no Spring context or I/O.
   Run them with `./mvnw test` (no Docker required).
 - **Slice integration tests** — use **Testcontainers** with **LocalStack** to boot a real AWS
-  environment locally and validate the persistence layer against DynamoDB
-  (`DynamoDbPlaylistRepositoryAdapterTest`).
+  environment locally and validate the persistence and storage layers against DynamoDB/S3
+  (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`). They are named `*IT` so they
+  do **not** run in the default `./mvnw test`; execute them explicitly with
+  `./mvnw test -Dtest='*IT'` (requires Docker).
 - **End-to-end (E2E) tests** — use **RestAssured** against the full application on a random port
   (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) with Testcontainers. They validate complete
   user flows from controller to database (`AuthenticationFlowIT`, `ArtistSongFlowIT`,
-  `PlaylistFlowIT`). The `*IT` tests are not picked up by the default surefire run — execute them
-  explicitly with `./mvnw test -Dtest='*IT'`.
+  `PlaylistFlowIT`). Same `*IT` naming convention — run explicitly with `./mvnw test -Dtest='*IT'`.
 
 ## API & Documentation
 
@@ -285,8 +286,8 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 
 ## Current State
 
-The project is an early-stage backend (`0.0.1-SNAPSHOT`, no tagged releases yet) with the following
-already implemented on `main`:
+The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following already implemented on
+`main`:
 
 - **Auth & users** — JWT registration/authentication, `ROLE_ADMIN` / `ROLE_ARTIST` / `ROLE_USER`,
   profile endpoint. Passwords are hashed with **Argon2id** behind the domain `PasswordHasher` port
@@ -306,6 +307,10 @@ already implemented on `main`:
   caching.
 - **Hardening** — global exception handling with structured validation errors and correct DynamoDB
   pagination (cursor-based, no silent data leaks).
+- **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then the
+  `*IT` slice + E2E suite (Testcontainers), then `./mvnw clean package` on every push/PR.
+  `DynamoDbConfig` / `S3Config` build AWS clients with `StaticCredentialsProvider` from
+  `AwsProperties` (env-overridable), so tests work on clean runners with LocalStack.
 
 ## Roadmap
 
@@ -314,9 +319,9 @@ Deliberately not implemented yet (candidate backlog):
 - Pagination on more list endpoints (artists, albums, search results)
 - Rate limiting and per-user quotas
 - Email verification and password recovery
-- Production environment shape (`application-prod.yaml` is currently empty; JWT secret, AWS
-  endpoints and Redis host must come from env vars in real deployments)
-- CI pipeline and dependency/security gates
+- Production deployment runtime shape (how the artifact is shipped/run — the env-var contract is
+  defined in `application-prod.yaml`, but the container image / platform is not yet documented)
+- Additional quality gates (JaCoCo coverage, SpotBugs, dependency/security scanning)
 
 ## Documentation
 
