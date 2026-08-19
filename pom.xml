@@ -261,6 +261,25 @@
             </execution>
         </executions>
     </plugin>
+    <!-- SpotBugs static analysis -->
+    <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.9.3.0</version>
+        <configuration>
+            <failOnError>true</failOnError>
+            <threshold>High</threshold>
+            <effort>Max</effort>
+        </configuration>
+        <executions>
+            <execution>
+                <id>spotbugs</id>
+                <goals>
+                    <goal>check</goal>
+                </goals>
+            </execution>
+        </executions>
+    </plugin>
 		</plugins>
 	</build>
 

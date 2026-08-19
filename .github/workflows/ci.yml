@@ -20,6 +20,10 @@ jobs:
       - name: Unit tests
         run: ./mvnw test
 
+      - name: SpotBugs static analysis
+        if: success()
+        run: ./mvnw spotbugs:check
+
       - name: Slice + E2E tests (Docker / Testcontainers)
         if: success()
         run: ./mvnw test -Dtest='*IT' -DfailIfNoTests=false
