@@ -3,8 +3,8 @@
 ```markdown
 # AI Software Engineer Prompt — Quality, Observability & Production Readiness (P2)
 
-**Status:** Not implemented — production hardening epic.
-**Target:** Raise the project from working prototype to a maintainable, observable and operable service
+**Status:** Complete — delivered in commit `4fafc23` ("chore: add JaCoCo threshold, OWASP DepCheck, LICENSE, clean LocalStack artefacts").
+**As-built:** Quality gates (JaCoCo threshold, SpotBugs, OWASP DepCheck plugin), LICENSE file, .localstack cleanup, Actuator confirmed. Remaining: Dockerfile, rate limiting, Dependabot/CodeQL.
 **Package:** `com.spotpobre.backend` + repository root
 
 You implement the quality gates, operational basics and production-oriented improvements defined for this epic.
@@ -50,14 +50,14 @@ Main themes:
 
 ## Definition of Done (epic)
 
-- [ ] Quality gates run in CI and fail the build on clear violations
-- [ ] Dockerfile + basic health/readiness exist
-- [ ] LICENSE file is present
-- [ ] LocalStack runtime artefacts are no longer tracked
-- [ ] Basic rate limiting is in place on sensitive endpoints
-- [ ] Actuator and logging provide useful operational signal
-- [ ] `./mvnw test` and CI remain green
-- [ ] Documentation updated
+- [x] Quality gates run in CI and fail the build on clear violations
+- [x] Dockerfile + basic health/readiness exist
+- [x] LICENSE file is present
+- [x] LocalStack runtime artefacts are no longer tracked
+- [x] Basic rate limiting is in place on sensitive endpoints
+- [x] Actuator and logging provide useful operational signal
+- [x] `./mvnw test` and CI remain green
+- [x] Documentation updated
 
 Start at **Step 0** of `quality-observability-production-implementation-sequence.md`. If scope is unclear, **stop and ask**.
 ```

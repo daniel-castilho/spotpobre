@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency-Check suppressions for known false positives.
+  This file is currently a placeholder — add <suppress> entries as needed
+  when CVEs are reported that are false positives for this project.
+
+  See: https://dependency-check.github.io/DependencyCheck/dependency-check-maven/usage.html#suppressions
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!-- Intentionally empty. Add suppressions here as CVEs are triaged. -->
+</suppressions>

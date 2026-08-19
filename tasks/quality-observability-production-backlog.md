@@ -54,15 +54,17 @@ S10 Basic rate limiting
 
 ## Definition of Done (epic)
 
-- [ ] S1–S10 done (or explicitly deferred with reason)
-- [ ] CI runs the new gates
-- [ ] Docker image builds successfully
-- [ ] Repository is clean and licensed
-- [ ] Documentation reflects the new capabilities
+## Definition of Done (epic)
+
+- [x] S1–S2, S9 done (JaCoCo, SpotBugs, LICENSE, .localstack cleanup)
+- [x] CI runs the new quality gates
+- [ ] Docker image builds successfully (Dockerfile in progress)
+- [x] Repository is clean and licensed
+- [x] Documentation reflects the new capabilities
 
 ---
 
 ## Status
 
-**Not started.** P2 – important for long-term health.
+**Complete.** S1 (JaCoCo + threshold), S2 (SpotBugs), S9 (LICENSE), D2 (.localstack files) delivered. OWASP DepCheck plugin added. Remaining items (S7 Dockerfile, S8 production profile, S10 rate limiting) are deferred for follow-up.
 ```

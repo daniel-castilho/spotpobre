@@ -20,9 +20,17 @@ jobs:
       - name: Unit tests
         run: ./mvnw test
 
+      - name: JaCoCo coverage check
+        if: success()
+        run: ./mvnw jacoco:check
+
       - name: SpotBugs static analysis
         if: success()
         run: ./mvnw spotbugs:check
+
+      - name: OWASP Dependency Check
+        if: success()
+        run: ./mvnw dependency-check:check -DfailBuildOnAnyVulnerability=false
 
       - name: Slice + E2E tests (Docker / Testcontainers)
         if: success()
