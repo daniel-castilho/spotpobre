@@ -1,9 +1,7 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
-import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
-import com.spotpobre.backend.domain.user.port.UserRepository;
 import com.spotpobre.backend.infrastructure.web.dto.request.ToggleLikeRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.LikeResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.LikeApiMapper;
@@ -19,25 +17,31 @@ import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/v1/likes")
-@RequiredArgsConstructor
 public class LikeController {
 
     private final ToggleLikeUseCase toggleLikeUseCase;
-    private final UserRepository userRepository;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final LikeApiMapper mapper;
+
+    public LikeController(
+            final ToggleLikeUseCase toggleLikeUseCase,
+            final GetCurrentUserUseCase getCurrentUserUseCase,
+            final LikeApiMapper mapper
+    ) {
+        this.toggleLikeUseCase = toggleLikeUseCase;
+        this.getCurrentUserUseCase = getCurrentUserUseCase;
+        this.mapper = mapper;
+    }
 
     @PostMapping("/toggle")
     public ResponseEntity<LikeResponse> toggleLike(
             @RequestBody @Valid ToggleLikeRequest request,
             Principal principal
     ) {
-        final String userEmail = principal.getName();
-        final UserId ownerId = userRepository.findByProfileEmail(userEmail)
-               .map(User::getId)
-               .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+        final UserId userId = getCurrentUserUseCase.getCurrentUserId(principal.getName());
 
-        ToggleLikeUseCase.ToggleLikeCommand command = mapper.toCommand(request, ownerId);
-        ToggleLikeUseCase.LikeResult result = toggleLikeUseCase.toggleLike(command);
+        final var command = mapper.toCommand(request, userId);
+        final ToggleLikeUseCase.LikeResult result = toggleLikeUseCase.toggleLike(command);
         return ResponseEntity.ok(mapper.toResponse(result));
     }
 }

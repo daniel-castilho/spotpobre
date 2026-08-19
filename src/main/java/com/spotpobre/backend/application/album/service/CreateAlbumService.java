@@ -4,6 +4,7 @@ import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +19,7 @@ public class CreateAlbumService implements CreateAlbumUseCase {
     public Album createAlbum(CreateAlbumCommand command) {
         // Validate that the artist exists
         artistRepository.findById(command.artistId())
-                .orElseThrow(() -> new IllegalArgumentException("Artist not found: " + command.artistId()));
+                .orElseThrow(() -> new NotFoundException("Artist not found: " + command.artistId()));
 
         // For now, we are not creating the songs, just the album structure.
         // A more complex implementation would create Song entities here.

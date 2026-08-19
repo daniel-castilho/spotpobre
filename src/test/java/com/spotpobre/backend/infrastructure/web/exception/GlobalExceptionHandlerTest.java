@@ -11,7 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
+import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.ForbiddenException;
+import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
+import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -41,10 +45,45 @@ class GlobalExceptionHandlerTest {
         when(request.getRequestURI()).thenReturn("/api/v1/albums");
 
         ResponseEntity<ErrorResponse> response = handler.handleIllegalArgument(
-                new IllegalArgumentException("Artist not found: abc"), request);
+                new IllegalArgumentException("pageSize must not exceed 50"), request);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Artist not found: abc", response.getBody().message());
+        assertEquals("pageSize must not exceed 50", response.getBody().message());
+    }
+
+    @Test
+    void handleNotFoundException_shouldReturn404() {
+        when(request.getRequestURI()).thenReturn("/api/v1/playlists/123");
+
+        ResponseEntity<ErrorResponse> response = handler.handleNotFound(
+                new NotFoundException("Playlist not found"), request);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Not Found", response.getBody().error());
+        assertEquals("Playlist not found", response.getBody().message());
+    }
+
+    @Test
+    void handleConflictException_shouldReturn409() {
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/register");
+
+        ResponseEntity<ErrorResponse> response = handler.handleConflict(
+                new ConflictException("User with email user@example.com already exists."), request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Conflict", response.getBody().error());
+        assertEquals("User with email user@example.com already exists.", response.getBody().message());
+    }
+
+    @Test
+    void handlePlaylistConcurrentModification_shouldReturn409() {
+        when(request.getRequestURI()).thenReturn("/api/v1/playlists/123");
+
+        ResponseEntity<ErrorResponse> response = handler.handlePlaylistConcurrentModification(
+                new PlaylistConcurrentModificationException(new PlaylistId(java.util.UUID.randomUUID())), request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Conflict", response.getBody().error());
     }
 
     @Test

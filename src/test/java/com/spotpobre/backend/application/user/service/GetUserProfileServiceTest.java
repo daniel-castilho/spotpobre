@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.user.service;
 
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserProfile;
 import com.spotpobre.backend.domain.user.port.UserRepository;
@@ -47,7 +48,7 @@ class GetUserProfileServiceTest {
         when(userRepository.findByProfileEmail(email)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             getUserProfileService.getUserProfile(email);
         });
 

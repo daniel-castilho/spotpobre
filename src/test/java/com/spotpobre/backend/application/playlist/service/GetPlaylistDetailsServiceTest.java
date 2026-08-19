@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.playlist.service;
 
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -49,7 +50,7 @@ class GetPlaylistDetailsServiceTest {
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             getPlaylistDetailsService.getPlaylistDetails(playlistId);
         });
 

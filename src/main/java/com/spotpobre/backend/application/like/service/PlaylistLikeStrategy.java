@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.like.service;
 
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.like.model.EntityType;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -22,6 +23,6 @@ public class PlaylistLikeStrategy implements LikeStrategy {
     @Override
     public void validateEntityExists(String entityId) {
         playlistRepository.findById(new PlaylistId(UUID.fromString(entityId)))
-                .orElseThrow(() -> new IllegalArgumentException("Playlist not found: " + entityId));
+                .orElseThrow(() -> new NotFoundException("Playlist not found: " + entityId));
     }
 }

@@ -2,6 +2,7 @@ package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.PlaylistOwnershipGuard;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -22,12 +23,12 @@ public class AddSongToPlaylistService implements AddSongToPlaylistUseCase {
     @Transactional
     public Playlist addSongToPlaylist(final AddSongToPlaylistCommand command) {
         final Playlist playlist = playlistRepository.findById(command.playlistId())
-                .orElseThrow(() -> new IllegalStateException("Playlist not found"));
+                .orElseThrow(() -> new NotFoundException("Playlist not found"));
 
         PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
         final Song song = songMetadataRepository.findById(command.songId())
-                .orElseThrow(() -> new IllegalStateException("Song not found"));
+                .orElseThrow(() -> new NotFoundException("Song not found"));
 
         playlist.addSong(song);
 

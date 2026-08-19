@@ -1,6 +1,9 @@
 package com.spotpobre.backend.infrastructure.web.exception;
 
+import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.ForbiddenException;
+import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
 import com.spotpobre.backend.infrastructure.web.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -30,15 +33,13 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 validationErrors.put(error.getField(), error.getDefaultMessage()));
 
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
                 "Validation Error",
                 "One or more fields have an error",
-                request.getRequestURI(),
+                request,
                 validationErrors
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -47,93 +48,77 @@ public class GlobalExceptionHandler {
         ex.getConstraintViolations().forEach(violation ->
                 validationErrors.put(violation.getPropertyPath().toString(), violation.getMessage()));
 
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
                 "Validation Error",
                 "One or more parameters have an error",
-                request.getRequestURI(),
+                request,
                 validationErrors
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(PlaylistConcurrentModificationException.class)
+    public ResponseEntity<ErrorResponse> handlePlaylistConcurrentModification(
+            PlaylistConcurrentModificationException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(IllegalStateException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Business Rule Error",
-                ex.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Business Rule Error", ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Business Rule Error",
-                ex.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Business Rule Error", ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
                 "Validation Error",
                 "Invalid value for parameter '" + ex.getName() + "'",
-                request.getRequestURI(),
+                request,
                 null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.UNAUTHORIZED.value(),
+        return buildResponse(
+                HttpStatus.UNAUTHORIZED,
                 "Unauthorized",
                 "Invalid username or password",
-                request.getRequestURI(),
+                request,
                 null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.FORBIDDEN.value(),
-                "Forbidden",
-                ex.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        return buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.FORBIDDEN.value(),
+        return buildResponse(
+                HttpStatus.FORBIDDEN,
                 "Forbidden",
                 "You do not have permission to access this resource",
-                request.getRequestURI(),
+                request,
                 null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(Exception.class)
@@ -141,14 +126,29 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error on {} {}: {} - {}",
                 request.getMethod(), request.getRequestURI(),
                 ex.getClass().getSimpleName(), ex.getMessage(), ex);
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal Server Error",
                 "An unexpected error occurred. Please try again later.",
-                request.getRequestURI(),
+                request,
                 null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private ResponseEntity<ErrorResponse> buildResponse(
+            final HttpStatus status,
+            final String error,
+            final String message,
+            final HttpServletRequest request,
+            final Map<String, String> validationErrors) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                Instant.now(),
+                status.value(),
+                error,
+                message,
+                request.getRequestURI(),
+                validationErrors
+        );
+        return new ResponseEntity<>(errorResponse, status);
     }
 }

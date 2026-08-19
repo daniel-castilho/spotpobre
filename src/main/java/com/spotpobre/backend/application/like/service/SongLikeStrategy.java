@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.like.service;
 
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.like.model.EntityType;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -22,6 +23,6 @@ public class SongLikeStrategy implements LikeStrategy {
     @Override
     public void validateEntityExists(String entityId) {
         songMetadataRepository.findById(new SongId(UUID.fromString(entityId)))
-               .orElseThrow(() -> new IllegalArgumentException("Song not found: " + entityId));
+               .orElseThrow(() -> new NotFoundException("Song not found: " + entityId));
     }
 }

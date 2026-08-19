@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.user.service;
 
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
+import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserProfile;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
@@ -32,7 +33,7 @@ public class RegisterUserService implements RegisterUserUseCase {
         final User newUser = User.createWithLocalPassword(profile, hashedPassword);
 
         if (!userRepository.createIfEmailNotExists(newUser)) {
-            throw new IllegalStateException("User with email " + command.email() + " already exists.");
+            throw new ConflictException("User with email " + command.email() + " already exists.");
         }
 
         return newUser;

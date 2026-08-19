@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.domain.album.model.AlbumId; // Import AlbumId
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -50,7 +51,7 @@ class GetSongMetadataServiceTest {
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             getSongMetadataService.getSongMetadata(songId);
         });
 

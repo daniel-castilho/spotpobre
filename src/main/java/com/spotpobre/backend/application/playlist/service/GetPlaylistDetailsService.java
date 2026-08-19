@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -19,6 +20,6 @@ public class GetPlaylistDetailsService implements GetPlaylistDetailsUseCase {
     @Transactional(readOnly = true)
     public Playlist getPlaylistDetails(final PlaylistId playlistId) {
         return playlistRepository.findById(playlistId)
-                .orElseThrow(() -> new IllegalStateException("Playlist not found"));
+                .orElseThrow(() -> new NotFoundException("Playlist not found"));
     }
 }

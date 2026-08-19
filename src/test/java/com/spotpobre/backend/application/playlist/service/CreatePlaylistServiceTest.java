@@ -1,6 +1,8 @@
 package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
+import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.user.model.User;
@@ -68,7 +70,7 @@ class CreatePlaylistServiceTest {
         when(playlistRepository.countByOwnerId(ownerId)).thenReturn(10L);
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        ConflictException exception = assertThrows(ConflictException.class, () -> {
             createPlaylistService.createPlaylist(command);
         });
 
@@ -85,7 +87,7 @@ class CreatePlaylistServiceTest {
         when(userRepository.findById(nonExistentOwnerId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             createPlaylistService.createPlaylist(command);
         });
 

@@ -39,6 +39,7 @@ import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.application.user.service.AuthenticationService;
+import com.spotpobre.backend.application.user.service.GetCurrentUserService;
 import com.spotpobre.backend.application.user.service.GetUserDetailsService;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
@@ -159,6 +160,11 @@ public class ApplicationBeanConfig {
     @Bean
     public GetUserProfileUseCase getUserProfileUseCase(final UserRepository userRepository) {
         return new GetUserProfileService(userRepository);
+    }
+
+    @Bean
+    public GetCurrentUserUseCase getCurrentUserUseCase(final UserRepository userRepository) {
+        return new GetCurrentUserService(userRepository);
     }
 
     // Artist Use Cases

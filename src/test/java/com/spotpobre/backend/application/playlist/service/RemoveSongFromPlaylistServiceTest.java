@@ -3,6 +3,7 @@ package com.spotpobre.backend.application.playlist.service;
 import com.spotpobre.backend.application.playlist.port.in.RemoveSongFromPlaylistUseCase;
 import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.common.ForbiddenException;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.model.PlaylistId;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -88,7 +89,7 @@ class RemoveSongFromPlaylistServiceTest {
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.empty());
 
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             removeSongFromPlaylistService.removeSongFromPlaylist(command);
         });
 

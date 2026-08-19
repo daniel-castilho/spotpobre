@@ -3,6 +3,7 @@ package com.spotpobre.backend.application.like.service;
 import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.like.model.EntityType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,7 +53,7 @@ class ArtistLikeStrategyTest {
         when(artistRepository.findById(artistId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             artistLikeStrategy.validateEntityExists(artistId.value().toString());
         });
 

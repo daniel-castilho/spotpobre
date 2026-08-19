@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.like.service;
 
 import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.like.model.EntityType;
 import com.spotpobre.backend.domain.like.model.Like;
 import com.spotpobre.backend.domain.like.port.LikeRepository;
@@ -84,11 +85,11 @@ class ToggleLikeServiceTest {
         UserId userId = UserId.generate();
         String entityId = UUID.randomUUID().toString();
         when(likeStrategyFactory.getStrategy(EntityType.SONG)).thenReturn(likeStrategy);
-        doThrow(new IllegalArgumentException("Song not found: " + entityId))
+        doThrow(new NotFoundException("Song not found: " + entityId))
                 .when(likeStrategy).validateEntityExists(entityId);
 
         // When & Then
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             toggleLikeService.toggleLike(command(userId, entityId));
         });
 

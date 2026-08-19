@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.like.service;
 
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.like.model.EntityType;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
@@ -52,7 +53,7 @@ class SongLikeStrategyTest {
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
             songLikeStrategy.validateEntityExists(songId.value().toString());
         });
 

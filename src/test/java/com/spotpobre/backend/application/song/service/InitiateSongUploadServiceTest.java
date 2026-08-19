@@ -4,6 +4,7 @@ import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.PresignedUploadPart;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -95,7 +96,7 @@ class InitiateSongUploadServiceTest {
 
         when(albumRepository.findById(albumId)).thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        NotFoundException exception = assertThrows(NotFoundException.class, () ->
                 initiateSongUploadService.initiateUpload(command));
 
         assertEquals("Album not found: " + albumId, exception.getMessage());

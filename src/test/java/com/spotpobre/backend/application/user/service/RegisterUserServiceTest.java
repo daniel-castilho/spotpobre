@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.user.service;
 
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
+import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
@@ -67,7 +68,7 @@ class RegisterUserServiceTest {
         when(userRepository.createIfEmailNotExists(any(User.class))).thenReturn(false);
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        ConflictException exception = assertThrows(ConflictException.class, () -> {
             registerUserService.registerUser(command);
         });
 

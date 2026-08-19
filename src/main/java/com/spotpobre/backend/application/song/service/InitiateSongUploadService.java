@@ -2,6 +2,7 @@ package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
+import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongUploadCommand;
@@ -31,7 +32,7 @@ public class InitiateSongUploadService implements InitiateSongUploadUseCase {
     @Override
     public InitiateSongUploadResult initiateUpload(final InitiateSongUploadCommand command) {
         albumRepository.findById(command.albumId())
-                .orElseThrow(() -> new IllegalArgumentException("Album not found: " + command.albumId()));
+                .orElseThrow(() -> new NotFoundException("Album not found: " + command.albumId()));
 
         final SongUploadCommand uploadCommand = new SongUploadCommand(
                 command.contentType(),
