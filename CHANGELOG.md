@@ -32,6 +32,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **SpotBugs static analysis (S2).** Added `spotbugs-maven-plugin` 4.9.3.0 with `threshold=High`, `effort=Max`; CI runs `spotbugs:check` after unit tests and fails the build on High-severity findings. Fixed initial finding: `DM_DEFAULT_ENCODING` in `JwtService.getSigningKey()`.
 - **JaCoCo coverage reporting (S1).** Added `jacoco-maven-plugin` 0.8.9 with `prepare-agent` and `report` goals; `./mvnw test` now generates coverage reports in `target/site/jacoco/`. Surefire `argLine` updated to `@{argLine}` for agent integration.
 - **Exception type hardening.** `ConfirmSongUploadService` now throws `NotFoundException` instead of
   `IllegalArgumentException` for business rule violations (song not belonging to album, storage key mismatch),

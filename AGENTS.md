@@ -171,8 +171,13 @@ new violations — flag them to the human instead.
   `application-dev.yaml` is intentionally empty — dev uses the baked defaults in
   `application.yaml`.
 - **E2E tests not wired into the build via failsafe.** No failsafe plugin, so `*IT` tests only run
-  via `-Dtest='*IT'`. The GitHub Actions workflow now runs them in a dedicated step, so CI covers
-  them; adding failsafe + `mvn verify` would make the full gate a single command locally.
+  via `-Dtest='*IT'` or in the CI workflow's dedicated step. Adding failsafe + `mvn verify` would
+  make the full gate a single command locally.
+- **MapStruct unmapped-property warning.** `ArtistApiMapper` produces a compiler warning for the
+  unmapped `songs` target property on `ArtistResponse` (the `songs` field is intentionally omitted —
+  artists are not returned with their song list at this endpoint). This is a pre-existing benign
+  warning, not a SpotBugs finding; a `@Mapping(target = "songs", ignore = true)` or a deliberate
+  comment would silence it.
 - **Playlist-limit check is count-then-insert.** `CreatePlaylistService` enforces
   `MAX_PLAYLISTS_PER_USER` with `countByOwnerId` before insert; two strictly simultaneous creates
   could both pass the count and exceed 10. Documented as accepted for P1 in

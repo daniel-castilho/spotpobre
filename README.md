@@ -325,10 +325,11 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   pagination (cursor-based, no silent data leaks), and now enforced architectural boundaries.
   `PlaylistController` and `LikeController` depend only on application inbound ports (`*UseCase`),
   with direct `UserRepository` calls replaced by the `GetCurrentUserUseCase` application service.
-- **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then the
-  `*IT` slice + E2E suite (Testcontainers), then `./mvnw clean package` on every push/PR.
-  `DynamoDbConfig` / `S3Config` build AWS clients with `StaticCredentialsProvider` from
-  `AwsProperties` (env-overridable), so tests work on clean runners with LocalStack.
+- **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
+  SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
+  `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
+  `StaticCredentialsProvider` from `AwsProperties` (env-overridable), so tests work on clean runners
+  with LocalStack.
 - **Data consistency & modelling** — every relationship has a single source of truth:
   playlists live only in the `Playlists` table (`ownerId-index`), album songs only in the `Songs`
   table (`albumId-index`); the `Users` / `Albums` aggregates no longer embed collections.
@@ -347,7 +348,7 @@ Deliberately not implemented yet (candidate backlog):
 - Email verification and password recovery
 - Production deployment runtime shape (how the artifact is shipped/run — the env-var contract is
   defined in `application-prod.yaml`, but the container image / platform is not yet documented)
-- Additional quality gates (JaCoCo coverage, SpotBugs, dependency/security scanning)
+- Additional quality gates (dependency/security scanning)
 
 ## Documentation
 
