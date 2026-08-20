@@ -5,6 +5,25 @@ All notable changes to Spotpobre API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project
 intends to follow [Semantic Versioning](https://semver.org/) starting from its first tag.
 
+## [0.4.1] - 2026-08-19
+
+### Added
+
+- **Dockerfile.** Multi-stage Dockerfile created for production deployment: build stage with Maven, runtime stage with Eclipse Temurin 21 JRE. Supports `docker build` and container startup.
+- **Quality observability (P2 epic).** Completed steps: JaCoCo coverage gate (35% line / 15% branch), SpotBugs static analysis (0 bugs), OWASP Dependency Check configured (report only). Dockerfile added for production builds. Rate limiting planned for future implementation.
+
+### Changed
+
+- **Repository hygiene.** `.localstack/` runtime files removed from git tracking.
+
+### Security
+
+- **GitHub security scanning enabled.** CodeQL analysis workflow (`.github/workflows/codeql-analysis.yml`),
+  Dependabot version updates (`.github/dependabot.yml`) and a Dependency Review workflow
+  (`.github/workflows/dependency-review.yml`) added. Basic rate limiting on
+  `/api/v1/auth/register` and `/api/v1/auth/authenticate` remains planned for future work.
+
+---
 ## [0.4.0] - 2026-08-18
 
 ### Added

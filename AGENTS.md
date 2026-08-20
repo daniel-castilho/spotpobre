@@ -165,11 +165,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **No documented production deployment runtime shape.** The env-var contract now lives in
-  `application-prod.yaml` (activating profile `prod` fails fast on missing variables); how the
-  artifact is shipped/run (container image, platform) is still undocumented.
-  `application-dev.yaml` is intentionally empty — dev uses the baked defaults in
-  `application.yaml`.
 - **E2E tests not wired into the build via failsafe.** No failsafe plugin, so `*IT` tests only run
   via `-Dtest='*IT'` or in the CI workflow's dedicated step. Adding failsafe + `mvn verify` would
   make the full gate a single command locally.
@@ -183,6 +178,8 @@ new violations — flag them to the human instead.
   could both pass the count and exceed 10. Documented as accepted for P1 in
   `docs/data-model-decisions.md` — closing it needs a conditional/transactional insert or a
   dedicated counter.
+- **Basic rate limiting not yet implemented.** Per-IP or per-user throttling on `/api/v1/auth/register`
+  and `/api/v1/auth/authenticate` endpoints pending follow-up work.
 
 ## Notes
 
