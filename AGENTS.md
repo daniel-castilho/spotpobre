@@ -48,7 +48,7 @@ task.
    3. `AGENTS.md` → "Known technical debt" (add or clear)
    Do **not** claim work DONE while `README.md` or `CHANGELOG.md` still describes the previous
    state as current.
-9. Keep the test pyramid green: `./mvnw test` must pass before finishing. Domain tests never mock;
+9. Keep the default test suite green: `./mvnw test` must pass before finishing. Domain tests never mock;
    application tests mock the domain ports only. Do not weaken an existing test to make a change
    pass.
 
