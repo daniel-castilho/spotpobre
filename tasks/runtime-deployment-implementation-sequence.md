@@ -65,15 +65,17 @@
 
 ## Step 7 — Graceful shutdown under load
 
-- Create a reproducible test that:
-  - Generates concurrent traffic
-  - Sends SIGTERM
-  - Verifies readiness goes DOWN
-  - Verifies in-flight requests complete
-  - Verifies clean exit within grace period
-- Align manifest termination settings with the test
-
-**Done when:** The shutdown test passes reliably.
+> **AS-BUILT (2026-08-19):** DONE. `scripts/shutdown-under-load-test.sh` is a reproducible,
+> self-contained test that starts the app, runs a continuous concurrent traffic generator
+> (default 40 parallel authenticated requests), sends SIGTERM mid-traffic, and asserts the six
+> criteria: readiness goes DOWN (503) while the process is still alive, in-flight requests complete
+> with 200, requests arriving after drain begins are rejected (503/000), and the process exits
+> within the configured grace period (30s). Runs in ~10s; executed twice to confirm reproducibility
+> (137+134 in-flight OK, 0 unexpected statuses, 2s exit each run). Spring Boot 3.5 already publishes
+> `REFUSING_TRAFFIC` on graceful shutdown (`server.shutdown: graceful`,
+> `spring.lifecycle.timeout-per-shutdown-phase: 30s` in `application.yaml`), so no code change was
+> needed — only the verification artifact. Manifest termination settings (preStop /
+> deregistration delay) are aligned in Step 8.
 
 ---
 

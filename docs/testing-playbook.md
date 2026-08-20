@@ -156,6 +156,11 @@ docker-compose up -d        # LocalStack (DynamoDB + S3) + Redis
 **Optional (do not block tag):** Swagger UI renders endpoints; `/actuator/info` + `/actuator/metrics`
 require authentication.
 
+**Runtime smoke (post-build):** `scripts/shutdown-under-load-test.sh [JAR] [PORT] [CONCURRENCY]`
+boots the jar, generates continuous concurrent traffic, sends SIGTERM, and verifies graceful
+draining — readiness DOWN while alive, in-flight requests complete with 200, new requests rejected,
+exit within the grace period. Requires LocalStack + Redis with schema provisioned (README).
+
 ---
 
 ## Quality gates (CI local mirror)

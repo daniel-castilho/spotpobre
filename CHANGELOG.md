@@ -29,6 +29,12 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
     paths are reachable without auth (for the ALB), every other `/actuator/**` route requires
     authentication (`SecurityConfig`). Verified end-to-end against LocalStack: readiness goes
     DOWN while the S3 bucket is missing and recovers to UP once it exists.
+  - **Graceful shutdown under load (Step 7)** — `scripts/shutdown-under-load-test.sh` is a
+    reproducible test that runs concurrent traffic, sends SIGTERM mid-flight, and verifies the six
+    criteria: readiness DOWN while alive, in-flight requests complete with 200, new requests
+    rejected, and process exit within the grace period (30s). Spring Boot 3.5's graceful shutdown
+    (`server.shutdown: graceful`) already handles the drain — no code change required, only the
+    verification artifact. Ran twice to confirm reproducibility.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
   and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
