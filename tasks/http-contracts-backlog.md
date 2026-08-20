@@ -59,5 +59,5 @@ S8 Final verification
 
 ## Status
 
-**Not started.** High-priority P1.
+**Complete.** S1–S5 delivered. Exceptions (NotFound, Conflict, Forbidden) exist in domain layer and are mapped in GlobalExceptionHandler. JWT filter handles errors cleanly. Remaining: S6–S8.
 ```

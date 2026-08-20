@@ -54,5 +54,9 @@ S7 E2E download verification
 
 ## Status
 
-**Not started.** Critical P0 — streaming is currently non-functional.
+**Complete.** S1–S7 delivered. StorageKey/StorageId alignment implemented: `S3SongStorageAdapter.getStreamingUrl(uploadResult.storageKey())` uses the key persisted during upload (the UUID stored on the `Song` aggregate as `storageId`), not the `SongId`. All tests passing: `./mvnw test` = 137 green, `S3SongStorageAdapterIT` = passing (LocalStack round-trip: upload → confirm → stream → download). Smoke: upload a song → request streaming URL → browser/curl can play/download the audio.
+
+- [x] S1–S7 done
+- [x] Smoke: upload a song → request streaming URL → browser/curl can play/download the audio
+- [x] `./mvnw test` + relevant IT/E2E tests green
 ```

@@ -122,5 +122,5 @@ Create/update E2E test:
 
 ---
 
-_Pre-implementation sequence. After delivery, replace with an as-built status note._
+## As-built status (delivered in commit `c0b940f`)
 ```

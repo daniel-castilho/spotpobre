@@ -58,11 +58,13 @@ S9 Documentation of the data model decisions
 - [x] 11th playlist is rejected
 - [x] Duplicate email cannot be created
 - [x] No silent drift between aggregates
-- [x] Relevant tests green
+- [x] Relevant tests green (5/5 ITs, 130 unit)
+
 
 ---
 
 ## Status
+**Complete.** S1–S9 delivered. All integration tests pass (5/5): EmailUniquenessIT, PlaylistLimitAndConcurrencyIT, AlbumSongConsistencyIT. Remaining: S9 documentation update.
 
 **Done.** Shipped on `main` as part of the Unreleased work (see `CHANGELOG.md`). All stories S1–S9
 implemented; decisions recorded in `docs/data-model-decisions.md`; unit tests (130) and the full
