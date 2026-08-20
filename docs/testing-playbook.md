@@ -1,235 +1,420 @@
 # Testing Playbook
 
-**Role:** Write and interpret tests for this Java 21 / Spring Boot 3.5 Clean Architecture service
-(DynamoDB + S3 via LocalStack, Redis, JWT).
-**Stack constraints:** JUnit 5 + Mockito + Testcontainers (LocalStack) + RestAssured only — no new
-test dependency without human approval (`AGENTS.md` rule 5).
+**Role:** Define how to design, run, diagnose and maintain tests for this Java 21 / Spring Boot 3.5 Clean Architecture service (DynamoDB + S3 through LocalStack, Redis and JWT).
+**Audience:** Human contributors and AI software-engineering agents.
+**Stack constraints:** JUnit 5 + Mockito + Testcontainers (LocalStack) + RestAssured. Do not add a new test dependency without explicit human approval (`AGENTS.md`, rule 5).
 
-Sources: `AGENTS.md` · `docs/coding-standards.md` · colocated `*Test` / `*IT` classes · `README.md`
+**Sources of truth:**
 
----
+1. `AGENTS.md`
+2. `pom.xml`
+3. `.github/workflows/ci.yml`
+4. `docs/coding-standards.md`
+5. Colocated `*Test` / `*IT` classes
+6. `README.md`
 
-## Pyramid
-
-1. **Domain unit** — pure invariants and rich rules (`ArtistTest`, `PlaylistTest`, `SongTest`,
-   `UserTest`). **No mocks**, no Spring.
-2. **Application unit** — use-case services with **mocked domain ports only**; happy path +
-   rejection + ownership/authorization behaviour.
-3. **Slice integration (selective)** — real DynamoDB/S3 adapters behind Testcontainers +
-   LocalStack (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`,
-   `PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT`). Requires Docker;
-   run explicitly as `*IT`.
-4. **End-to-end** — RestAssured against the full app on `RANDOM_PORT` (`AuthenticationFlowIT`,
-   `ArtistSongFlowIT`, `PlaylistFlowIT`). Requires Docker; run explicitly.
-5. **Smoke** — `docker-compose up -d` + LocalStack setup + `./mvnw spring-boot:run`; exercise the
-   auth → playlist flow with HTTP calls.
-
-This is a **JSON API** project: exercise **use cases / ports** in unit tests and **HTTP flows** in
-the `*IT` suite. Controllers are thin — keep business assertions in application tests. Never
-assert against `infrastructure` internals from `domain`/`application` tests.
+When this document disagrees with executable configuration, `pom.xml` and `.github/workflows/ci.yml` win. Fix the documentation in the same change set.
 
 ---
 
-## Runner & layout
+## 1. Testing principles
 
-```bash
-./mvnw test                 # pure unit tests, no Docker
-./mvnw test -Dtest='*IT'    # slice + E2E explicitly (Docker + LocalStack)
-./mvnw clean package        # full build gate
+1. Test behaviour and observable contracts, not implementation details.
+2. Keep the fastest useful feedback loop at the lowest appropriate layer.
+3. Put business-rule assertions in domain/application tests; use HTTP tests for routing, validation, authentication, authorization, serialization and status/body contracts.
+4. Mock outbound boundaries, not domain state.
+5. Every important rejection path is as valuable as its happy path.
+6. A test must be deterministic, isolated and repeatable locally and in CI.
+7. Never weaken, skip or delete a valid test merely to make the build green.
+8. A green test suite is necessary but not sufficient: coverage, static analysis and dependency reports must also be interpreted.
+
+---
+
+## 2. Test taxonomy
+
+| Level                    | Naming                 | Runtime                                                   | Purpose                                                                           |
+| ------------------------ | ---------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **Domain unit**          | `*Test`                | Plain JUnit; no Spring, mocks or I/O                      | Entity/value-object invariants and state transitions                              |
+| **Application unit**     | `*Test`                | JUnit + Mockito; no Spring context                        | Use-case orchestration, port interactions, ownership and rejection paths          |
+| **Infrastructure unit**  | `*Test`                | JUnit + Mockito, or small Spring-independent fixture      | Mapping/adaptation behaviour that does not require real external services         |
+| **Spring context smoke** | `*Tests` / `*Test`     | `@SpringBootTest`; no Docker or external I/O              | Application wiring and context startup                                            |
+| **Adapter integration**  | `*IT`                  | Testcontainers + LocalStack                               | Real DynamoDB/S3 adapter behaviour, consistency, cursor and concurrency semantics |
+| **HTTP end-to-end**      | `*IT`                  | `@SpringBootTest(RANDOM_PORT)` + RestAssured + LocalStack | Full request flow, authentication/authorization and public API contracts          |
+| **Release smoke**        | Manual until automated | Compose/local production-like runtime                     | Small, high-value path before release/deployment                                  |
+
+### Test placement
+
+Mirror production packages under `src/test/java`:
+
+```text
+.../domain/<feature>/model/*Test.java
+.../application/<feature>/service/*ServiceTest.java
+.../infrastructure/<area>/*Test.java
+.../infrastructure/<area>/*IT.java
+.../<BusinessFlow>IT.java
 ```
 
-- Tests live in `src/test/java/...` mirrored to production packages:
-  - `.../domain/<feature>/model/*Test.java`
-  - `.../application/<feature>/service/*ServiceTest.java`
-  - `.../infrastructure/persistence/kv/adapter/*AdapterIT.java`
-  - `.../*IT.java` for end-to-end flows.
-- English names: `register_duplicateEmail_throws`, or descriptive `should reject a duplicate email`.
-- Assert with JUnit 5 `org.junit.jupiter.api.Assertions`. AssertJ's `assertThat` appears only in the
-  context-load smoke (`SpotpobreApplicationTests`) — prefer `Assertions` in unit tests. Keep to the
-  style already present in the file you extend.
+Use one of these naming styles consistently inside a class:
 
----
-
-## Mandatory patterns
-
-| Pattern                 | Rule                                                                                                  |
-| ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| Domain tests            | No mocks; pure entities / value objects only                                                          |
-| Application tests       | Mock **domain ports** only (`UserRepository`, `PlaylistRepository`, `SongMetadataRepository`, ...)    |
-| Business-rule failures  | Services throw `IllegalStateException` or `IllegalArgumentException`; assert the message / condition — do not rely on Spring context |
-| Ownership               | Playlist mutation is owner-scoped: assert non-owner operations are rejected                            |
-| Passwords               | Always through the domain `PasswordHasher` port (adapter uses Argon2id); never assert or log plaintext |
-| Pagination              | Owner list is paginated; assert ordering and paging behaviour through the domain port mock             |
-| Storage                 | Song flows mock `SongStoragePort`; S3 behaviour is only exercised in the slice/E2E tests               |
-| Boundary grep           | `domain/` and `application/` remain free of `infrastructure.*`, AWS SDK, MapStruct, springdoc, `org.springframework.web` (rule-1 grep must not add new matches) |
-
----
-
-## Current automated suite (map)
-
-| Area             | File(s)                                                            | Focus                                                     |
-| ---------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| Auth register    | `application/user/service/RegisterUserServiceTest`                 | Hashed password; duplicate email rejected; roles          |
-| Auth login       | `application/user/service/AuthenticationServiceTest`               | Success; bad credentials; token issued                    |
-| User profile     | `GetUserProfileServiceTest`, `GetUserDetailsServiceTest`    | Returns own profile; not-found handling                   |
-| Artist           | `CreateArtistServiceTest`, `SearchArtistsServiceTest`              | Create (admin rule at HTTP layer); search by name         |
-| Playlists        | `Create/Delete/Update/GetPlaylist*ServiceTest`                     | CRUD; owner authorization; paginated owner listing        |
-| Playlist songs   | `AddSongToPlaylistServiceTest`, `RemoveSongFromPlaylistServiceTest`| Membership guards; missing song/playlist rejected         |
-| Songs            | `Upload/GetSongMetadata/GetSongStreamUrl/SearchSongsServiceTest`   | Upload to storage port; metadata; stream URL; search      |
-| Albums           | `application/album/service/CreateAlbumServiceTest`                 | Artist existence; album persisted                          |
-| Likes            | `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`, `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest` | Toggle add/remove; strategy dispatch; entity-existence guards |
-| Error mapping    | `infrastructure/web/exception/GlobalExceptionHandlerTest`          | 400/401/403/500 mapping, incl. `BadCredentialsException` → 401 |
-| Domain models    | `domain/<feature>/model/*Test`                                     | Entity invariants (no mocks)                              |
-| Slice (DynamoDB) | `infrastructure/.../DynamoDbPlaylistRepositoryAdapterIT`, `PlaylistLimitAndConcurrencyIT`, `EmailUniquenessIT`, `AlbumSongConsistencyIT` | Real adapter + data-consistency invariants against LocalStack |
-| Slice (S3)       | `infrastructure/.../S3SongStorageAdapterIT`                          | Full storage round-trip against LocalStack                   |
-| E2E flows        | `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT`       | Full HTTP flows on `RANDOM_PORT`                          |
-
-When you change behaviour covered above, **extend the existing file** instead of inventing a
-parallel suite.
-
----
-
-## Known coverage gaps
-
-The previous gaps (Album flow, Like flow, bad-password HTTP status) are **closed** by the unit
-tests in the map above. Remaining hard-to-unit-test behaviour lives in the `*IT` / slice layers.
-
-**Known API gap (resolved):** wrong credentials at `/api/v1/auth/authenticate` now map
-`BadCredentialsException` → **401** (`GlobalExceptionHandler.handleBadCredentials`), with a generic
-message that never leaks whether the user exists. Pinned by `GlobalExceptionHandlerTest` (unit) and
-`AuthenticationFlowIT` (E2E).
-
----
-
-## Regression checklist
-
-| Area                       | Must verify                                                                                              |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Auth — register**        | Password stored hashed (via `PasswordHasher` → Argon2id); duplicate email rejected; `ROLE_USER` assigned |
-| **Auth — authenticate**    | Valid credentials return JWT; wrong password → 401; unknown user rejected without leaking existence         |
-| **Artists**                | `POST /api/v1/artists` requires `ROLE_ADMIN`; search by name returns only matches                          |
-| **Albums**                 | `POST /api/v1/albums` validates artist existence; `POST /albums/{id}/songs` initiates presigned upload via `SongStoragePort` |
-| **Songs**                  | Initiate persists metadata without file bytes; confirm verifies storage; stream URL resolves; search by title matches; missing id → 404 |
-| **Playlists**              | CRUD owner-scoped; rename/delete/add/remove guards; owner list paginated; non-owner rejected              |
-| **Likes**                  | Toggle on song/artist/playlist; reverse query returns likes for an entity                                  |
-| **Security**               | Every endpoint has an explicit `SecurityConfig` rule; mutating routes never permit-all                     |
-| **Boundaries**             | Rule-1 grep returns no **new** matches; pagination uses domain `PageRequest`/`PageResult` only |
-| **Stack**                  | No new test dependencies; `./mvnw test` green; `*IT` green after persistence/storage/security changes     |
-
-**Playlist authorization regression (application):** create playlist as owner A → owner B
-rename/delete/add/remove → rejected; owner A still succeeds.
-
-**Song upload regression (application):** `InitiateSongUploadServiceTest` — missing album
-rejected; unsupported content type rejected before storage; storage port invoked exactly once on
-success; metadata persisted after URL generation. `ConfirmSongUploadServiceTest` — album/storage
-key mismatch rejected without calling storage.
-
----
-
-## Release regression smoke (API)
-
-Run against the **local stack** before a release tag:
-
-```bash
-docker-compose up -d        # LocalStack (DynamoDB + S3) + Redis
-# run the LocalStack setup commands from README.md (buckets + tables)
-./mvnw spring-boot:run      # or ./mvnw test -Dtest='*IT' to automate the flows
+```text
+method_condition_expectedResult
+shouldDescribeExpectedBehaviour
 ```
 
-**Required — stop and fix on first failure.**
-
-| #  | Step                                            | Expected                                              |
-| -- | ----------------------------------------------- | ----------------------------------------------------- |
-| 1  | `POST /api/v1/auth/register`                    | 200 with JWT; `ROLE_USER`; no plaintext password anywhere |
-| 2  | `POST /api/v1/auth/authenticate`                | 200 with JWT; wrong password → **401**               |
-| 3  | `POST /api/v1/artists` as non-admin             | 403                                                    |
-| 4  | `POST /api/v1/artists` as admin                 | 201; searchable by name                                 |
-| 5  | `POST /api/v1/albums` + initiate + PUT to presigned URL + confirm | 201 then 200; metadata + S3 object; no file body through the API |
-| 6  | `GET /api/v1/songs/{id}`                        | 200 with metadata + stream URL                          |
-| 7  | Playlist CRUD as owner                          | Create → list → rename → add/remove song → delete      |
-| 8  | Playlist mutation as non-owner                  | Rejected (403/404)                                      |
-| 9  | `POST /api/v1/likes/toggle` (song/artist/playlist) | Toggles; reverse lookup consistent                      |
-| 10 | `GET /api/v1/users/me` without token            | 401; with token → profile                               |
-| 11 | `GET /actuator/health`                          | 200 `UP`; details only when authenticated               |
-| 12 | `GET /actuator/health/liveness` + `/readiness`  | 200 `UP` without auth (ALB probes); readiness goes DOWN if DynamoDB/S3 unavailable |
-
-**Optional (do not block tag):** Swagger UI renders endpoints; `/actuator/info` + `/actuator/metrics`
-require authentication.
-
-**Runtime smoke (post-build):** `scripts/shutdown-under-load-test.sh [JAR] [PORT] [CONCURRENCY]`
-boots the jar, generates continuous concurrent traffic, sends SIGTERM, and verifies graceful
-draining — readiness DOWN while alive, in-flight requests complete with 200, new requests rejected,
-exit within the grace period. Requires LocalStack + Redis with schema provisioned (README).
-
 ---
 
-## Quality gates (CI local mirror)
+## 3. Commands and Maven lifecycle
+
+### 3.1 Fast loop — no Docker
 
 ```bash
-./mvnw test                  # fast unit + slice
-./mvnw test -Dtest='*IT'     # E2E (Docker)
-./mvnw clean package         # production build
-grep -rEn "^import (com\.spotpobre\.backend\.infrastructure|software\.amazon|io\.awspring|org\.mapstruct|org\.springdoc|org\.springframework\.web)" src/main/java/com/spotpobre/backend/domain src/main/java/com/spotpobre/backend/application
+./mvnw test
 ```
 
-There is no CI pipeline yet — run the four commands locally and keep them green. The boundary grep
-must return nothing (no tracked leaks in `domain/`/`application/`; see `AGENTS.md`).
+This runs `*Test` / `*Tests` classes. It includes domain/application unit tests, infrastructure unit tests and the Spring context smoke. It does **not** run `*IT` classes and does not require Docker.
+
+### 3.2 Adapter integration + HTTP E2E — Docker required
+
+```bash
+./mvnw test -Dtest='*IT' -DfailIfNoTests=false
+```
+
+This explicitly runs all `*IT` classes, including both adapter integration tests and HTTP end-to-end flows. Docker must be available because the shared integration base starts LocalStack through Testcontainers.
+
+### 3.3 Quality checks
+
+```bash
+./mvnw jacoco:check
+./mvnw spotbugs:check
+./mvnw dependency-check:check -DfailBuildOnAnyVulnerability=false
+```
+
+Current interpretation:
+
+- **JaCoCo:** blocking gate; minimum **35% line** and **15% branch** coverage at bundle level.
+- **SpotBugs:** blocking gate for findings at the configured threshold (`High`, effort `Max`).
+- **OWASP Dependency Check:** currently **advisory** for vulnerabilities because `failBuildOnAnyVulnerability=false`; tool execution errors can still fail the command. Review the generated report instead of treating a successful step as “no vulnerabilities”.
+
+The current JaCoCo check is based on the fast-test execution. Integration/E2E coverage is not merged into the blocking report.
+
+### 3.4 Current CI local mirror
+
+Run in this order:
+
+```bash
+./mvnw test
+./mvnw jacoco:check
+./mvnw spotbugs:check
+./mvnw dependency-check:check -DfailBuildOnAnyVulnerability=false
+./mvnw test -Dtest='*IT' -DfailIfNoTests=false
+./mvnw clean package
+```
+
+The canonical executable sequence lives in `.github/workflows/ci.yml` and must be kept synchronized with this section.
+
+### 3.5 Important lifecycle limitation
+
+`./mvnw clean package` is a production artifact build, but it is **not the complete test gate**: the project does not yet configure `maven-failsafe-plugin`, so `*IT` classes only run through the explicit command above or the dedicated CI step.
+
+Tracked improvement:
+
+- Surefire → `*Test` during `test`;
+- Failsafe → `*IT` during `integration-test` / `verify`;
+- `./mvnw verify` → one complete local/CI gate, optionally behind an integration profile when Docker is not available.
+
+Do not claim that `clean package` alone validates integration/E2E behaviour until Failsafe is wired.
 
 ---
 
-## Reading failures
+## 4. Mandatory patterns
 
-| Class            | Signal                                        | First move                                                     |
-| ---------------- | --------------------------------------------- | -------------------------------------------------------------- |
-| **Logic**        | Assertion failure in a service/domain test    | Fix the use case or the wrong expectation                       |
-| **Boundary**     | Forbidden import in domain/application        | Restore the port boundary — do not weaken the rule              |
-| **Compile**      | Missing method on mock / changed signature    | Update the mock setup; verify the port surface                 |
-| **DynamoDB/LocalStack** | Table/bucket missing, connection refused | Run the README setup commands; `docker-compose up -d`          |
-| **Flaky / env**  | Docker, port, Redis connection                | Re-run; fix compose — don't skip tests                          |
-| **E2E**          | `*IT` not picked up                           | Run explicitly with `./mvnw test -Dtest='*IT'` (no failsafe yet)|
+| Area                  | Rule                                                                                                                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Domain tests**      | Instantiate real domain objects. No mocks, Spring context or infrastructure classes.                                                                                                                                                                                                   |
+| **Application tests** | Mock outbound domain ports (`UserRepository`, `PlaylistRepository`, `SongMetadataRepository`, `SongStoragePort`, etc.). Keep application collaborators real when practical. Mock an application strategy/factory only when the test is intentionally isolating dispatch/orchestration. |
+| **Typed failures**    | Prefer `NotFoundException`, `ConflictException`, `ForbiddenException` and feature-specific typed exceptions. Reserve `IllegalArgumentException` for invalid arguments/preconditions. Assert exact messages only when they are part of the public contract.                             |
+| **Ownership**         | Every owner-scoped mutation must test owner success and non-owner rejection. The actor identity must come from the authenticated context, never from client-controlled ownership data.                                                                                                 |
+| **Passwords**         | Hash only through `PasswordHasher`; never assert/log plaintext, hashes as fixtures, JWT secrets or complete tokens.                                                                                                                                                                    |
+| **HTTP errors**       | Verify status and the standard error body for 400, 401, 403, 404, 409 and unexpected 500 paths where applicable.                                                                                                                                                                       |
+| **Pagination**        | Test case normalization, first page, subsequent cursor, end-of-results and malformed cursor. Never equate a DynamoDB page size with a total count.                                                                                                                                     |
+| **Storage**           | Mock `SongStoragePort` in application tests. Use S3 integration tests for presigned upload, confirmation, streaming URL, content and content type.                                                                                                                                     |
+| **Concurrency**       | Test conditional writes/optimistic locking against real DynamoDB. Use bounded waits/timeouts and always close executors.                                                                                                                                                               |
+| **Security**          | Every new endpoint needs an explicit `SecurityConfig` rule plus at least one allowed and one rejected HTTP scenario.                                                                                                                                                                   |
+| **Isolation**         | IT data must use unique IDs/emails/names and must not depend on test order or leftovers from another test.                                                                                                                                                                             |
+| **Boundaries**        | Run the rule-1 import check. Domain/application tests must not introduce infrastructure, AWS SDK, MapStruct, springdoc or Spring Web dependencies into the core.                                                                                                                       |
 
-**Priority when many fail:** boundary grep → domain invariants → touched application services →
-slice adapter test → E2E flows.
+### Boundary check
+
+```bash
+grep -rEn "^import (com\.spotpobre\.backend\.infrastructure|software\.amazon|io\.awspring|org\.mapstruct|org\.springdoc|org\.springframework\.web)" \
+  src/main/java/com/spotpobre/backend/domain \
+  src/main/java/com/spotpobre/backend/application
+```
+
+Expected result: no matches. Do not weaken the expression to hide a violation. If the architecture policy intentionally changes, update `AGENTS.md`, coding standards and architecture documentation together.
 
 ---
 
-## Analyzer reply format
+## 5. Current automated suite map
+
+| Area                            | Main test files                                                                                                                        | What is pinned                                                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Registration**                | `RegisterUserServiceTest`, `AuthenticationFlowIT`, `EmailUniquenessIT`                                                                 | Hashing through port, default role, duplicate rejection, concurrent uniqueness, JWT returned by HTTP registration |
+| **Authentication**              | `AuthenticationServiceTest`, `SpringSecurityAuthenticationAdapterTest`, `UserDetailsServiceImplTest`, `AuthenticationFlowIT`           | Domain authentication result, Spring adapter mapping, wrong-password 401 and protected access with token          |
+| **User profile**                | `GetUserProfileServiceTest`, `GetUserDetailsServiceTest`                                                                               | Profile lookup and not-found/empty behaviour                                                                      |
+| **Artists**                     | `CreateArtistServiceTest`, `SearchArtistsServiceTest`, `ArtistSearchPaginationIT`, `ArtistSongFlowIT`                                  | Creation, admin-protected flow, case-insensitive search, cursor forwarding and page-size guard                    |
+| **Albums**                      | `CreateAlbumServiceTest`, `AlbumSongConsistencyIT`, `ArtistSongFlowIT`                                                                 | Artist existence, album persistence and album–song query consistency                                              |
+| **Song upload**                 | `SongUploadCommandTest`, `InitiateSongUploadServiceTest`, `ConfirmSongUploadServiceTest`, `S3SongStorageAdapterIT`, `ArtistSongFlowIT` | MIME/size validation, presigned upload, compensation, confirm guards, S3 round-trip and downloadable stream       |
+| **Song read/search**            | `GetSongMetadataServiceTest`, `GetSongStreamUrlServiceTest`, `SearchSongsServiceTest`, `SongSearchPaginationIT`                        | Metadata/not-found, storage-key streaming, case-insensitive search, cursor walk and malformed cursor              |
+| **Playlist ownership**          | `PlaylistOwnershipGuardTest`, playlist service tests, `PlaylistFlowIT`, `ErrorHandlingFlowIT`                                          | Owner success, non-owner 403 for rename/delete/add/remove and standard error body                                 |
+| **Playlist limits/concurrency** | `CreatePlaylistServiceTest`, `PlaylistLimitAndConcurrencyIT`, `DynamoDbPlaylistRepositoryAdapterIT`                                    | Ten-playlist limit, stale-snapshot rejection and basic adapter save/find                                          |
+| **Playlist membership**         | `AddSongToPlaylistServiceTest`, `RemoveSongFromPlaylistServiceTest`, `PlaylistFlowIT`                                                  | Missing resource guards, owner enforcement and full add-song HTTP flow                                            |
+| **Likes**                       | `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`, `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest`       | Strategy dispatch, entity-existence checks, toggle add/remove and returned count contract through mocked port     |
+| **HTTP error contract**         | `GlobalExceptionHandlerTest`, `ErrorHandlingFlowIT`                                                                                    | Standard bodies for 400/401/403/404/409/500 handlers; missing, malformed and expired JWT cases                    |
+| **Application startup**         | `SpotpobreApplicationTests`                                                                                                            | Spring context and main application context start/close                                                           |
+
+When behaviour covered by this map changes, extend the existing test where it remains cohesive. Create a new class when the new concern has a distinct fixture/lifecycle or would make the existing class hard to understand.
+
+---
+
+## 6. Traceability matrix
+
+For milestone-sized work, record or verify this chain in the change description:
+
+```text
+requirement / risk
+    → lowest useful test level
+    → test class and scenario
+    → command that executes it
+    → CI step that gates it
+```
+
+Examples:
+
+| Requirement/risk                             | Lowest useful test    | Representative class                                 | Command / CI step                    |
+| -------------------------------------------- | --------------------- | ---------------------------------------------------- | ------------------------------------ |
+| Non-owner cannot mutate playlist             | Application + E2E     | `DeletePlaylistServiceTest`, `PlaylistFlowIT`        | `test`; then `*IT`                   |
+| Duplicate e-mail under race                  | Real adapter          | `EmailUniquenessIT`                                  | Slice + E2E CI step                  |
+| Presigned URL points to uploaded object      | S3 integration        | `S3SongStorageAdapterIT`                             | Slice + E2E CI step                  |
+| Malformed JWT returns standard 401           | E2E                   | `ErrorHandlingFlowIT`                                | Slice + E2E CI step                  |
+| Cursor does not repeat first page            | Real adapter          | `SongSearchPaginationIT`, `ArtistSearchPaginationIT` | Slice + E2E CI step                  |
+| Domain remains independent of infrastructure | Static boundary check | Rule-1 grep                                          | Local check; add to CI when approved |
+
+A feature is not fully covered if its only test mocks the behaviour that carries the main risk.
+
+---
+
+## 7. Known coverage and process gaps
+
+Keep this section honest. Move an item out only when an automated test/gate exists.
+
+1. **No Failsafe lifecycle integration.** `*IT` is not part of `mvn verify`; it runs by explicit Surefire selection.
+2. **No complete endpoint × HTTP method × role matrix.** Existing E2E tests cover critical authentication and playlist ownership paths, not every matcher in `SecurityConfig`.
+3. **Like persistence lacks a dedicated LocalStack integration test.** Toggle behaviour is unit-tested through a mocked `LikeRepository`; reverse-GSI count/pagination/eventual-consistency behaviour is not pinned end to end.
+4. **Not every DynamoDB adapter operation has direct integration coverage.** Several paths are covered indirectly by E2E, but an indirect flow may not exercise edge cases such as empty pages, large result sets or conditional failures.
+5. **Production configuration is not directly tested.** `ProdConfigValidator`, missing-variable startup and production profile safety need dedicated tests.
+6. **Actuator runtime behaviour is not covered.** Liveness/readiness, dependency failure/recovery and probe security are not yet automated.
+7. **Graceful shutdown is not tested under load.** There is no automated SIGTERM/draining test for in-flight requests.
+8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
+9. **JaCoCo thresholds are an initial floor, not a quality target.** Current gates are 35% line and 15% branch coverage and should increase gradually. Coverage does not prove assertion quality.
+10. **OWASP scan is advisory.** Vulnerability findings do not currently fail the build.
+11. **No explicit mutation-testing or API schema compatibility gate.** Add only with human approval because both may require new tooling/dependencies.
+
+---
+
+## 8. Regression checklist
+
+| Area                    | Must verify                                                                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Register**            | Password goes through `PasswordHasher`; no plaintext persistence/logging; `ROLE_USER`; duplicate email → 409; concurrent duplicate creates only one user |
+| **Authenticate**        | Valid credentials return JWT at HTTP boundary; wrong password and unknown user do not leak existence; malformed/expired token → standard 401             |
+| **Artists**             | Create requires `ROLE_ADMIN`; search is case-insensitive; cursor advances; invalid cursor and excessive limit are rejected                               |
+| **Albums**              | Create validates artist; album query reflects uploaded/confirmed songs                                                                                   |
+| **Song initiate**       | Album exists; MIME and size validated; metadata/storage compensation on failure; no audio bytes pass through the API                                     |
+| **Song confirm/stream** | Album/song/storage key match; object exists; returned stream URL downloads the exact content and content type                                            |
+| **Playlists**           | Create/list/rename/add/remove/delete; every mutation owner-scoped; non-owner → 403; missing → 404; stale write → 409                                     |
+| **Likes**               | Toggle song/artist/playlist; invalid target rejected; `isLiked` and `newLikeCount` are coherent                                                          |
+| **HTTP errors**         | Standard body and correct status for validation 400, auth 401, authorization 403, missing 404, conflict 409 and generic 500 handler                      |
+| **Security**            | Every endpoint has an explicit matcher; mutating routes never default to permit-all; allowed and denied role scenarios exist                             |
+| **Pagination**          | No repeated page; no skipped/duplicated result in the tested dataset; end cursor is null; malformed cursor rejected; max page size enforced              |
+| **Boundaries**          | Rule-1 grep has no matches; controllers call inbound use cases, not repositories                                                                         |
+| **Quality**             | Fast tests, coverage, SpotBugs, dependency report, `*IT`, package and documentation all synchronized                                                     |
+
+---
+
+## 9. Release regression smoke
+
+Run against disposable local services before a release tag. Prefer the automated `*IT` suite; use this smoke to validate the assembled local runtime and operator instructions.
+
+```bash
+docker-compose up -d
+# Create LocalStack tables/bucket using the current README instructions.
+./mvnw spring-boot:run
+```
+
+Prerequisites:
+
+- disposable local environment only;
+- seeded local `ADMIN` and `ARTIST` accounts for role-protected flows;
+- never use or document production credentials in smoke scripts;
+- retain the IDs/tokens returned by previous steps rather than hardcoding real values.
+
+**Stop on first failure.**
+
+|   # | Step                                                             | Expected                                                                                                                        |
+| --: | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+|   1 | Register and authenticate a normal user                          | 200 with JWT; profile endpoint succeeds; no secret appears in logs                                                              |
+|   2 | Authenticate with a wrong password                               | Standard 401 without user-existence leak                                                                                        |
+|   3 | Create artist as normal user, then as admin                      | 403, then 201                                                                                                                   |
+|   4 | Search artist using different case                               | Created artist returned                                                                                                         |
+|   5 | Create album                                                     | 201; artist relationship correct                                                                                                |
+|   6 | Initiate song upload as artist                                   | 201 with storage key and presigned URL(s); no file body through API                                                             |
+|   7 | PUT audio directly to presigned URL and confirm                  | Upload succeeds; confirm returns 200                                                                                            |
+|   8 | Fetch song details and GET streaming URL                         | Metadata correct; downloaded bytes/content type match upload                                                                    |
+|   9 | Owner playlist CRUD and add/remove song                          | All operations succeed and list reflects changes                                                                                |
+|  10 | Repeat playlist mutations as a different user                    | Standard 403; owner data unchanged                                                                                              |
+|  11 | Toggle like for song/artist/playlist                             | `isLiked` toggles and count response remains coherent                                                                           |
+|  12 | Call protected endpoint without/with malformed token             | Standard 401 in both cases                                                                                                      |
+|  13 | Call `/actuator/health` according to the current security policy | With current configuration, use valid authentication; 200 `UP`. Revisit when internal liveness/readiness probes are introduced. |
+
+Optional, non-blocking until promoted to a gate:
+
+- Swagger UI renders the current endpoints;
+- `/actuator/info` and `/actuator/metrics` are reachable only under the intended security policy;
+- inspect structured logs for correlation and accidental secrets.
+
+---
+
+## 10. Flakiness, isolation and test-data policy
+
+### Determinism
+
+- Unit tests use deterministic values unless uniqueness itself is under test.
+- ITs may use random UUIDs/e-mails to avoid collision in the shared LocalStack JVM, but assertions must never depend on random ordering.
+- Inject or wrap time/randomness when exact timestamps/ordering become business-relevant.
+- Never depend on test execution order.
+
+### Shared LocalStack state
+
+`AbstractIntegrationTest` shares one manually started LocalStack container across `*IT` classes so Spring can reuse its cached context. Therefore:
+
+- use unique partition keys and e-mails;
+- do not assume an empty table unless the test explicitly provisions/cleans its own data;
+- filter/query using data owned by the test;
+- do not enable parallel IT execution until table/data isolation is proven.
+
+### Concurrency and network tests
+
+- Use bounded timeouts for `Future.get`, HTTP calls and polling.
+- Always close `ExecutorService`, HTTP resources and application contexts.
+- Avoid unbounded `Thread.sleep`. Poll a condition with a deadline using existing JDK/test tools.
+- A rerun may be used once to classify reproducibility, never as the fix. A flaky test must be corrected or tracked with an owner and reason; do not add blind retries.
+
+### Failure diagnostics
+
+Failure output should identify the resource/operation without printing passwords, raw JWTs, secret keys or full signed URLs.
+
+---
+
+## 11. Reading failures
+
+| Class               | Signal                                                 | First move                                                                                  |
+| ------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| **Logic**           | Domain/application assertion fails                     | Verify the invariant/use case before changing the expectation                               |
+| **Contract**        | Wrong HTTP status/body                                 | Check typed exception, handler/entry point and API contract                                 |
+| **Authorization**   | Unexpected 401/403                                     | Separate authentication failure, role matcher and owner guard                               |
+| **Boundary**        | Forbidden core import                                  | Restore the port boundary; do not weaken the check                                          |
+| **Compile**         | Mock/signature mismatch                                | Verify the port surface and update all callers/tests coherently                             |
+| **DynamoDB**        | Conditional failure, cursor error, missing table/index | Compare config, test provisioning and README schema; reproduce with the relevant adapter IT |
+| **S3**              | Presigned PUT/confirm/download fails                   | Check endpoint, credentials, content type, storage key and LocalStack logs                  |
+| **Environment**     | Docker/port/Redis/LocalStack problem                   | Verify prerequisites; distinguish infrastructure failure from product failure               |
+| **Coverage**        | JaCoCo threshold fails                                 | Add meaningful behaviour tests; do not exclude code merely to raise the percentage          |
+| **Static analysis** | SpotBugs fails                                         | Fix the finding or document a narrowly justified suppression with human review              |
+| **Dependency scan** | CVE reported                                           | Assess reachability/severity, upgrade or add a justified, expiring suppression              |
+| **Discovery**       | `*IT` not picked up                                    | Run the explicit `-Dtest='*IT'` command; Failsafe is not configured yet                     |
+
+When many tests fail, triage in this order:
+
+1. compile and application context;
+2. environment/Testcontainers;
+3. domain invariants;
+4. touched application services;
+5. adapter integration;
+6. HTTP E2E;
+7. quality reports.
+
+---
+
+## 12. Analyzer reply format
 
 ```text
 ## Summary
-Class / test (Logic|Boundary|Compile|DynamoDB|Flaky|E2E)
-Cause (one line)
+Failing class / scenario
+Category: Logic | Contract | Authorization | Boundary | Compile | DynamoDB | S3 | Environment | Coverage | Static analysis | Dependency
+Root cause: one concise sentence
 
 ## Fix plan
-1. …
-2. …
+1. Smallest production-code fix
+2. Regression test at the lowest useful level
+3. Wider verification, if required
 
 ## Verify
 ./mvnw test
-# optionally: ./mvnw test -Dtest='*IT'   (Docker)
-# smoke: docker-compose up -d && ./mvnw spring-boot:run
+# when persistence/storage/security/HTTP changed:
+./mvnw test -Dtest='*IT' -DfailIfNoTests=false
+# when quality/build configuration changed:
+./mvnw jacoco:check
+./mvnw spotbugs:check
+./mvnw dependency-check:check -DfailBuildOnAnyVulnerability=false
+./mvnw clean package
 ```
 
 ---
 
-## Do not
+## 13. Do not
 
-- Skip, delete, or `@Disabled` tests to green the build
-- Add a new test dependency without human approval
-- Mock `infrastructure` classes from `domain`/`application` tests
-- Assert or log plaintext passwords or JWT secrets
-- Weaken an existing assertion to make a change pass
-- Put business rules in controller/IT tests "because the flow failed"
-- Widen `Page`/`Pageable`/`DynamoDbPage` use across the core — pagination goes through `PageRequest`/`PageResult`
+- Skip, delete or add `@Disabled` merely to green the build.
+- Weaken an assertion without proving the previous contract was wrong.
+- Catch and ignore failures in tests.
+- Add blind retries for flaky tests.
+- Use real cloud accounts, production secrets or production data.
+- Log plaintext passwords, JWT secrets, full bearer tokens or presigned URLs.
+- Mock domain entities/value objects.
+- Mock persistence/storage in an adapter integration test.
+- Assert business rules only through controller/E2E tests when a lower-level test is possible.
+- Treat code coverage percentage as proof of correctness.
+- Treat a successful advisory OWASP step as proof that dependencies have no vulnerabilities.
+- Widen `Page`/`Pageable`/DynamoDB-specific cursor types into the core; use domain pagination abstractions.
+- Add a dependency or change the test lifecycle without explicit human approval and documentation sync.
 
 ---
 
-## Done when
+## 14. Done when
 
-- [ ] Happy path + at least one rejection automated for the change
-- [ ] New domain/application behaviour has a colocated `*Test`
-- [ ] Ownership/authorization rules covered where the endpoint mutates a resource
-- [ ] Failure analysis names root cause and smallest fix
-- [ ] `./mvnw test` green (plus `-Dtest='*IT'` when persistence/storage/security touched)
-- [ ] Smoke steps clear when HTTP behaviour changed
-- [ ] Docs synced if milestone-sized (README Current State / CHANGELOG / AGENTS debt) per `AGENTS.md`
+- [ ] The change has a happy path and at least one relevant rejection path.
+- [ ] New domain/application behaviour has a colocated `*Test`.
+- [ ] Ownership/authorization is tested for every affected mutation.
+- [ ] HTTP changes pin status and standard response body.
+- [ ] Persistence/storage changes have an appropriate `*IT` against LocalStack.
+- [ ] Concurrency-sensitive changes are tested with real conditional/optimistic behaviour.
+- [ ] Test data is isolated and execution-order independent.
+- [ ] `./mvnw test` is green.
+- [ ] `*IT` is green when persistence, storage, security or HTTP behaviour changed.
+- [ ] JaCoCo and SpotBugs gates are green; dependency findings were reviewed when relevant.
+- [ ] The boundary grep has no new matches.
+- [ ] Smoke instructions are updated when the assembled HTTP/runtime flow changed.
+- [ ] `README.md`, `CHANGELOG.md`, `AGENTS.md` and this suite map/gap list are synchronized for milestone-sized work.
+
+---
+
+## 15. Document maintenance
+
+Treat these sections differently:
+
+- **Stable policy:** principles, taxonomy, mandatory patterns and “Do not”. Change only when engineering policy changes.
+- **Executable commands:** keep synchronized with `pom.xml` and `.github/workflows/ci.yml`.
+- **Current suite map:** update whenever test classes are added, renamed or removed.
+- **Known gaps:** remove an item only when the corresponding automated test/gate exists; add newly discovered risks immediately.
+- **Release smoke:** update whenever endpoint paths, authentication, upload protocol or runtime security changes.
+
+A milestone is not done if the tests changed but this document still describes the previous suite.
