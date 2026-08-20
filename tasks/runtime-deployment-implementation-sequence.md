@@ -126,7 +126,13 @@ exercise is staged in Step 10 (real AWS).
 - Exercise a rollback
 - Verify probes, secrets and shutdown behaviour in the real environment
 
-**Done when:** Staging exercise succeeds and is recorded.
+**AS-BUILT (2026-08-19):** Procedure defined and committed (`deploy/README.md` "Staging exercise
+(S10)" with exact `aws cloudformation deploy` + `aws deploy create-deployment` commands and an
+acceptance checklist covering services-stable, liveness/readiness/metrics auth, canary 10%/5min
+traffic shift, alarm observation and forced rollback). **Execution is pending AWS credentials** —
+`aws sts get-caller-identity` returns no configured profile in this environment, so the deploy and
+rollback were not run against a real account. This item is recorded as an open debt item in
+`AGENTS.md` ("Blue/green rollout not exercised against real AWS").
 
 ---
 

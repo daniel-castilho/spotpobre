@@ -59,7 +59,8 @@ aws cloudformation deploy \
 
 Expected outputs from `stack.yaml`: `LoadBalancerDnsName`, `ClusterName`, `ServiceName`,
 `TaskDefinitionFamily`, `BlueTargetGroupArn`, `GreenTargetGroupArn`, `ListenerArn`,
-`Rollback5xxAlarmName`, `RollbackLatencyAlarmName`, `RollbackReadinessAlarmName`.
+`Rollback5xxAlarmName`, `RollbackLatencyAlarmName`, `RollbackReadinessAlarmName`
+(each exported as `spotpobre-${Environment}::<Name>` for cross-stack reference).
 
 ## Runtime contract honoured by the stack
 
@@ -137,7 +138,96 @@ aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled --region
 A rollback creates a new green task set with the old revision; verify `HealthyHostCount` recovers to
 the steady value before closing.
 
-## Updating to a new image
+## Staging exercise (S10)
+
+Apply the two stacks to staging, then prove deploy + rollback end-to-end. This step needs real AWS
+credentials for the staging account/profile — configure `AWS_PROFILE` (or env vars) before starting.
+
+### 1. Deploy
+
+```sh
+# 1) Foundation stack (service + ALB blue/green pair + rollback alarms).
+aws cloudformation deploy \
+  --stack-name spotpobre-staging \
+  --template-file deploy/stack.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Environment=staging \
+    ImageDigest=${ECR_IMAGE_DIGEST} \
+    JwtSecretArn=arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:/spotpobre/staging/jwt-secret \
+    SslCertificateArn=${ACM_CERT_ARN} \
+    BucketName=spotpobre-songs-staging \
+    RedisHost=${REDIS_HOST} \
+    Rollback5xxThreshold=10 \
+    RollbackLatencyThresholdSeconds=0.5
+
+# 2) Rollout stack (CodeDeploy application + blue/green deployment group). It imports
+#    the service, target groups, listener and alarm names from the foundation stack,
+#    so no per-export parameters are needed.
+aws cloudformation deploy \
+  --stack-name spotpobre-staging-codedeploy \
+  --template-file deploy/codedeploy.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides Environment=staging
+```
+
+> Both stacks must reach `CREATE_COMPLETE`. The foundation stack exports each output as
+> `spotpobre-${Environment}::<Name>`, which `codedeploy.yaml` imports automatically.
+> **Warning:** you cannot delete the foundation stack while the codedeploy stack imports from it;
+> delete the codedeploy stack first (CloudFormation enforces this via the `ImportValue` dependency).
+
+### 2. Acceptance checks
+
+| # | Check | Expected |
+| - | :---- | :------- |
+| 1 | Service stable: `aws ecs wait services-stable --cluster ... --services ...` | returns 0 |
+| 2 | Open the ALB DNS name; `GET /actuator/health/liveness` | 200, `{"status":"UP"}` (no auth) |
+| 3 | `GET /actuator/health/readiness` | 200 UP; readiness gate is green (DynamoDB + S3 reachable) |
+| 4 | `GET /actuator/metrics` without a token | 401 (only probe paths are unauthenticated) |
+| 5 | Initial blue/green deploy (no new revision) | blue TG healthy hosts > 0, green TG 0, listener 100/0 |
+
+> **Dependency-failure probe (gate S6):** run only if an operator can tolerate downtime — temporarily
+> deny the app's task role `s3:GetObject`, then `GET /actuator/health/readiness` must go 503 and the
+> readiness alarm must stay green for healthy hosts while the role is denied, then recover to 200/UP
+> when the deny is removed. (Skip in the first run; record result separately.)
+
+### 3. Canary rollout exercise
+
+```sh
+aws deploy create-deployment \
+  --application-name spotpobre-staging \
+  --deployment-group-name spotpobre-staging-blue-green \
+  --revision revisionType=AppSpecContent,appSpecContent="$(cat deploy/appspec.yaml | sed s/REPLACE_WITH_TASK_DEFINITION_ARN/$NEW_TASK_DEF_ARN/)" \
+  --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes
+```
+
+Acceptance:
+- `AfterAllowTestTraffic` window: green task set has `RUNNING` tasks but listener still 100/0.
+- After the first 10% shift: `HealthyHostCount` on green > 0, no rollback alarm in ALARM, listener
+  shows ~10% weight on green (via `aws elbv2 describe-listener-rules` / prod traffic route).
+- Within `TerminationWaitTimeMinutes`: 100% green, blue task set `TERMINATED`.
+- `aws deploy get-deployment --deployment-id <id>` shows `status: Succeeded`.
+
+### 4. Rollback exercise
+
+```sh
+# Force an automatic rollback: raise the 5xx alarm threshold so a 5xx surge trips it mid-deploy,
+# or manually stop a deployment during the 10% canary window:
+aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled
+```
+
+Acceptance:
+- During the 10% window the deployment is stopped → state `Stopped` / `rollback`, blue resumes as
+  the healthy target group, traffic returns to 100% blue within the grace period.
+- Confirm no 5xx spike on the blue fleet during rollback.
+
+### Recorded result
+
+> Staging exercise is **not executable in this environment** (no AWS credentials/config available
+> — `aws sts get-caller-identity` returns "config profile not found"). Running steps 1–4 with the
+> staging `AWS_PROFILE` is the definition-of-done for S10; attach the log + acceptance results here.
+
+
 
 1. CI pushes the new image to ECR (digest-pinned) and registers a new task definition.
 2. CI submits the AppSpec (with the new task-definition ARN) via `aws deploy create-deployment`

@@ -1,42 +1,17 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
   CodeDeploy application + blue/green deployment group for the Spotpobre API (runtime-deployment
-  S9). Consumes the ECS service and target groups from deploy/stack.yaml by ARN. Creates the
-  CodeDeploy service role, the ECS blue/green deployment group (WITH_TRAFFIC_CONTROL), and wires
-  the rollback alarms from the main stack.
+  S9). This stack imports the ECS service and target groups from deploy/stack.yaml via CloudFormation
+  exports, so apply it after the foundation stack and reuse is automatic across environments
+  (the export names are prefixed with the Environment parameter).
 
-  NOTE: ECS blue/green AppSpec bodies are passed inline to CodeDeploy (RevisionType AppSpecContent),
-  not read from S3 like EC2/on-prem. The reference AppSpec is in deploy/appspec.yaml and is
-  submitted by the CLI/CI with the deployed task-definition ARN substituted in.
+  ECS AppSpecs are passed to CodeDeploy inline (RevisionType=AppSpecContent), not read from S3;
+  the reference AppSpec is in deploy/appspec.yaml (submitted by the CLI/CI).
 
 Parameters:
   Environment:
     Type: String
-    Description: Deployment environment (staging/production).
-  ClusterName:
-    Type: String
-    Description: ECS cluster name (output of deploy/stack.yaml).
-  ServiceName:
-    Type: String
-    Description: ECS service name (output of deploy/stack.yaml).
-  BlueTargetGroupArn:
-    Type: String
-    Description: ARN of the blue target group (output of deploy/stack.yaml).
-  GreenTargetGroupArn:
-    Type: String
-    Description: ARN of the green target group (output of deploy/stack.yaml).
-  ListenerArn:
-    Type: String
-    Description: ARN of the HTTPS listener prod traffic route (output of deploy/stack.yaml).
-  Rollback5xxAlarmName:
-    Type: String
-    Description: 5xx rollback alarm name from deploy/stack.yaml.
-  RollbackLatencyAlarmName:
-    Type: String
-    Description: Latency rollback alarm name from deploy/stack.yaml.
-  RollbackReadinessAlarmName:
-    Type: String
-    Description: Readiness rollback alarm name from deploy/stack.yaml.
+    Description: Deployment environment (staging/production) — prefix of the imported exports.
   TerminationWaitTimeMinutes:
     Type: Number
     Default: 30
@@ -86,26 +61,31 @@ Resources:
           Action: TERMINATE
           TerminationWaitTimeInMinutes: !Ref TerminationWaitTimeMinutes
       EcsService:
-        ClusterName: !Ref ClusterName
-        ServiceName: !Ref ServiceName
+        ClusterName:
+          Fn::ImportValue: !Sub "spotpobre-${Environment}::ClusterName"
+        ServiceName:
+          Fn::ImportValue: !Sub "spotpobre-${Environment}::ServiceName"
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroupPairInfo:
               TargetGroups:
-                - !Ref BlueTargetGroupArn
-                - !Ref GreenTargetGroupArn
+                - Fn::ImportValue: !Sub "spotpobre-${Environment}::BlueTargetGroupArn"
+                - Fn::ImportValue: !Sub "spotpobre-${Environment}::GreenTargetGroupArn"
               ProdTrafficRoute:
                 ListenerArns:
-                  - !Ref ListenerArn
+                  - Fn::ImportValue: !Sub "spotpobre-${Environment}::ListenerArn"
       RollbackConfiguration:
         RollbackEnabled: true
         RollbackTriggers:
           - Type: CloudWatchAlarm
-            Value: !Ref Rollback5xxAlarmName
+            Value:
+              Fn::ImportValue: !Sub "spotpobre-${Environment}::Rollback5xxAlarmName"
           - Type: CloudWatchAlarm
-            Value: !Ref RollbackLatencyAlarmName
+            Value:
+              Fn::ImportValue: !Sub "spotpobre-${Environment}::RollbackLatencyAlarmName"
           - Type: CloudWatchAlarm
-            Value: !Ref RollbackReadinessAlarmName
+            Value:
+              Fn::ImportValue: !Sub "spotpobre-${Environment}::RollbackReadinessAlarmName"
           - Type: DeploymentFailure
             Value: CODE_DEPLOY_DEPLOYMENT_FAILURE
 
@@ -119,6 +99,3 @@ Outputs:
   CodeDeployServiceRoleArn:
     Description: IAM role ARN assumed by CodeDeploy.
     Value: !GetAtt CodeDeployRole.Arn
-  DeploymentWatcherCommand:
-    Description: Command to watch the deployment state for the group above.
-    Value: !Sub "aws deploy get-deployment --deployment-id <id> --region ${AWS::Region}"

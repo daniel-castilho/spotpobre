@@ -495,24 +495,34 @@ Outputs:
   LoadBalancerDnsName:
     Description: ALB DNS name (entry point for the service)
     Value: !GetAtt Alb.DNSName
+    Export: !Sub "spotpobre-${Environment}::LoadBalancerDnsName"
   ClusterName:
     Value: !Ref Cluster
+    Export: !Sub "spotpobre-${Environment}::ClusterName"
   ServiceName:
     Value: !Ref Service
+    Export: !Sub "spotpobre-${Environment}::ServiceName"
   TaskDefinitionFamily:
     Value: !Ref TaskDefinition
+    Export: !Sub "spotpobre-${Environment}::TaskDefinitionFamily"
   BlueTargetGroupArn:
     Description: Blue target group ARN (currently serving traffic)
     Value: !Ref BlueTargetGroup
+    Export: !Sub "spotpobre-${Environment}::BlueTargetGroupArn"
   GreenTargetGroupArn:
     Description: Green target group ARN (CodeDeploy shifts traffic to it on deployment)
     Value: !Ref GreenTargetGroup
+    Export: !Sub "spotpobre-${Environment}::GreenTargetGroupArn"
   ListenerArn:
     Description: ALB HTTPS listener ARN used by the CodeDeploy prod traffic route
     Value: !Ref Listener
+    Export: !Sub "spotpobre-${Environment}::ListenerArn"
   Rollback5xxAlarmName:
     Value: !Ref Rollback5xxAlarm
+    Export: !Sub "spotpobre-${Environment}::Rollback5xxAlarmName"
   RollbackLatencyAlarmName:
     Value: !Ref RollbackLatencyAlarm
+    Export: !Sub "spotpobre-${Environment}::RollbackLatencyAlarmName"
   RollbackReadinessAlarmName:
     Value: !Ref RollbackReadinessAlarm
+    Export: !Sub "spotpobre-${Environment}::RollbackReadinessAlarmName"
