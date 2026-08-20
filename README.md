@@ -388,7 +388,7 @@ Deliberately not implemented yet (candidate backlog):
 | `CHANGELOG.md` | Release history (Keep a Changelog); update policy in `AGENTS.md` rule 8 |
 | `AGENTS.md` | Rules for AI agents and human contributors |
 | `docs/coding-standards.md` | Day-to-day coding standards (Java / Spring Boot / Maven) |
-| `docs/testing-playbook.md` | Testing pyramid, patterns, regression checklist & smoke |
+| `docs/testing-playbook.md` | Test taxonomy, principles, patterns, regression checklist & smoke |
 | `docs/lessons.md` | Durable lessons learned from debugging and design decisions |
 | `docs/twelve-factor.md` | Twelve-Factor App reference & compliance matrix |
 | `docker-compose.yaml` | LocalStack (DynamoDB, S3) + Redis for local development |

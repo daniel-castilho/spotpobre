@@ -147,7 +147,7 @@ src/main/java/com/spotpobre/backend/
 - Test method names: `method_condition_expectedResult` or descriptive `should ...`.
 - After significant changes run `./mvnw clean package` and smoke-test against
   `docker-compose up -d` (plus the LocalStack setup commands from `README.md`).
-- Full guidance: `docs/testing-playbook.md` (pyramid, patterns, regression checklist, smoke).
+- Full guidance: `docs/testing-playbook.md` (taxonomy, principles, patterns, regression checklist, smoke).
 
 ## Releases
 

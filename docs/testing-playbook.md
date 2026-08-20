@@ -112,7 +112,19 @@ Run in this order:
 
 The canonical executable sequence lives in `.github/workflows/ci.yml` and must be kept synchronized with this section.
 
-### 3.5 Important lifecycle limitation
+### 3.5 Runtime shutdown smoke (Docker + built jar)
+
+```bash
+scripts/shutdown-under-load-test.sh [JAR] [PORT] [CONCURRENCY]
+```
+
+Post-build runtime check: boots the jar, generates continuous concurrent traffic (default 40
+parallel authenticated requests), sends SIGTERM mid-flight and asserts readiness goes DOWN while
+the process is still alive, in-flight requests complete with 200, new requests are rejected, and
+the process exits within the 30s grace period. Requires LocalStack + Redis running with the schema
+provisioned (README) and a built jar.
+
+### 3.6 Important lifecycle limitation
 
 `./mvnw clean package` is a production artifact build, but it is **not the complete test gate**: the project does not yet configure `maven-failsafe-plugin`, so `*IT` classes only run through the explicit command above or the dedicated CI step.
 
@@ -160,7 +172,7 @@ Expected result: no matches. Do not weaken the expression to hide a violation. I
 | Area                            | Main test files                                                                                                                        | What is pinned                                                                                                    |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **Registration**                | `RegisterUserServiceTest`, `AuthenticationFlowIT`, `EmailUniquenessIT`                                                                 | Hashing through port, default role, duplicate rejection, concurrent uniqueness, JWT returned by HTTP registration |
-| **Authentication**              | `AuthenticationServiceTest`, `SpringSecurityAuthenticationAdapterTest`, `UserDetailsServiceImplTest`, `AuthenticationFlowIT`           | Domain authentication result, Spring adapter mapping, wrong-password 401 and protected access with token          |
+| **Authentication**              | `AuthenticationServiceTest`, `SpringSecurityAuthenticationAdapterTest`, `UserDetailsServiceImplTest`, `CachedUserDetailsTest`, `AuthenticationFlowIT` | Domain authentication result, Spring adapter mapping, wrong-password 401, protected access with token, Redis round-trip of cached user details |
 | **User profile**                | `GetUserProfileServiceTest`, `GetUserDetailsServiceTest`                                                                               | Profile lookup and not-found/empty behaviour                                                                      |
 | **Artists**                     | `CreateArtistServiceTest`, `SearchArtistsServiceTest`, `ArtistSearchPaginationIT`, `ArtistSongFlowIT`                                  | Creation, admin-protected flow, case-insensitive search, cursor forwarding and page-size guard                    |
 | **Albums**                      | `CreateAlbumServiceTest`, `AlbumSongConsistencyIT`, `ArtistSongFlowIT`                                                                 | Artist existence, album persistence and album–song query consistency                                              |
@@ -171,6 +183,9 @@ Expected result: no matches. Do not weaken the expression to hide a violation. I
 | **Playlist membership**         | `AddSongToPlaylistServiceTest`, `RemoveSongFromPlaylistServiceTest`, `PlaylistFlowIT`                                                  | Missing resource guards, owner enforcement and full add-song HTTP flow                                            |
 | **Likes**                       | `ToggleLikeServiceTest`, `LikeStrategyFactoryTest`, `SongLikeStrategyTest`, `ArtistLikeStrategyTest`, `PlaylistLikeStrategyTest`       | Strategy dispatch, entity-existence checks, toggle add/remove and returned count contract through mocked port     |
 | **HTTP error contract**         | `GlobalExceptionHandlerTest`, `ErrorHandlingFlowIT`                                                                                    | Standard bodies for 400/401/403/404/409/500 handlers; missing, malformed and expired JWT cases                    |
+| **Rate limiting**               | `FixedWindowRateLimiterTest`, `RateLimitFilterTest`, `RateLimitFlowIT`                                                                 | Fixed-window windowing, per-client identity (X-Forwarded-For), 429 on exceed, disabled-path behaviour             |
+| **Production config (fail-fast)** | `ProdConfigValidatorTest`                                                                                                             | Missing required property and static AWS credentials in `prod` abort startup; non-prod passes                        |
+| **Actuator probes**             | `DynamoDbHealthIndicator`, `S3HealthIndicator` (main classes); no dedicated unit/IT yet (see gap 6)                                       | Readiness gates on DynamoDB/S3; liveness/readiness reachable without auth; failure/recovery behaviour             |
 | **Application startup**         | `SpotpobreApplicationTests`                                                                                                            | Spring context and main application context start/close                                                           |
 
 When behaviour covered by this map changes, extend the existing test where it remains cohesive. Create a new class when the new concern has a distinct fixture/lifecycle or would make the existing class hard to understand.
@@ -212,9 +227,16 @@ Keep this section honest. Move an item out only when an automated test/gate exis
 2. **No complete endpoint × HTTP method × role matrix.** Existing E2E tests cover critical authentication and playlist ownership paths, not every matcher in `SecurityConfig`.
 3. **Like persistence lacks a dedicated LocalStack integration test.** Toggle behaviour is unit-tested through a mocked `LikeRepository`; reverse-GSI count/pagination/eventual-consistency behaviour is not pinned end to end.
 4. **Not every DynamoDB adapter operation has direct integration coverage.** Several paths are covered indirectly by E2E, but an indirect flow may not exercise edge cases such as empty pages, large result sets or conditional failures.
-5. **Production configuration is not directly tested.** `ProdConfigValidator`, missing-variable startup and production profile safety need dedicated tests.
-6. **Actuator runtime behaviour is not covered.** Liveness/readiness, dependency failure/recovery and probe security are not yet automated.
-7. **Graceful shutdown is not tested under load.** There is no automated SIGTERM/draining test for in-flight requests.
+5. **Production fail-fast startup is not automated end to end.** `ProdConfigValidator` has unit
+   coverage (`ProdConfigValidatorTest`), but booting the app with the `prod` profile against a real
+   missing/forbidden variable set is only exercised manually.
+6. **Actuator probe failure/recovery is not automated.** The `DynamoDbHealthIndicator` /
+   `S3HealthIndicator` exist and the readiness gate is defined, but there are no automated tests for
+   dependency failure → readiness DOWN, recovery → UP, liveness staying UP, and probe-endpoint
+   security.
+7. **Graceful shutdown has a reproducible script but no CI gate.** `scripts/shutdown-under-load-test.sh`
+   passes reliably (concurrent traffic, SIGTERM, readiness DOWN, in-flight 200s, exit within grace
+   period), but it is not wired into CI as an automated job.
 8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
 9. **JaCoCo thresholds are an initial floor, not a quality target.** Current gates are 35% line and 15% branch coverage and should increase gradually. Coverage does not prove assertion quality.
 10. **OWASP scan is advisory.** Vulnerability findings do not currently fail the build.
@@ -275,7 +297,8 @@ Prerequisites:
 |  10 | Repeat playlist mutations as a different user                    | Standard 403; owner data unchanged                                                                                              |
 |  11 | Toggle like for song/artist/playlist                             | `isLiked` toggles and count response remains coherent                                                                           |
 |  12 | Call protected endpoint without/with malformed token             | Standard 401 in both cases                                                                                                      |
-|  13 | Call `/actuator/health` according to the current security policy | With current configuration, use valid authentication; 200 `UP`. Revisit when internal liveness/readiness probes are introduced. |
+|  13 | Call `/actuator/health/liveness` and `/actuator/health/readiness` | Both 200 `UP` without authentication (probes are reachable for the ALB); readiness must go DOWN when a critical dependency (DynamoDB/S3) is unavailable and recover to UP |
+|  14 | Call a non-probe actuator endpoint (e.g. `/actuator/metrics`) without a token | Standard 401 (only probe paths are unauthenticated)                                                          |
 
 Optional, non-blocking until promoted to a gate:
 
