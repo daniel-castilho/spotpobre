@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  security-events: write   # SARIF upload from Trivy
+  packages: write          # ECR/docker registry push (when enabled via OIDC)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,3 +44,116 @@ jobs:
       - name: Production build
         if: success()
         run: ./mvnw clean package
+
+      - name: Upload production jar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotpobre-api-jar
+          path: target/spotpobre-*.jar
+
+  # S11 — build the production image and verify its supply-chain hygiene.
+  image:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          IMAGE="spotpobre-api:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          # Record the digest so the same immutable reference can be deployed/rolled back.
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" > image-digest.txt
+          cat image-digest.txt
+
+      - name: Non-root check (must fail on UID 0)
+        run: |
+          out="$(docker run --rm --entrypoint id "$IMAGE")"
+          echo "$out"
+          if echo "$out" | grep -q 'uid=0('; then
+            echo "FATAL: image runs as root (UID 0)"
+            exit 1
+          fi
+          echo "OK: image runs as non-root ($out)"
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: spotpobre-api:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: spotpobre-api:${{ github.sha }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload SBOM + image digest
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: |
+            sbom.cdx.json
+            image-digest.txt
+
+  # S11 — runtime shutdown smoke. Non-blocking: exercises graceful drain under load
+  # against LocalStack + Redis. Gated by the image-build path is intentionally NOT
+  # applied (see testing-playbook gap 7: shutdown test has no CI gate yet).
+  runtime-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start external services (LocalStack + Redis)
+        run: docker compose up -d
+
+      - name: Wait for LocalStack readiness
+        run: |
+          for i in $(seq 1 30); do
+            if aws --endpoint-url=http://localhost:4566 --region us-east-1 \
+               --access-key-id test --secret-access-key test sts get-caller-identity >/dev/null 2>&1; then
+              echo "LocalStack is ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "LocalStack did not become ready"; exit 1
+
+      - name: Provision DynamoDB schema + S3 bucket
+        run: ./scripts/seed-localstack.sh
+
+      - name: Download production jar
+        uses: actions/download-artifact@v4
+        with:
+          name: spotpobre-api-jar
+          path: target/
+
+      - name: Graceful shutdown under load
+        run: |
+          set +e
+          JAR="$(ls target/spotpobre-*.jar | head -1)"
+          scripts/shutdown-under-load-test.sh "$JAR" 8080 40
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            echo "::warning::Shutdown smoke failed (exit $rc); non-blocking per current gate policy."
+          fi
+
+      - name: Stop external services
+        if: always()
+        run: docker compose down

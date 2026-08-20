@@ -29,36 +29,39 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
     paths are reachable without auth (for the ALB), every other `/actuator/**` route requires
     authentication (`SecurityConfig`). Verified end-to-end against LocalStack: readiness goes
     DOWN while the S3 bucket is missing and recovers to UP once it exists.
-  - **Graceful shutdown under load (Step 7)** — `scripts/shutdown-under-load-test.sh` is a
-    reproducible test that runs concurrent traffic, sends SIGTERM mid-flight, and verifies the six
-    criteria: readiness DOWN while alive, in-flight requests complete with 200, new requests
-    rejected, and process exit within the grace period (30s). Spring Boot 3.5's graceful shutdown
-    (`server.shutdown: graceful`) already handles the drain — no code change required, only the
-    verification artifact. Ran twice to confirm reproducibility.
-  - **Deployment manifests (Step 8)** — `deploy/stack.yaml` (CloudFormation for the ADR-0001
-    platform: VPC/NAT, security groups, IAM task role, ALB + target group + HTTPS listener, ECS
-    cluster/task/service with `CODE_DEPLOY` controller, CPU autoscaling), `deploy/task-definition.json`
-    (native ECS reference artifact) and `deploy/README.md` (apply/update commands + runtime-contract
-    matrix). Manifests pin the image by digest, inject `JWT_SECRET` from Secrets Manager, run
-    non-root with read-only root FS, and wire container + ALB readiness checks on
-    `/actuator/health/readiness`.
+- **Graceful shutdown under load (Step 7 of the runtime-deployment epic).** `scripts/shutdown-under-load-test.sh` is a reproducible test that runs concurrent traffic, sends SIGTERM mid-flight, and verifies the six criteria: readiness DOWN while alive, in-flight requests complete with 200, new requests rejected, and process exit within the grace period (30s). Spring Boot 3.5's graceful shutdown (`server.shutdown: graceful`) already handles the drain — no code change required, only the verification artifact. Ran twice to confirm reproducibility (137 + 134 in-flight OK).
+- **Deployment manifests (Step 8) — blue/green aware.** `deploy/stack.yaml` now creates a blue/green
+  target-group pair and an ALB listener that forwards to both (100% blue / 0% green); the ECS
+  service keeps its `CODE_DEPLOY` controller. Three rollback alarms (5xx count, target response
+  time, zero healthy hosts) plus a deployment-failure trigger wire the automatic rollback.
+- **Blue/green rollout (Step 9).** New `deploy/codedeploy.yaml` defines the CodeDeploy application +
+  blue/green deployment group (`WITH_TRAFFIC_CONTROL`, `CodeDeployDefault.ECSCanary10Percent5Minutes`
+  → 10%/5min observation window, terminate-blue on success with 30 min wait) importing the service,
+  target groups and listener from the foundation stack. New `deploy/appspec.yaml` is the reference
+  ECS AppSpec submitted inline by the CLI/CI (task-definition ARN is a placeholder). See
+  `deploy/README.md` for the full rollout/rollback procedure.
+- **Staging exercise (Step 10).** Documented the full staging procedure (apply both stacks, then
+  acceptance checks + canary rollout + forced rollback) in `deploy/README.md`. **Execution is
+  pending AWS credentials** (none available in this environment); recorded as an open item in
+  `AGENTS.md`.
+- **CI pipeline completion (Step 11).** `ci.yml` now has an `image` job (build, non-root UID check,
+  Trivy HIGH/CRITICAL scan → GitHub Security SARIF, CycloneDX SBOM + image digest artifacts) and a
+  non-blocking `runtime-smoke` job (LocalStack + Redis via `docker compose`, schema seed by
+  `scripts/seed-localstack.sh`, graceful-shutdown-under-load smoke, teardown). Verified live: the
+  shutdown smoke passes (140 in-flight OK, 2s exit). ECR push (OIDC) left as a production-only gate.
+- **Operational runbook (Step 12).** Added a runnable-by-a-stranger runbook to `README.md`
+  covering deploy, rollback, secret rotation, readiness-DOWN triage and container incident
+  response, cross-referencing `deploy/README.md` and `docs/adr/0001-production-platform.md`.
+- **Reusable LocalStack seed script.** Extracted `scripts/seed-localstack.sh` from the README's
+  "Configure LocalStack" block so the identical commands run locally and in CI; idempotent.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
-    and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
-    (`enabled`, `limit`, `window`, `paths`, `client-ip-header`) — dev defaults in
-    `application.yaml`, production contract (env overrides) in `application-prod.yaml`. Excess
-    requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
-    dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
-    end-to-end test.
-  - **Deployment manifests refined into blue/green (Steps 8–9 of the runtime-deployment epic).**
-    `deploy/stack.yaml` now creates a blue/green target-group pair and an ALB listener that
-    forwards to both (100% blue / 0% green); the service keeps its `CODE_DEPLOY` controller.
-    New `deploy/codedeploy.yaml` defines the CodeDeploy application + blue/green deployment
-    group (`WITH_TRAFFIC_CONTROL`, `CodeDeployDefault.ECSCanary10Percent5Minutes` giving a 10% /
-    5-minute observation window, terminate-blue on success) and `deploy/appspec.yaml` is the
-    reference ECS AppSpec submitted inline by the CLI/CI. Three rollback alarms (5xx count,
-    target response time, zero healthy hosts) plus a deployment-failure trigger wire the
-    automatic rollback. See `deploy/README.md` for the full rollout/rollback procedure.
+  and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
+  (`enabled`, `limit`, `window`, `paths`, `client-ip-header`) — dev defaults in
+  `application.yaml`, production contract (env overrides) in `application-prod.yaml`. Excess
+  requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
+  dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
+  end-to-end test.
 - **Docs sync for the runtime epic and test suite.** `docs/testing-playbook.md` restructured to a
   test taxonomy (level / naming / runtime / purpose) with explicit principles, a suite coverage
   matrix, a reading-failures matrix and a regression checklist that now includes the shutdown

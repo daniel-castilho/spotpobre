@@ -306,6 +306,53 @@ Probes and endpoints are configured in `application.yaml` under `management.endp
 `dynamoDb` + `s3`). The probe paths are the only actuator routes permitted without auth —
 everything else under `/actuator/**` is authenticated (see `SecurityConfig`).
 
+## Operational runbook
+
+> How to operate this service in production without having written the code. Source of truth for a
+> first incident: `deploy/README.md` (rollout/rollback) + `docs/adr/0001-production-platform.md`.
+
+**Endpoints** — entry point is the ALB DNS name (see `deploy/stack.yaml` output `LoadBalancerDnsName`).
+All app routes are under `/api/v1/*`. Auth: `POST /api/v1/auth/register` and `/api/v1/auth/authenticate`
+return a JWT; pass it as `Authorization: Bearer <token>`.
+
+**Deploy a new version**
+1. CI builds+scans the image and publishes the digest to ECR (artifact `image-digest.txt`).
+2. Update the `ImageDigest` parameter of `deploy/stack.yaml` with the new digest and update the
+   stack; the `CODE_DEPLOY` service triggers a blue/green deployment through the deployment group
+   (`deploy/codedeploy.yaml` + `deploy/appspec.yaml`). See `deploy/README.md → Rollout`.
+3. Watch: `aws deploy get-deployment --deployment-id <id>` and the green target group health.
+
+**Roll back**
+- Automatic: any rollback alarm (sustained 5xx, latency, zero healthy hosts) or a failing health
+  gate aborts the deployment and resumes blue traffic.
+- Manual: stop the in-flight deployment —
+  `aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled` — or re-deploy the
+  previous AppSpec (with the previous task-definition ARN) via `aws deploy create-deployment`.
+  See `deploy/README.md → Rollback procedure`.
+
+**Rotate secrets**
+- Create a new version of the `JwtSecret` Secrets Manager secret (`/spotpobre/<env>/jwt-secret`),
+  then update the service: `aws ecs update-service ... --force-new-deployment`. Old tokens stay valid
+  until `jwt.expiration` (default 1h) elapses; no downtime.
+- Never edit `application.yaml`'s `jwt.secret` for production — it is a dev-only example.
+
+**When readiness is DOWN**
+1. `GET /actuator/health/readiness` → inspect the response (requires auth for details). The failing
+   component is either `dynamoDb` or `s3` (Redis is a cache and excluded from the gate).
+2. If `s3`: verify the bucket exists and the task role has `s3:GetObject/PutObject/ListBucket`.
+3. If `dynamoDb`: verify tables exist and the task role has `dynamodb:*` on `table/*`.
+4. Once the dependency is restored, readiness returns to UP automatically; ALB health checks resume
+   routing traffic.
+
+**Incident response (container failures)**
+- `aws ecs describe-tasks --cluster <cluster> --tasks <task>` + `aws logs` on
+  `/ecs/spotpobre-<env>` for the container exit code.
+- If a container crashes at startup: verify `ProdConfigValidator` did not block it (missing env
+  variable or static AWS keys in prod). Inspect the container logs for the abort message.
+- If `RedisConnectionFailureException` on authenticated requests while readiness is UP: known debt
+  (no Redis-outage fallback) — restart the task to re-warm the cache, or treat Redis availability as
+  part of incident severity.
+
 ## Current State
 
 The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following already implemented on

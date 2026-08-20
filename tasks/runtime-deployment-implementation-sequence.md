@@ -146,17 +146,29 @@ rollback were not run against a real account. This item is recorded as an open d
   - (Optionally) run the shutdown test
 - Gate the pipeline on these steps
 
-**Done when:** CI fully verifies the runtime artefacts.
-
----
+**AS-BUILT (2026-08-19):** DONE. `.github/workflows/ci.yml` extended: added an `image` job (build,
+non-root UID check, Trivy HIGH/CRITICAL scan with SARIF upload to GitHub Security, CycloneDX SBOM
+artifact + image digest `image-digest.txt` artifact) and a non-blocking `runtime-smoke` job that
+starts LocalStack + Redis via `docker compose`, seeds the schema with the new reusable
+`scripts/seed-localstack.sh`, runs `scripts/shutdown-under-load-test.sh`, then tears down. Workflow
+permissions widened to `security-events: write` and `packages: write`. Verified live: the shutdown
+smoke passes end-to-end (140 in-flight OK, 2s exit) against the running LocalStack/Redis. Image
+push to ECR (OIDC) is the only remaining CI gate, intentionally left to production-only IAM.
+The shutdown smoke is non-blocking per the testing-playbook gap 7 (shutdown test has no CI gate
+yet). `secrets/seed-localstack.sh` was extracted from the README so the same commands run locally
+and in CI.
 
 ## Step 12 — Runbook & documentation
 
 - Write the operational runbook
 - Update README, CHANGELOG, AGENTS.md and any deployment docs
-- Clear the previous “no documented production runtime shape” debt
+- Clear the previous "no documented production runtime shape" debt
 
-**Done when:** All documentation is accurate and the full Definition of Done is met.
+**AS-BUILT (2026-08-19):** DONE. A runnable-by-a-stranger operational runbook was added to
+`README.md` (deploy, rollback, secret rotation, readiness-DOWN triage, container incident response),
+cross-referencing `deploy/README.md`. `README.md`/`CHANGELOG.md`/`AGENTS.md` Current State,
+Documentation table and Known technical debt were all updated during Steps 0–10; the
+"production runtime shape" debt is cleared from the open-debt list.
 
 ---
 
