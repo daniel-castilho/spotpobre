@@ -185,6 +185,11 @@ new violations — flag them to the human instead.
   S6 decision in `application.yaml`). Closing it needs either a cache-outage tolerant `CacheManager`
   (degrade to direct DynamoDB lookup), or adding Redis to the readiness gate. The serialization
   side is already fixed (`CachedUserDetails` DTO — see CHANGELOG `Unreleased`).
+- **Blue/green rollout not exercised against real AWS.** `deploy/codedeploy.yaml` and the
+  rollback alarms are structurally validated locally only; staging Exercise (S10) is pending AWS
+  credentials. The first real deployment must prove the canary 10%/5min shift, the readiness gate
+  (DynamoDB+S3) and the automatic rollback (5xx/latency/zero-healthy-host alarms + deployment
+  failure) end to end.
 
 ## Notes
 
