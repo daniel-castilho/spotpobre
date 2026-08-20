@@ -66,5 +66,5 @@ S10 Basic rate limiting
 
 ## Status
 
-**Complete.** S1 (JaCoCo + threshold), S2 (SpotBugs), S9 (LICENSE), D2 (.localstack files) delivered. OWASP DepCheck plugin added. Remaining items (S7 Dockerfile, S8 production profile, S10 rate limiting) are deferred for follow-up.
+**Complete.** S1 (JaCoCo + threshold), S2 (SpotBugs), S9 (LICENSE), D2 (.localstack files) delivered. OWASP DepCheck plugin added. S7 (Dockerfile) and S8 (production profile) delivered. S10 (rate limiting) delivered — `RateLimitFilter` + `FixedWindowRateLimiter` throttle `/api/v1/auth/register` and `/api/v1/auth/authenticate` (`429 Too Many Requests`), config via `rate-limit.*` (env contract in `application-prod.yaml`).
 ```

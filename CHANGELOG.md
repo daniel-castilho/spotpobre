@@ -5,12 +5,25 @@ All notable changes to Spotpobre API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project
 intends to follow [Semantic Versioning](https://semver.org/) starting from its first tag.
 
+## [Unreleased]
+
+### Added
+
+- **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
+  `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
+  and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
+  (`enabled`, `limit`, `window`, `paths`, `client-ip-header`) — dev defaults in
+  `application.yaml`, production contract (env overrides) in `application-prod.yaml`. Excess
+  requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
+  dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
+  end-to-end test.
+
 ## [0.4.1] - 2026-08-19
 
 ### Added
 
 - **Dockerfile.** Multi-stage Dockerfile created for production deployment: build stage with Maven, runtime stage with Eclipse Temurin 21 JRE. Supports `docker build` and container startup.
-- **Quality observability (P2 epic).** Completed steps: JaCoCo coverage gate (35% line / 15% branch), SpotBugs static analysis (0 bugs), OWASP Dependency Check configured (report only). Dockerfile added for production builds. Rate limiting planned for future implementation.
+- **Quality observability (P2 epic).** Completed steps: JaCoCo coverage gate (35% line / 15% branch), SpotBugs static analysis (0 bugs), OWASP Dependency Check configured (report only). Dockerfile added for production builds. Rate limiting was added in a later entry (see `Unreleased`).
 
 ### Changed
 
@@ -20,8 +33,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 - **GitHub security scanning enabled.** CodeQL analysis workflow (`.github/workflows/codeql-analysis.yml`),
   Dependabot version updates (`.github/dependabot.yml`) and a Dependency Review workflow
-  (`.github/workflows/dependency-review.yml`) added. Basic rate limiting on
-  `/api/v1/auth/register` and `/api/v1/auth/authenticate` remains planned for future work.
+  (`.github/workflows/dependency-review.yml`) added.
 
 ---
 ## [0.4.0] - 2026-08-18

@@ -34,6 +34,17 @@ jwt:
   # O valor foi alterado para o formato de Duração padrão do Spring Boot ('1h' = 1 hora).
   expiration: 1h
 
+rate-limit:
+  # Basic per-client throttling on sensitive endpoints (default: auth). Dev defaults;
+  # production overrides via RATE_LIMIT_* environment variables (see application-prod.yaml).
+  enabled: true
+  limit: 20
+  window: 1m
+  paths:
+    - /api/v1/auth/register
+    - /api/v1/auth/authenticate
+  client-ip-header: X-Forwarded-For
+
 management:
   endpoints:
     web:

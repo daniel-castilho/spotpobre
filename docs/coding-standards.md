@@ -310,7 +310,11 @@ milestone as current. The hard rule lives in `AGENTS.md` § *Critical rules* (ru
   override it via environment variables. Never commit real secrets.
 - Server-side validation always (`@Valid`); never trust the client alone.
 - Extend the existing auth model — do not invent a second one.
-- Rate limiting / lockout on sensitive endpoints is a roadmap item (not yet implemented).
+- Rate limiting: `RateLimitFilter` + `FixedWindowRateLimiter` apply a per-client fixed-window
+  throttle to `/api/v1/auth/register` and `/api/v1/auth/authenticate` (configurable via the
+  `rate-limit.*` properties; `429 Too Many Requests` uses the canonical error envelope). The
+  limiter is in-memory and dependency-free — revisit with a Redis-backed design if the service
+  scales beyond a single node.
 
 ---
 

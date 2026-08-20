@@ -152,7 +152,12 @@ All steps completed or in progress. The Quality, Observability & Production Read
 
 8. **Repository hygiene (Step 8)** — LICENSE file (Apache 2.0) added at root. `.localstack/` runtime files removed from git tracking (2 files cleaned via `git rm --cached`). `.gitignore` already has `/.localstack/`.
 
-9. **Basic rate limiting (Step 9)** — Not yet implemented. Follow-up: simple per-IP or per-user throttling on `/api/v1/auth/register` and `/api/v1/auth/authenticate` endpoints.
+9. **Basic rate limiting (Step 9)** — **Implemented.** `RateLimitFilter` + `FixedWindowRateLimiter`
+   (fixed-window, in-memory, thread-safe) throttle `/api/v1/auth/register` and
+   `/api/v1/auth/authenticate`. Config via `rate-limit.*` properties (dev defaults in
+   `application.yaml`, env contract in `application-prod.yaml`). Excess requests get
+   `429 Too Many Requests` in the canonical error envelope. Unit tests
+   (`FixedWindowRateLimiterTest`, `RateLimitFilterTest`) + `RateLimitFlowIT` E2E.
 
-10. **Final verification** — `./mvnw test` = 137 green, `./mvnw spotbugs:check` = 0 bugs, `./mvnw jacoco:check` = passes with 35%/15% thresholds, `./mvnw clean verify` runs quality gates.
+10. **Final verification** — `./mvnw test` green (unit), `./mvnw test -Dtest='*IT'` green (slice + E2E, incl. `RateLimitFlowIT`), `./mvnw spotbugs:check` = 0 bugs, `./mvnw jacoco:check` passes with 35%/15% thresholds.
 ```

@@ -56,6 +56,7 @@ import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
 import java.util.List;
 
 @Configuration
@@ -200,5 +201,10 @@ public class ApplicationBeanConfig {
             LikeStrategyFactory likeStrategyFactory
     ) {
         return new ToggleLikeService(likeRepository, likeStrategyFactory);
+    }
+
+    @Bean
+    public Clock clock() {
+        return Clock.systemUTC();
     }
 }

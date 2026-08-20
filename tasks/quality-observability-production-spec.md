@@ -56,7 +56,7 @@ Move the project from a good prototype toward something that can be safely maint
 | Health              | Basic Actuator            | — (exposed endpoints confirmed)     |
 | License             | LICENSE present           | — (Apache 2.0)                      |
 | LocalStack files    | Fully ignored and cleaned | —                                   |
-| Rate limiting       | Absent                    | — (basic rate limiting in progress) |
+| Rate limiting       | Implemented (fixed-window) | — (basic rate limiting done)        |
 
 ---
 
@@ -88,7 +88,7 @@ Move the project from a good prototype toward something that can be safely maint
 - [ ] Dockerfile builds and runs the application
 - [x] LICENSE present (Apache 2.0)
 - [x] Repository hygiene cleaned (.localstack removed from tracking)
-- [ ] Basic rate limiting working (in progress)
+- [x] Basic rate limiting working (implemented: `RateLimitFilter` + `FixedWindowRateLimiter`, `429` throttling on auth endpoints)
 - [x] CI green (JaCoCo + SpotBugs pass)
 - [x] Docs updated
 ```

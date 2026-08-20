@@ -28,3 +28,9 @@ jwt:
   # Required in prod: a strong, long random secret (e.g. `openssl rand -base64 48`).
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:1h}
+
+rate-limit:
+  # Basic per-client throttling on sensitive endpoints. Values from environment (bounded defaults).
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  limit: ${RATE_LIMIT_LIMIT:20}
+  window: ${RATE_LIMIT_WINDOW:1m}

@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.security.config;
 import com.spotpobre.backend.domain.user.model.Role;
 import com.spotpobre.backend.infrastructure.security.adapter.UserDetailsServiceImpl;
 import com.spotpobre.backend.infrastructure.security.filter.JwtAuthenticationFilter;
+import com.spotpobre.backend.infrastructure.security.filter.RateLimitFilter;
 import com.spotpobre.backend.infrastructure.security.handler.RestAccessDeniedHandler;
 import com.spotpobre.backend.infrastructure.security.handler.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
@@ -71,7 +73,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(restAccessDeniedHandler)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

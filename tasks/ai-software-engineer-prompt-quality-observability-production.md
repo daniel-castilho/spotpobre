@@ -4,7 +4,7 @@
 # AI Software Engineer Prompt — Quality, Observability & Production Readiness (P2)
 
 **Status:** Complete — delivered in commit `4fafc23` ("chore: add JaCoCo threshold, OWASP DepCheck, LICENSE, clean LocalStack artefacts").
-**As-built:** Quality gates (JaCoCo threshold, SpotBugs, OWASP DepCheck plugin), LICENSE file, .localstack cleanup, Actuator confirmed. Remaining: Dockerfile, rate limiting, Dependabot/CodeQL.
+**As-built:** Quality gates (JaCoCo threshold, SpotBugs, OWASP DepCheck plugin), LICENSE file, .localstack cleanup, Actuator confirmed. Dockerfile, Dependabot/CodeQL and basic rate limiting shipped in later commits (see CHANGELOG).
 **Package:** `com.spotpobre.backend` + repository root
 
 You implement the quality gates, operational basics and production-oriented improvements defined for this epic.

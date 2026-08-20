@@ -325,6 +325,9 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   pagination (cursor-based, no silent data leaks), and now enforced architectural boundaries.
   `PlaylistController` and `LikeController` depend only on application inbound ports (`*UseCase`),
   with direct `UserRepository` calls replaced by the `GetCurrentUserUseCase` application service.
+  Basic per-client rate limiting (`RateLimitFilter` + `FixedWindowRateLimiter`, fixed window,
+  in-memory) throttles `/api/v1/auth/register` and `/api/v1/auth/authenticate` with
+  `429 Too Many Requests`; limits are externalized via `rate-limit.*` (env-overridable in prod).
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
   SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
   `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
@@ -344,7 +347,7 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 Deliberately not implemented yet (candidate backlog):
 
 - Pagination on more list endpoints (artists, albums)
-- Rate limiting and per-user quotas
+- Per-user quotas (beyond the basic endpoint rate limiting already shipped)
 - Email verification and password recovery
 - Production deployment runtime shape (how the artifact is shipped/run — the env-var contract is
   defined in `application-prod.yaml`, but the container image / platform is not yet documented)

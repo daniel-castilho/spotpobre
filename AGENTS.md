@@ -178,8 +178,6 @@ new violations — flag them to the human instead.
   could both pass the count and exceed 10. Documented as accepted for P1 in
   `docs/data-model-decisions.md` — closing it needs a conditional/transactional insert or a
   dedicated counter.
-- **Basic rate limiting not yet implemented.** Per-IP or per-user throttling on `/api/v1/auth/register`
-  and `/api/v1/auth/authenticate` endpoints pending follow-up work.
 
 ## Notes
 
