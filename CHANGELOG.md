@@ -35,6 +35,13 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
     rejected, and process exit within the grace period (30s). Spring Boot 3.5's graceful shutdown
     (`server.shutdown: graceful`) already handles the drain — no code change required, only the
     verification artifact. Ran twice to confirm reproducibility.
+  - **Deployment manifests (Step 8)** — `deploy/stack.yaml` (CloudFormation for the ADR-0001
+    platform: VPC/NAT, security groups, IAM task role, ALB + target group + HTTPS listener, ECS
+    cluster/task/service with `CODE_DEPLOY` controller, CPU autoscaling), `deploy/task-definition.json`
+    (native ECS reference artifact) and `deploy/README.md` (apply/update commands + runtime-contract
+    matrix). Manifests pin the image by digest, inject `JWT_SECRET` from Secrets Manager, run
+    non-root with read-only root FS, and wire container + ALB readiness checks on
+    `/actuator/health/readiness`.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
   and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties

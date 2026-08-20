@@ -1,0 +1,402 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Spotpobre API — ECS Fargate service (ADR-0001): ECR image, ALB, Secrets Manager,
+  task-role identity, blue/green via CodeDeploy. Versioned deployment manifests (S8).
+
+Parameters:
+  Environment:
+    Type: String
+    Default: staging
+    AllowedValues: [staging, production]
+    Description: Deployment environment. Selects the naming prefix and defaults.
+  ImageDigest:
+    Type: String
+    Description: ECR image reference pinned by digest, e.g. <account>.dkr.ecr.<region>.amazonaws.com/spotpobre-api@sha256:...
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR for the VPC created by this stack.
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.0.10.0/24
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.0.11.0/24
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 20
+    Description: Minimum number of running tasks.
+  MaxCapacity:
+    Type: Number
+    Default: 3
+    MinValue: 1
+    MaxValue: 50
+  JwtSecretArn:
+    Type: String
+    Description: ARN of the AWS Secrets Manager secret holding the JWT signing secret.
+  SslCertificateArn:
+    Type: String
+    Description: ARN of the ACM certificate used by the ALB HTTPS listener.
+  BucketName:
+    Type: String
+    Default: spotpobre-songs
+    Description: S3 bucket holding song audio.
+  RedisHost:
+    Type: String
+    Description: Redis hostname used by the app (cache).
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+
+Resources:
+  # ------------------------------------------------------------------ VPC
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "spotpobre-${Environment}-vpc"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnet1, RouteTableId: !Ref PublicRouteTable }
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnet2, RouteTableId: !Ref PublicRouteTable }
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+
+  # Egress-only: tasks reach AWS services (DynamoDB/S3) and Redis via NAT.
+  NatGatewayEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEip.AllocationId
+      SubnetId: !Ref PublicSubnet1
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnet1, RouteTableId: !Ref PrivateRouteTable }
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnet2, RouteTableId: !Ref PrivateRouteTable }
+
+  # ------------------------------------------------------------------ Security groups
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB — HTTPS in, health checks to targets
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS tasks — HTTP from ALB only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+
+  # ------------------------------------------------------------------ IAM (workload identity + execution)
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadJwtSecret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref JwtSecretArn
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDbAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:TransactWriteItems
+                  - dynamodb:DescribeTable
+                  - dynamodb:ListTables
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:AbortMultipartUpload
+                  - s3:ListBucketMultipartUploads
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub "arn:aws:s3:::${BucketName}"
+                  - !Sub "arn:aws:s3:::${BucketName}/*"
+
+  # ------------------------------------------------------------------ ALB
+  Alb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      SecurityGroups: [!Ref AlbSecurityGroup]
+      Subnets: [!Ref PublicSubnet1, !Ref PublicSubnet2]
+      Tags:
+        - Key: Name
+          Value: !Sub "spotpobre-${Environment}-alb"
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: ip
+      Port: 8080
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /actuator/health/readiness
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: "200"
+      Tags:
+        - Key: Name
+          Value: !Sub "spotpobre-${Environment}-tg"
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref Alb
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SslCertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # ------------------------------------------------------------------ ECS
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "spotpobre-${Environment}"
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/spotpobre-${Environment}"
+      RetentionInDays: !Ref LogRetentionDays
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "spotpobre-${Environment}"
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: "512"
+      Memory: "1024"
+      TaskRoleArn: !Ref TaskRole
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref ImageDigest
+          Essential: true
+          User: "10001:10001"
+          ReadonlyRootFilesystem: true
+          WorkingDirectory: /app
+          Environment:
+            - { Name: SPRING_PROFILES_ACTIVE, Value: "prod,json" }
+            - { Name: AWS_REGION, Value: !Ref AWS::Region }
+            - { Name: AWS_DYNAMODB_ENDPOINT, Value: !Sub "https://dynamodb.${AWS::Region}.amazonaws.com" }
+            - { Name: AWS_S3_ENDPOINT, Value: !Sub "https://s3.${AWS::Region}.amazonaws.com" }
+            - { Name: AWS_S3_BUCKET_NAME, Value: !Ref BucketName }
+            - { Name: REDIS_HOST, Value: !Ref RedisHost }
+            - { Name: JWT_EXPIRATION, Value: "1h" }
+            - { Name: RATE_LIMIT_ENABLED, Value: "true" }
+            - { Name: RATE_LIMIT_LIMIT, Value: "20" }
+            - { Name: RATE_LIMIT_WINDOW, Value: "1m" }
+          Secrets:
+            - { Name: JWT_SECRET, ValueFrom: !Ref JwtSecretArn }
+          PortMappings:
+            - { ContainerPort: 8080, Protocol: tcp }
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: spotpobre-api
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -sf http://localhost:8080/actuator/health/readiness >/dev/null || exit 1
+            Interval: 10
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      Cluster: !Ref Cluster
+      ServiceName: !Sub "spotpobre-${Environment}"
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      DeploymentController:
+        Type: CODE_DEPLOY
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups: [!Ref EcsSecurityGroup]
+          Subnets: [!Ref PrivateSubnet1, !Ref PrivateSubnet2]
+      LoadBalancers:
+        - ContainerName: app
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+      HealthCheckGracePeriodSeconds: 90
+
+  ServiceAutoscalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: Service
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub "service/${Cluster}/${Service}"
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: !Ref DesiredCount
+      MaxCapacity: !Ref MaxCapacity
+
+  ServiceAutoscalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "spotpobre-${Environment}-cpu"
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ServiceAutoscalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+Outputs:
+  LoadBalancerDnsName:
+    Description: ALB DNS name (entry point for the service)
+    Value: !GetAtt Alb.DNSName
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !Ref Service
+  TaskDefinitionFamily:
+    Value: !Ref TaskDefinition

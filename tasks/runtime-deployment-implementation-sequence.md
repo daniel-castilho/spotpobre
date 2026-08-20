@@ -81,10 +81,22 @@
 
 ## Step 8 — Deployment manifests
 
-- Write versioned manifests for the chosen platform (task definition, service, ALB, etc.)
-- Include resource limits, security context, probe configuration and secret references
-
-**Done when:** Manifests are complete and can be applied to a staging account/cluster.
+> **AS-BUILT (2026-08-19):** DONE. `deploy/` holds the versioned manifests for the ADR-0001
+> platform:
+> - `deploy/stack.yaml` — one CloudFormation stack: VPC (public/private subnets, NAT), security
+>   groups (ALB 443, ECS 8080 from ALB), IAM roles (task execution + task role for DynamoDB/S3),
+>   ALB + target group + HTTPS listener, ECS cluster (Container Insights), task definition, service
+>   (`CODE_DEPLOY` controller), CPU autoscaling (target-tracking 70%, 1–3). Parameterised
+>   (`ImageDigest` pinned by digest, `JwtSecretArn`, `SslCertificateArn`, `RedisHost`, `BucketName`,
+>   env, capacity). Honours the full runtime contract: non-root `10001:10001`, read-only root FS,
+>   cpu/memory limits, `JWT_SECRET` from Secrets Manager via `valueFrom`, container + ALB health
+>   checks on `/actuator/health/readiness`, `prod,json` logging to CloudWatch, 90s health-check
+>   grace aligned with the S7 drain.
+> - `deploy/task-definition.json` — reference task definition in native ECS JSON (used by the
+>   CodeDeploy AppSpec in S9).
+> - `deploy/README.md` — pre-requisites, apply/update commands, runtime-contract matrix.
+> Validated locally (YAML structure + required properties); `aws cloudformation deploy` needs real
+> AWS credentials (staging, S10).
 
 ---
 

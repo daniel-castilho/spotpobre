@@ -1,0 +1,62 @@
+{
+  "family": "spotpobre-api",
+  "taskRoleArn": "REPLACE_WITH_TASK_ROLE_ARN",
+  "executionRoleArn": "REPLACE_WITH_EXECUTION_ROLE_ARN",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "REPLACE_WITH_ECR_IMAGE_DIGEST",
+      "essential": true,
+      "user": "10001:10001",
+      "readonlyRootFilesystem": true,
+      "workingDirectory": "/app",
+      "environment": [
+        { "name": "SPRING_PROFILES_ACTIVE", "value": "prod,json" },
+        { "name": "AWS_REGION", "value": "REPLACE_WITH_REGION" },
+        { "name": "AWS_DYNAMODB_ENDPOINT", "value": "https://dynamodb.REPLACE_WITH_REGION.amazonaws.com" },
+        { "name": "AWS_S3_ENDPOINT", "value": "https://s3.REPLACE_WITH_REGION.amazonaws.com" },
+        { "name": "AWS_S3_BUCKET_NAME", "value": "REPLACE_WITH_BUCKET_NAME" },
+        { "name": "REDIS_HOST", "value": "REPLACE_WITH_REDIS_HOST" },
+        { "name": "JWT_EXPIRATION", "value": "1h" },
+        { "name": "RATE_LIMIT_ENABLED", "value": "true" },
+        { "name": "RATE_LIMIT_LIMIT", "value": "20" },
+        { "name": "RATE_LIMIT_WINDOW", "value": "1m" }
+      ],
+      "secrets": [
+        { "name": "JWT_SECRET", "valueFrom": "REPLACE_WITH_SECRETS_MANAGER_JWT_SECRET_ARN" }
+      ],
+      "mountPoints": [],
+      "portMappings": [
+        { "containerPort": 8080, "protocol": "tcp" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "REPLACE_WITH_LOG_GROUP_NAME",
+          "awslogs-region": "REPLACE_WITH_REGION",
+          "awslogs-stream-prefix": "spotpobre-api"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -sf http://localhost:8080/actuator/health/readiness >/dev/null || exit 1"
+        ],
+        "interval": 10,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "systemControls": [],
+      "resourceRequirements": []
+    }
+  ]
+}
