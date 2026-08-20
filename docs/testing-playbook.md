@@ -150,9 +150,11 @@ docker-compose up -d        # LocalStack (DynamoDB + S3) + Redis
 | 8  | Playlist mutation as non-owner                  | Rejected (403/404)                                      |
 | 9  | `POST /api/v1/likes/toggle` (song/artist/playlist) | Toggles; reverse lookup consistent                      |
 | 10 | `GET /api/v1/users/me` without token            | 401; with token → profile                               |
-| 11 | `/actuator/health`                              | 200 `UP`                                                |
+| 11 | `GET /actuator/health`                          | 200 `UP`; details only when authenticated               |
+| 12 | `GET /actuator/health/liveness` + `/readiness`  | 200 `UP` without auth (ALB probes); readiness goes DOWN if DynamoDB/S3 unavailable |
 
-**Optional (do not block tag):** Swagger UI renders endpoints; `/actuator/info` + `/actuator/metrics`.
+**Optional (do not block tag):** Swagger UI renders endpoints; `/actuator/info` + `/actuator/metrics`
+require authentication.
 
 ---
 

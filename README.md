@@ -294,9 +294,17 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 
 ### Monitoring endpoints (Actuator)
 
-- **Health:** `GET /actuator/health`
-- **Metrics:** `GET /actuator/metrics`
-- **Info:** `GET /actuator/info`
+- **Health:** `GET /actuator/health` (status + groups; details only for authenticated clients)
+- **Probes:** `GET /actuator/health/liveness` and `GET /actuator/health/readiness` (Spring Boot
+  probes, reachable **without auth** so the load balancer / orchestrator can poll them). Readiness
+  gates on the critical dependencies — DynamoDB and S3; liveness only checks the process is alive.
+- **Metrics:** `GET /actuator/metrics` (requires authentication)
+- **Info:** `GET /actuator/info` (requires authentication)
+
+Probes and endpoints are configured in `application.yaml` under `management.endpoint.health`
+(`show-details: when-authorized`, `probes.enabled: true`, readiness group = `readinessState` +
+`dynamoDb` + `s3`). The probe paths are the only actuator routes permitted without auth —
+everything else under `/actuator/**` is authenticated (see `SecurityConfig`).
 
 ## Current State
 
@@ -328,6 +336,24 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   Basic per-client rate limiting (`RateLimitFilter` + `FixedWindowRateLimiter`, fixed window,
   in-memory) throttles `/api/v1/auth/register` and `/api/v1/auth/authenticate` with
   `429 Too Many Requests`; limits are externalized via `rate-limit.*` (env-overridable in prod).
+- **Runtime & Deployment (epic in progress)** — the production runtime shape is now defined and
+  partially shipped:
+  - **ADR** (`docs/adr/0001-production-platform.md`) — ECS Fargate + ECR + ALB + Secrets Manager +
+    task-role identity + CodeDeploy blue/green.
+  - **Container** — multi-stage `Dockerfile` (Maven build → Temurin 21 JRE), non-root user
+    (UID/GID 10001), exec-form entrypoint, `.dockerignore`.
+  - **Supply chain** — base images pinned by digest; `.github/workflows/image-security.yml` fails
+    on UID 0, scans with Trivy (SARIF to GitHub Security), and generates a CycloneDX SBOM artifact.
+  - **Prod config contract (fail-fast)** — `ProdConfigValidator` (prod profile only) aborts startup
+    when a required value is missing (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket,
+    Redis host) and rejects static AWS credentials in prod; the AWS clients resolve credentials from
+    the task role (`AwsCredentialsProviderResolver`) instead of requiring long-lived keys.
+  - **Health model** — liveness/readiness probes (see "Monitoring endpoints" below) with a
+    documented readiness gate (DynamoDB + S3) and secured actuator routes.
+  - **Auth cache fix** — the Redis `userCache` now stores a Jackson-friendly DTO
+    (`CachedUserDetails`) instead of Spring Security's `User`, which cannot be round-tripped by
+    `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
+    hit would fail with a 401).
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
   SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
   `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
@@ -349,9 +375,10 @@ Deliberately not implemented yet (candidate backlog):
 - Pagination on more list endpoints (artists, albums)
 - Per-user quotas (beyond the basic endpoint rate limiting already shipped)
 - Email verification and password recovery
-- Production deployment runtime shape (how the artifact is shipped/run — the env-var contract is
-  defined in `application-prod.yaml`, but the container image / platform is not yet documented)
-- Additional quality gates (dependency/security scanning)
+- **Runtime & Deployment remainder** — deployment manifests (ECS task/service/ALB, Step 8),
+  rollout + rollback runbook (Step 9), a staging exercise (Step 10) and the full CI image pipeline
+  (Step 11). The env-var contract, image and health model are already in place
+  (`application-prod.yaml`, `Dockerfile`, ADR).
 
 ## Documentation
 

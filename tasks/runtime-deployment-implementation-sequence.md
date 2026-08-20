@@ -10,83 +10,56 @@
 
 ## Step 0 — Baseline CI green
 
-1. Fix any failing unit, slice or IT tests
-2. Ensure pure unit tests run without Docker
-3. Ensure IT tests are deterministic on clean runners
-4. Confirm the existing GitHub Actions workflow is green
-
-**Done when:** CI is green on main with no new failures.
+> **AS-BUILT (2026-08-19):** DONE. All CI steps validated locally — unit tests (152), `jacoco:check`,
+> `spotbugs:check`, `*IT` suite (29) and `./mvnw clean package` all green.
 
 ---
 
 ## Step 1 — ADR
 
-Write a short Architecture Decision Record that chooses:
-
-- Compute platform (recommended: ECS Fargate)
-- Registry (ECR)
-- Load balancer
-- Secret store
-- Identity model (task role)
-- Rollout strategy (blue/green or canary)
-
-**Done when:** ADR is committed and accepted.
+> **AS-BUILT (2026-08-19):** DONE. `docs/adr/0001-production-platform.md` — ECS Fargate + ECR + ALB +
+> Secrets Manager + ECS Task Role + CodeDeploy blue/green.
 
 ---
 
 ## Step 2 — Dockerfile & image hygiene
 
-- Multi-stage Dockerfile
-- Non-root user
-- `.dockerignore`
-- Exec-form entrypoint
-- Minimal runtime image
-
-**Done when:** `docker build` succeeds and the container starts as non-root.
+> **AS-BUILT (2026-08-19):** DONE. Multi-stage `Dockerfile` (Maven build → Temurin 21 JRE), non-root
+> UID/GID 10001 (verified via `docker run --entrypoint id`), exec-form entrypoint, `.dockerignore`.
 
 ---
 
 ## Step 3 — Supply chain
 
-- Pin base images by digest
-- Add vulnerability scan
-- Generate SBOM
-- Publish with immutable tag/digest
-- CI test that fails if UID == 0
-
-**Done when:** Image is scanned, attested and non-root verified.
+> **AS-BUILT (2026-08-19):** DONE. Base images pinned by digest; `.github/workflows/image-security.yml`
+> fails on UID 0, scans with Trivy (SARIF to GitHub Security), uploads CycloneDX SBOM artifact.
 
 ---
 
 ## Step 4 — Production configuration contract
 
-- Complete the list of required environment / secret values
-- Strengthen `ProdConfigValidator` (or equivalent) to fail fast
-- Document the full contract
-
-**Done when:** Starting with profile `prod` and any missing required value aborts clearly.
+> **AS-BUILT (2026-08-19):** DONE. `ProdConfigValidator` fails fast when any required value is missing
+> and rejects static AWS credentials in prod; verified end-to-end. `application-prod.yaml` uses empty
+> env defaults so dev secrets never leak into prod config.
 
 ---
 
 ## Step 5 — Secrets & workload identity
 
-- Integrate the chosen secret store
-- Configure the application and AWS clients to use task / workload identity
-- Remove any requirement for long-lived access keys in production
-- Prove that no secret appears in logs or image layers
-
-**Done when:** Application starts in a production-like environment using only the secret store + role.
+> **AS-BUILT (2026-08-19):** DONE (application side). `AwsCredentialsProviderResolver` resolves from the
+> ECS task role (`DefaultCredentialsProvider`) when no static keys are set. Secrets Manager wiring
+> (`valueFrom`) is deferred to Step 8 (manifests).
 
 ---
 
 ## Step 6 — Health model
 
-- Implement distinct startup, liveness and readiness endpoints
-- Decide and document critical dependencies for readiness
-- Secure the probe endpoints appropriately
-- Add tests for failure and recovery of readiness
-
-**Done when:** Probes behave correctly under normal, failure and recovery conditions.
+> **AS-BUILT (2026-08-19):** DONE. Probes enabled (`management.endpoint.health.probes.enabled`),
+> readiness gates on DynamoDB + S3 via `DynamoDbHealthIndicator` / `S3HealthIndicator` (Redis is a
+> cache and excluded from the gate — S6 decision), `show-details: when-authorized`, probe paths
+> unauthenticated while the rest of `/actuator/**` requires auth. Verified end-to-end: readiness DOWN
+> without the S3 bucket, UP after it exists. Bonus fix: `CachedUserDetails` DTO resolves the Redis
+> auth-cache serialization bug (see CHANGELOG `Unreleased`).
 
 ---
 

@@ -9,6 +9,26 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **Runtime & Deployment (Steps 0–6 of the runtime-deployment epic).** The production runtime shape
+  is now defined and partially shipped:
+  - **ADR** (`docs/adr/0001-production-platform.md`) — ECS Fargate + ECR + ALB + Secrets Manager +
+    ECS task-role identity + CodeDeploy blue/green.
+  - **Container** — multi-stage `Dockerfile` (Maven build stage → Temurin 21 JRE runtime), non-root
+    user (UID/GID 10001), exec-form entrypoint, `.dockerignore`.
+  - **Supply chain** — base images pinned by digest; `.github/workflows/image-security.yml` runs
+    on push/PR: fails the build if the image runs as UID 0, scans with Trivy (HIGH/CRITICAL,
+    SARIF uploaded to GitHub Security), and uploads a CycloneDX SBOM artifact.
+  - **Prod config contract (fail-fast)** — `ProdConfigValidator` (prod profile only) now rejects
+    static AWS credentials in prod and aborts startup when any required value is missing
+    (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket name, Redis host). `AwsProperties`
+    credentials are optional so the AWS clients resolve them from the ECS task role via
+    `AwsCredentialsProviderResolver` (falling back to static values only for dev/tests).
+  - **Health model** — `management.endpoint.health.probes.enabled: true` exposes liveness and
+    readiness probes; the readiness group gates on the critical dependencies (DynamoDB + S3) via
+    new `DynamoDbHealthIndicator` / `S3HealthIndicator`; `show-details: when-authorized`. The probe
+    paths are reachable without auth (for the ALB), every other `/actuator/**` route requires
+    authentication (`SecurityConfig`). Verified end-to-end against LocalStack: readiness goes
+    DOWN while the S3 bucket is missing and recovers to UP once it exists.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
   and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
@@ -17,6 +37,17 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
   dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
   end-to-end test.
+
+### Fixed
+
+- **Auth cache serialization.** `UserDetailsServiceImpl` cached Spring Security's `User`, which
+  cannot be round-tripped by `GenericJackson2JsonRedisSerializer` (no default constructor) — the
+  first request after a cache write worked, but the next cache hit failed with a
+  `SerializationException`, surfacing as 401 on authenticated routes. The adapter now caches a
+  Jackson-friendly DTO (`CachedUserDetails`) that implements `UserDetails`; authorities are
+  rebuilt in memory and the Argon2id hash is preserved for login. Covered by
+  `CachedUserDetailsTest` (round-trip through the real serializer) and verified end-to-end with
+  Redis connected.
 
 ## [0.4.1] - 2026-08-19
 

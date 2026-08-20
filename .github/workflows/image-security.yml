@@ -1,0 +1,64 @@
+name: Image Supply Chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build image
+        run: docker build -t spotpobre-api:${{ github.sha }} .
+
+      - name: Non-root check (must fail on UID 0)
+        run: |
+          out="$(docker run --rm --entrypoint id spotpobre-api:${{ github.sha }})"
+          echo "$out"
+          if echo "$out" | grep -q 'uid=0('; then
+            echo "FATAL: image runs as root (UID 0)"
+            exit 1
+          fi
+          echo "OK: image runs as non-root ($out)"
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: spotpobre-api:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: spotpobre-api:${{ github.sha }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.cdx.json

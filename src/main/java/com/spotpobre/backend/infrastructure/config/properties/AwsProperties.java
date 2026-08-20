@@ -20,10 +20,12 @@ public record AwsProperties(
         @Valid
         DynamoDbProperties dynamodb
 ) {
+    /**
+     * Static credentials are optional: dev/local testing uses them, production must use the
+     * ECS task role (workload identity) instead — set only the region and leave these null.
+     */
     public record CredentialsProperties(
-            @NotBlank
             String accessKey,
-            @NotBlank
             String secretKey
     ) {
     }

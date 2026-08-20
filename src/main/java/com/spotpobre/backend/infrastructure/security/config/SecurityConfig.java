@@ -44,6 +44,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
+                        // Probe endpoints used by the ALB / orchestrator — must be reachable
+                        // without auth (S6). Everything else under /actuator/** requires auth.
+                        .requestMatchers("/actuator/health/liveness", "/actuator/health/readiness", "/actuator/health").permitAll()
+                        .requestMatchers("/actuator/**").authenticated()
+
                         // Admin-only endpoints (authorities carry the ROLE_ prefix, see GetUserDetailsService)
                         .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasRole(Role.ADMIN.name())
 

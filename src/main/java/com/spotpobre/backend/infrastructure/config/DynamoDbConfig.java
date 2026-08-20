@@ -12,8 +12,7 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserProfileDoc
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -30,9 +29,11 @@ import java.util.UUID;
 public class DynamoDbConfig {
 
     private final AwsProperties awsProperties;
+    private final AwsCredentialsProviderResolver credentialsProviderResolver;
 
-    public DynamoDbConfig(AwsProperties awsProperties) {
+    public DynamoDbConfig(AwsProperties awsProperties, AwsCredentialsProviderResolver credentialsProviderResolver) {
         this.awsProperties = awsProperties;
+        this.credentialsProviderResolver = credentialsProviderResolver;
     }
 
     private static final TableSchema<UserProfileDocument> USER_PROFILE_TABLE_SCHEMA =
@@ -47,12 +48,7 @@ public class DynamoDbConfig {
     @DependsOn("prodConfigValidator")
     public DynamoDbClient dynamoDbClient() {
         return DynamoDbClient.builder()
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(
-                                awsProperties.credentials().accessKey(),
-                                awsProperties.credentials().secretKey()
-                        )
-                ))
+                .credentialsProvider(credentialsProviderResolver.resolve())
                 .region(Region.of(awsProperties.region()))
                 .endpointOverride(URI.create(awsProperties.dynamodb().endpoint()))
                 .build();

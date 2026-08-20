@@ -52,4 +52,14 @@ management:
         include: health,info,metrics # Expose common endpoints
   endpoint:
     health:
-      show-details: always # Show more details on health endpoint
+      show-details: when-authorized # Probe endpoints stay light; details only for authenticated clients
+      probes:
+        enabled: true # Expose /actuator/health/liveness and /actuator/health/readiness
+      group:
+        # Readiness gates on the critical dependencies (S6 health model):
+        # DynamoDB and S3. Redis is a cache and is reported separately on /actuator/health
+        # but is not gating: a transient Redis outage degrades caching, not serving.
+        readiness:
+          include: readinessState,dynamoDb,s3
+        liveness:
+          include: livenessState

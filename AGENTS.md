@@ -178,6 +178,13 @@ new violations — flag them to the human instead.
   could both pass the count and exceed 10. Documented as accepted for P1 in
   `docs/data-model-decisions.md` — closing it needs a conditional/transactional insert or a
   dedicated counter.
+- **Auth cache has no Redis-outage fallback.** `UserDetailsServiceImpl.loadUserByUsername` is
+  `@Cacheable(USER_CACHE)` with no `unless`/fallback, so a Redis outage makes every authenticated
+  request fail (JWT filter → cache miss → `RedisConnectionFailureException`) even though the
+  readiness probe reports UP (Redis is deliberately not part of the readiness gate — it is a cache,
+  S6 decision in `application.yaml`). Closing it needs either a cache-outage tolerant `CacheManager`
+  (degrade to direct DynamoDB lookup), or adding Redis to the readiness gate. The serialization
+  side is already fixed (`CachedUserDetails` DTO — see CHANGELOG `Unreleased`).
 
 ## Notes
 
