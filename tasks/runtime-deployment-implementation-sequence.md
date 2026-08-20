@@ -102,11 +102,20 @@
 
 ## Step 9 — Rollout strategy
 
-- Implement or document blue/green (or canary) using the platform’s native mechanism
+- Implement or document blue/green (or canary) using the platform's native mechanism
 - Define health gates and automatic rollback criteria
 - Document the observation window and manual rollback procedure
 
-**Done when:** Rollout and rollback paths are defined and testable.
+**AS-BUILT (2026-08-19):** DONE. `deploy/codedeploy.yaml` defines the CodeDeploy application +
+blue/green deployment group (`DeploymentType: BLUE_GREEN`, `DeploymentOption: WITH_TRAFFIC_CONTROL`,
+deployment config `CodeDeployDefault.ECSCanary10Percent5Minutes`) and the service role
+(`AWSCodeDeployRoleForECS`). `deploy/appspec.yaml` is the reference ECS AppSpec (submitted inline
+via `RevisionType: AppSpecContent`) with the task-definition ARN as a placeholder. `deploy/stack.yaml`
+updated to a blue/green listener (blue 100 / green 0) on the blue/green target group pair, and
+three rollback alarms (5xx, target response time, zero healthy hosts) plus a deployment-failure
+trigger. `deploy/README.md` documents the rollout procedure, the 10%/5min observation window, and
+the manual rollback procedure. Validated locally (YAML/JSON structural parse); full blue/green
+exercise is staged in Step 10 (real AWS).
 
 ---
 

@@ -1,0 +1,26 @@
+version: 0.0
+# ------------------------------------------------------------------
+# CodeDeploy AppSpec for ECS — blue/green (runtime-deployment S9).
+#
+# For Amazon ECS, CodeDeploy does NOT read the AppSpec from S3; the body is submitted inline
+# (RevisionType=AppSpecContent). This file is the reference source-of-truth that CI/operators
+# submit through:
+#
+#   aws deploy create-deployment \
+#     --application-name spotpobre-<env> \
+#     --deployment-group-name spotpobre-<env>-blue-green \
+#     --revision revisionType=AppSpecContent,appSpecContent="$(cat deploy/appspec.yaml)" \
+#     --region <region>
+#
+# Substitute REPLACE_WITH_TASK_DEFINITION_ARN with the ARN of the newly registered ECS task
+# definition (built and registered by CI from the image pinned by digest in deploy/stack.yaml).
+# ------------------------------------------------------------------
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "REPLACE_WITH_TASK_DEFINITION_ARN"
+        PlatformVersion: "LATEST"
+        LoadBalancerInfo:
+          ContainerName: "app"
+          ContainerPort: 8080

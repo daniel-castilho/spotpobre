@@ -345,15 +345,21 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   - **Supply chain** — base images pinned by digest; `.github/workflows/image-security.yml` fails
     on UID 0, scans with Trivy (SARIF to GitHub Security), and generates a CycloneDX SBOM artifact.
   - **Prod config contract (fail-fast)** — `ProdConfigValidator` (prod profile only) aborts startup
-    when a required value is missing (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket,
-    Redis host) and rejects static AWS credentials in prod; the AWS clients resolve credentials from
-    the task role (`AwsCredentialsProviderResolver`) instead of requiring long-lived keys.
-  - **Health model** — liveness/readiness probes (see "Monitoring endpoints" below) with a
-    documented readiness gate (DynamoDB + S3) and secured actuator routes.
-  - **Auth cache fix** — the Redis `userCache` now stores a Jackson-friendly DTO
-    (`CachedUserDetails`) instead of Spring Security's `User`, which cannot be round-tripped by
-    `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
-    hit would fail with a 401).
+     when a required value is missing (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket,
+     Redis host) and rejects static AWS credentials in prod; the AWS clients resolve credentials from
+     the task role (`AwsCredentialsProviderResolver`) instead of requiring long-lived keys.
+   - **Health model** — liveness/readiness probes (see "Monitoring endpoints" below) with a
+     documented readiness gate (DynamoDB + S3) and secured actuator routes.
+   - **Auth cache fix** — the Redis `userCache` now stores a Jackson-friendly DTO
+     (`CachedUserDetails`) instead of Spring Security's `User`, which cannot be round-tripped by
+     `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
+     hit would fail with a 401).
+   - **Deployment manifests (`deploy/`)** — versioned CloudFormation for the ADR-0001 platform:
+     `stack.yaml` (VPC/NAT, SGs, IAM task execution + task role, ALB with **blue/green weighted
+     listener**, ECS cluster/task/service with `CODE_DEPLOY` controller, autoscaling) and
+     `codedeploy.yaml` / `appspec.yaml` (CodeDeploy blue/green application + deployment group with
+     `WITH_TRAFFIC_CONTROL`, canary 10%/5min config, automatic rollback alarms). `task-definition.json`
+     is a reference artifact. Image pinned by digest; secrets from Secrets Manager; non-root image.
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
   SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
   `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
@@ -375,10 +381,10 @@ Deliberately not implemented yet (candidate backlog):
 - Pagination on more list endpoints (artists, albums)
 - Per-user quotas (beyond the basic endpoint rate limiting already shipped)
 - Email verification and password recovery
-- **Runtime & Deployment remainder** — deployment manifests (ECS task/service/ALB, Step 8),
-  rollout + rollback runbook (Step 9), a staging exercise (Step 10) and the full CI image pipeline
-  (Step 11). The env-var contract, image and health model are already in place
-  (`application-prod.yaml`, `Dockerfile`, ADR).
+- **Runtime & Deployment remainder** — a staging exercise that proves deploy + rollback against
+   real AWS (Step 10), the full CI image pipeline gate (Step 11) and the operational runbook (Step 12).
+   The env-var contract, image, health model and manifests are already in place
+   (`application-prod.yaml`, `Dockerfile`, ADR, `deploy/`).
 
 ## Documentation
 
@@ -391,5 +397,7 @@ Deliberately not implemented yet (candidate backlog):
 | `docs/testing-playbook.md` | Test taxonomy, principles, patterns, regression checklist & smoke |
 | `docs/lessons.md` | Durable lessons learned from debugging and design decisions |
 | `docs/twelve-factor.md` | Twelve-Factor App reference & compliance matrix |
+| `docs/adr/0001-production-platform.md` | ADR: ECS Fargate + ECR + ALB + Secrets Manager + CodeDeploy choice |
+| `deploy/README.md` | Runtime shape, runtime contract, and blue/green rollout + rollback procedure |
 | `docker-compose.yaml` | LocalStack (DynamoDB, S3) + Redis for local development |
 | `pom.xml` | Dependency, build and annotation-processor configuration |

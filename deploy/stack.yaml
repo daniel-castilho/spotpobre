@@ -55,6 +55,18 @@ Parameters:
   LogRetentionDays:
     Type: Number
     Default: 14
+  Rollback5xxThreshold:
+    Type: Number
+    Default: 10
+    Description: ALB target 5xx responses per minute (sum) that triggers the rollback alarm.
+  RollbackLatencyThresholdSeconds:
+    Type: Number
+    Default: 0.5
+    Description: Average ALB target response time in seconds that triggers the rollback alarm.
+  RollbackUnhealthyEvaluationPeriods:
+    Type: Number
+    Default: 3
+    Description: Consecutive 60s periods with zero healthy hosts before rollback alarms.
 
 Resources:
   # ------------------------------------------------------------------ VPC
@@ -251,7 +263,9 @@ Resources:
         - Key: Name
           Value: !Sub "spotpobre-${Environment}-alb"
 
-  TargetGroup:
+  # Blue/green target group pair used by CodeDeploy. CodeDeploy shifts weight between
+  # BlueTargetGroup (currently serving) and GreenTargetGroup (new task set) on each deployment.
+  BlueTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       TargetType: ip
@@ -269,7 +283,27 @@ Resources:
         HttpCode: "200"
       Tags:
         - Key: Name
-          Value: !Sub "spotpobre-${Environment}-tg"
+          Value: !Sub "spotpobre-${Environment}-blue-tg"
+
+  GreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: ip
+      Port: 8080
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /actuator/health/readiness
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: "200"
+      Tags:
+        - Key: Name
+          Value: !Sub "spotpobre-${Environment}-green-tg"
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -281,7 +315,74 @@ Resources:
         - CertificateArn: !Ref SslCertificateArn
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+          TargetGroupArn: !Ref BlueTargetGroup
+          Weight: 100
+        - Type: forward
+          TargetGroupArn: !Ref GreenTargetGroup
+          Weight: 0
+
+  # ------------------------------------------------------------------ Rollback alarms (CodeDeploy triggers)
+  Rollback5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "spotpobre-${Environment}-rollback-5xx"
+      AlarmDescription: >-
+        Sustained ALB target 5xx responses indicate the new task set is not serving
+        correctly; CodeDeploy rolls back automatically when this alarm is in ALARM.
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt Alb.LoadBalancerFullName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: !Ref RollbackUnhealthyEvaluationPeriods
+      DatapointsToAlarm: 3
+      Threshold: !Ref Rollback5xxThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  RollbackLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "spotpobre-${Environment}-rollback-latency"
+      AlarmDescription: >-
+        Sustained elevated ALB target response time indicates the new task set is
+        degraded; CodeDeploy rolls back automatically when this alarm is in ALARM.
+      Namespace: AWS/ApplicationELB
+      MetricName: TargetResponseTime
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt Alb.LoadBalancerFullName
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: !Ref RollbackUnhealthyEvaluationPeriods
+      DatapointsToAlarm: 3
+      Threshold: !Ref RollbackLatencyThresholdSeconds
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  RollbackReadinessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "spotpobre-${Environment}-rollback-readiness"
+      AlarmDescription: >-
+        Zero healthy hosts on either target group for sustained periods means readiness
+        is DOWN (DynamoDB/S3 dependency failure); CodeDeploy rolls back automatically.
+      Namespace: AWS/ApplicationELB
+      MetricName: HealthyHostCount
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt Alb.LoadBalancerFullName
+        - Name: TargetGroup
+          Value: !GetAtt GreenTargetGroup.TargetGroupFullName
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: !Ref RollbackUnhealthyEvaluationPeriods
+      DatapointsToAlarm: 3
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
 
   # ------------------------------------------------------------------ ECS
   Cluster:
@@ -364,7 +465,7 @@ Resources:
       LoadBalancers:
         - ContainerName: app
           ContainerPort: 8080
-          TargetGroupArn: !Ref TargetGroup
+          TargetGroupArn: !Ref BlueTargetGroup
       HealthCheckGracePeriodSeconds: 90
 
   ServiceAutoscalingTarget:
@@ -400,3 +501,18 @@ Outputs:
     Value: !Ref Service
   TaskDefinitionFamily:
     Value: !Ref TaskDefinition
+  BlueTargetGroupArn:
+    Description: Blue target group ARN (currently serving traffic)
+    Value: !Ref BlueTargetGroup
+  GreenTargetGroupArn:
+    Description: Green target group ARN (CodeDeploy shifts traffic to it on deployment)
+    Value: !Ref GreenTargetGroup
+  ListenerArn:
+    Description: ALB HTTPS listener ARN used by the CodeDeploy prod traffic route
+    Value: !Ref Listener
+  Rollback5xxAlarmName:
+    Value: !Ref Rollback5xxAlarm
+  RollbackLatencyAlarmName:
+    Value: !Ref RollbackLatencyAlarm
+  RollbackReadinessAlarmName:
+    Value: !Ref RollbackReadinessAlarm

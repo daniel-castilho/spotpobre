@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  CodeDeploy application + blue/green deployment group for the Spotpobre API (runtime-deployment
+  S9). Consumes the ECS service and target groups from deploy/stack.yaml by ARN. Creates the
+  CodeDeploy service role, the ECS blue/green deployment group (WITH_TRAFFIC_CONTROL), and wires
+  the rollback alarms from the main stack.
+
+  NOTE: ECS blue/green AppSpec bodies are passed inline to CodeDeploy (RevisionType AppSpecContent),
+  not read from S3 like EC2/on-prem. The reference AppSpec is in deploy/appspec.yaml and is
+  submitted by the CLI/CI with the deployed task-definition ARN substituted in.
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Deployment environment (staging/production).
+  ClusterName:
+    Type: String
+    Description: ECS cluster name (output of deploy/stack.yaml).
+  ServiceName:
+    Type: String
+    Description: ECS service name (output of deploy/stack.yaml).
+  BlueTargetGroupArn:
+    Type: String
+    Description: ARN of the blue target group (output of deploy/stack.yaml).
+  GreenTargetGroupArn:
+    Type: String
+    Description: ARN of the green target group (output of deploy/stack.yaml).
+  ListenerArn:
+    Type: String
+    Description: ARN of the HTTPS listener prod traffic route (output of deploy/stack.yaml).
+  Rollback5xxAlarmName:
+    Type: String
+    Description: 5xx rollback alarm name from deploy/stack.yaml.
+  RollbackLatencyAlarmName:
+    Type: String
+    Description: Latency rollback alarm name from deploy/stack.yaml.
+  RollbackReadinessAlarmName:
+    Type: String
+    Description: Readiness rollback alarm name from deploy/stack.yaml.
+  TerminationWaitTimeMinutes:
+    Type: Number
+    Default: 30
+    Description: Minutes to wait before terminating the blue task set on a successful deployment.
+  DeploymentConfigName:
+    Type: String
+    Default: CodeDeployDefault.ECSCanary10Percent5Minutes
+    Description: CodeDeploy deployment configuration. Canary 10% / 5 min gives an observation window.
+
+Resources:
+  # ------------------------------------------------------------------ CodeDeploy service role
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "spotpobre-${Environment}-codedeploy"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codedeploy.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRoleForECS
+      Path: "/"
+
+  # ------------------------------------------------------------------ CodeDeploy application
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub "spotpobre-${Environment}"
+      ComputePlatform: ECS
+
+  # ------------------------------------------------------------------ Blue/green deployment group
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn: [CodeDeployRole, CodeDeployApplication]
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: !Sub "spotpobre-${Environment}-blue-green"
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      DeploymentConfigName: !Ref DeploymentConfigName
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: !Ref TerminationWaitTimeMinutes
+      EcsService:
+        ClusterName: !Ref ClusterName
+        ServiceName: !Ref ServiceName
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroupPairInfo:
+              TargetGroups:
+                - !Ref BlueTargetGroupArn
+                - !Ref GreenTargetGroupArn
+              ProdTrafficRoute:
+                ListenerArns:
+                  - !Ref ListenerArn
+      RollbackConfiguration:
+        RollbackEnabled: true
+        RollbackTriggers:
+          - Type: CloudWatchAlarm
+            Value: !Ref Rollback5xxAlarmName
+          - Type: CloudWatchAlarm
+            Value: !Ref RollbackLatencyAlarmName
+          - Type: CloudWatchAlarm
+            Value: !Ref RollbackReadinessAlarmName
+          - Type: DeploymentFailure
+            Value: CODE_DEPLOY_DEPLOYMENT_FAILURE
+
+Outputs:
+  CodeDeployApplicationName:
+    Description: Name of the CodeDeploy application.
+    Value: !Ref CodeDeployApplication
+  CodeDeployDeploymentGroupName:
+    Description: Name of the blue/green deployment group.
+    Value: !Ref CodeDeployDeploymentGroup
+  CodeDeployServiceRoleArn:
+    Description: IAM role ARN assumed by CodeDeploy.
+    Value: !GetAtt CodeDeployRole.Arn
+  DeploymentWatcherCommand:
+    Description: Command to watch the deployment state for the group above.
+    Value: !Sub "aws deploy get-deployment --deployment-id <id> --region ${AWS::Region}"

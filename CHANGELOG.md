@@ -44,12 +44,26 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
     `/actuator/health/readiness`.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
-  and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
-  (`enabled`, `limit`, `window`, `paths`, `client-ip-header`) — dev defaults in
-  `application.yaml`, production contract (env overrides) in `application-prod.yaml`. Excess
-  requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
-  dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
-  end-to-end test.
+    and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
+    (`enabled`, `limit`, `window`, `paths`, `client-ip-header`) — dev defaults in
+    `application.yaml`, production contract (env overrides) in `application-prod.yaml`. Excess
+    requests receive `429 Too Many Requests` in the canonical error envelope. In-memory,
+    dependency-free (no Redis required). Covered by unit tests and the `RateLimitFlowIT`
+    end-to-end test.
+  - **Deployment manifests refined into blue/green (Steps 8–9 of the runtime-deployment epic).**
+    `deploy/stack.yaml` now creates a blue/green target-group pair and an ALB listener that
+    forwards to both (100% blue / 0% green); the service keeps its `CODE_DEPLOY` controller.
+    New `deploy/codedeploy.yaml` defines the CodeDeploy application + blue/green deployment
+    group (`WITH_TRAFFIC_CONTROL`, `CodeDeployDefault.ECSCanary10Percent5Minutes` giving a 10% /
+    5-minute observation window, terminate-blue on success) and `deploy/appspec.yaml` is the
+    reference ECS AppSpec submitted inline by the CLI/CI. Three rollback alarms (5xx count,
+    target response time, zero healthy hosts) plus a deployment-failure trigger wire the
+    automatic rollback. See `deploy/README.md` for the full rollout/rollback procedure.
+- **Docs sync for the runtime epic and test suite.** `docs/testing-playbook.md` restructured to a
+  test taxonomy (level / naming / runtime / purpose) with explicit principles, a suite coverage
+  matrix, a reading-failures matrix and a regression checklist that now includes the shutdown
+  script; the "pyramid" references in `README.md`/`AGENTS.md` were dropped in favour of the
+  taxonomy.
 
 ### Fixed
 
