@@ -19,6 +19,11 @@
 
 > **AS-BUILT (2026-08-19):** DONE. `docs/adr/0001-production-platform.md` — ECS Fargate + ECR + ALB +
 > Secrets Manager + ECS Task Role + CodeDeploy blue/green.
+>
+> **AS-BUILT UPDATE (2026-08-21):** Platform pivoted to on-premises bare metal (human decision:
+> production runs Docker Compose + NGINX blue/green + LocalStack). New
+> `docs/adr/0002-onprem-bare-metal-platform.md` supersedes ADR-0001, whose content is preserved
+> untouched as the real-AWS migration path (status line updated only).
 
 ---
 
@@ -33,6 +38,11 @@
 
 > **AS-BUILT (2026-08-19):** DONE. Base images pinned by digest; `.github/workflows/image-security.yml`
 > fails on UID 0, scans with Trivy (SARIF to GitHub Security), uploads CycloneDX SBOM artifact.
+>
+> **AS-BUILT UPDATE (2026-08-21):** `.dockerignore` hardened (deploy/, scripts/, mp3/ excluded;
+> `!deploy/nginx-bluegreen.conf` re-included for the LB image build). The standalone
+> `image-security.yml` workflow was removed as duplication — its checks live in the consolidated
+> `ci.yml` `image` job (see Step 11).
 
 ---
 
@@ -41,6 +51,13 @@
 > **AS-BUILT (2026-08-19):** DONE. `ProdConfigValidator` fails fast when any required value is missing
 > and rejects static AWS credentials in prod; verified end-to-end. `application-prod.yaml` uses empty
 > env defaults so dev secrets never leak into prod config.
+>
+> **AS-BUILT UPDATE (2026-08-21):** Contract redesigned around an explicit credential source:
+> `aws.credentials.source` (`AWS_CREDENTIALS_SOURCE`) ∈ {`static`, `workload-identity`} is now
+> REQUIRED in prod — `static` demands access/secret keys (LocalStack target), `workload-identity`
+> forbids them (real-AWS task-role target). `AwsCredentialsProviderResolver` switches providers on
+> the flag; 14 unit tests cover the matrix (`ProdConfigValidatorTest`,
+> `AwsCredentialsProviderResolverTest`).
 
 ---
 
@@ -49,6 +66,9 @@
 > **AS-BUILT (2026-08-19):** DONE (application side). `AwsCredentialsProviderResolver` resolves from the
 > ECS task role (`DefaultCredentialsProvider`) when no static keys are set. Secrets Manager wiring
 > (`valueFrom`) is deferred to Step 8 (manifests).
+>
+> **AS-BUILT UPDATE (2026-08-21):** Superseded by the explicit `AWS_CREDENTIALS_SOURCE` switch
+> (see Step 4 update): inference removed in favour of an explicit, validated contract.
 
 ---
 
@@ -60,6 +80,10 @@
 > unauthenticated while the rest of `/actuator/**` requires auth. Verified end-to-end: readiness DOWN
 > without the S3 bucket, UP after it exists. Bonus fix: `CachedUserDetails` DTO resolves the Redis
 > auth-cache serialization bug (see CHANGELOG `Unreleased`).
+>
+> **AS-BUILT UPDATE (2026-08-21):** Automation gap closed: `DynamoDbHealthIndicatorTest`,
+> `S3HealthIndicatorTest` (unit) and `HealthProbeFlowIT` (full failure → DOWN → recovery cycle on
+> Testcontainers LocalStack) added.
 
 ---
 
@@ -97,6 +121,14 @@
 > - `deploy/README.md` — pre-requisites, apply/update commands, runtime-contract matrix.
 > Validated locally (YAML structure + required properties); `aws cloudformation deploy` needs real
 > AWS credentials (staging, S10).
+>
+> **AS-BUILT UPDATE (2026-08-21):** Production target changed to on-premises (ADR-0002). The
+> CloudFormation manifests above are kept UNTOUCHED as the documented real-AWS backup. The
+> production path is now `deploy/docker-compose.bluegreen.yml` (hardened blue/green fleets + NGINX
+> LB + LocalStack + Redis: non-root, read-only root FS + tmpfs, resource limits, health checks,
+> `depends_on: service_healthy`, `restart: unless-stopped`) with `deploy/.env.example` as the
+> operator contract and `deploy/nginx-lb/Dockerfile` (nginx pinned 1.27.4-alpine for OSS upstream
+> `resolve`).
 
 ---
 
@@ -117,6 +149,15 @@ trigger. `deploy/README.md` documents the rollout procedure, the 10%/5min observ
 the manual rollback procedure. Validated locally (YAML/JSON structural parse); full blue/green
 exercise is staged in Step 10 (real AWS).
 
+**AS-BUILT UPDATE (2026-08-21):** The operative rollout mechanism for the on-premises target is
+script-based: `scripts/bluegreen-deploy.sh` (green readiness gate → canary 10% with 30 s
+observation + automatic abort-to-blue → cutover; optional image-tag argument) and
+`scripts/bluegreen-rollback.sh` (instant revert). NGINX config corrected per official docs: `down`
+instead of the nonexistent `weight=0` (which crash-looped the LB), `keepalive 32`,
+`proxy_next_upstream error timeout`, passive checks, and runtime DNS re-resolution
+(`resolver 127.0.0.11 valid=10s` + `zone` + `resolve`) eliminating stale-IP routing after fleet
+recreations. The CodeDeploy path remains documented for the future real-AWS migration.
+
 ---
 
 ## Step 10 — Staging exercise
@@ -133,6 +174,14 @@ traffic shift, alarm observation and forced rollback). **Execution is pending AW
 `aws sts get-caller-identity` returns no configured profile in this environment, so the deploy and
 rollback were not run against a real account. This item is recorded as an open debt item in
 `AGENTS.md` ("Blue/green rollout not exercised against real AWS").
+
+**AS-BUILT UPDATE (2026-08-21): EXECUTED AND PASSED** against the on-premises production stack
+(ADR-0002). Full transcript and acceptance table in `deploy/README.md` §1.6: smoke through the LB
+(register returns JWT on the prod profile), canary deploy of v2 (gate → 10%/30 s → cutover) PASS,
+cutover proven by stopping blue while green served PASS, rollback PASS, LB resilience to fleet IP
+change (auto-heal via `resolve`, squatter on the old IP) PASS. Defects found during the exercise
+were fixed and are listed in CHANGELOG `Unreleased` → Fixed. The AWS-native exercise remains a
+roadmap item for a future real account (AGENTS.md debt updated accordingly).
 
 ---
 
@@ -158,6 +207,13 @@ The shutdown smoke is non-blocking per the testing-playbook gap 7 (shutdown test
 yet). `secrets/seed-localstack.sh` was extracted from the README so the same commands run locally
 and in CI.
 
+**AS-BUILT UPDATE (2026-08-21):** Two defects fixed in `ci.yml`: image digest capture used
+`{{index .RepoDigests 0}}` (empty/exception for locally built images) → now `{{.Id}}`; the
+`runtime-smoke` job no longer runs when the build job failed (`if: always()` removed from job
+level — it previously died confusingly at the artifact-download step). Workflow YAML validated.
+The seed script itself was rewritten (idempotent pre-checks, awslocal-in-container fallback for
+broken host S3 CLI, correct `profile.email` GSI shape).
+
 ## Step 12 — Runbook & documentation
 
 - Write the operational runbook
@@ -169,6 +225,13 @@ and in CI.
 cross-referencing `deploy/README.md`. `README.md`/`CHANGELOG.md`/`AGENTS.md` Current State,
 Documentation table and Known technical debt were all updated during Steps 0–10; the
 "production runtime shape" debt is cleared from the open-debt list.
+
+**AS-BUILT UPDATE (2026-08-21):** Runbook promoted to its own mandatory deliverable,
+`docs/release-runbook.md` (spec §9), rewritten for the on-premises target: deploy, rollback,
+secret rotation (one-fleet-at-a-time), readiness-DOWN triage, incident response (crash loops, LB
+5xx, Redis outage, LocalStack outage), routine operations, legacy-AWS appendix. The README section
+is now a pointer to it. README Current State/Roadmap, CHANGELOG `Unreleased`, AGENTS.md debt list
+and this file's as-built notes all synced to the ADR-0002 reality.
 
 ---
 

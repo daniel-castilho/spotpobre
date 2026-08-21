@@ -9,51 +9,53 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
-- **Runtime & Deployment (Steps 0–6 of the runtime-deployment epic).** The production runtime shape
-  is now defined and partially shipped:
-  - **ADR** (`docs/adr/0001-production-platform.md`) — ECS Fargate + ECR + ALB + Secrets Manager +
-    ECS task-role identity + CodeDeploy blue/green.
-  - **Container** — multi-stage `Dockerfile` (Maven build stage → Temurin 21 JRE runtime), non-root
-    user (UID/GID 10001), exec-form entrypoint, `.dockerignore`.
-  - **Supply chain** — base images pinned by digest; `.github/workflows/image-security.yml` runs
-    on push/PR: fails the build if the image runs as UID 0, scans with Trivy (HIGH/CRITICAL,
-    SARIF uploaded to GitHub Security), and uploads a CycloneDX SBOM artifact.
-  - **Prod config contract (fail-fast)** — `ProdConfigValidator` (prod profile only) now rejects
-    static AWS credentials in prod and aborts startup when any required value is missing
-    (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket name, Redis host). `AwsProperties`
-    credentials are optional so the AWS clients resolve them from the ECS task role via
-    `AwsCredentialsProviderResolver` (falling back to static values only for dev/tests).
-  - **Health model** — `management.endpoint.health.probes.enabled: true` exposes liveness and
-    readiness probes; the readiness group gates on the critical dependencies (DynamoDB + S3) via
-    new `DynamoDbHealthIndicator` / `S3HealthIndicator`; `show-details: when-authorized`. The probe
-    paths are reachable without auth (for the ALB), every other `/actuator/**` route requires
-    authentication (`SecurityConfig`). Verified end-to-end against LocalStack: readiness goes
-    DOWN while the S3 bucket is missing and recovers to UP once it exists.
-- **Graceful shutdown under load (Step 7 of the runtime-deployment epic).** `scripts/shutdown-under-load-test.sh` is a reproducible test that runs concurrent traffic, sends SIGTERM mid-flight, and verifies the six criteria: readiness DOWN while alive, in-flight requests complete with 200, new requests rejected, and process exit within the grace period (30s). Spring Boot 3.5's graceful shutdown (`server.shutdown: graceful`) already handles the drain — no code change required, only the verification artifact. Ran twice to confirm reproducibility (137 + 134 in-flight OK).
-- **Deployment manifests (Step 8) — blue/green aware.** `deploy/stack.yaml` now creates a blue/green
-  target-group pair and an ALB listener that forwards to both (100% blue / 0% green); the ECS
-  service keeps its `CODE_DEPLOY` controller. Three rollback alarms (5xx count, target response
-  time, zero healthy hosts) plus a deployment-failure trigger wire the automatic rollback.
-- **Blue/green rollout (Step 9).** New `deploy/codedeploy.yaml` defines the CodeDeploy application +
-  blue/green deployment group (`WITH_TRAFFIC_CONTROL`, `CodeDeployDefault.ECSCanary10Percent5Minutes`
-  → 10%/5min observation window, terminate-blue on success with 30 min wait) importing the service,
-  target groups and listener from the foundation stack. New `deploy/appspec.yaml` is the reference
-  ECS AppSpec submitted inline by the CLI/CI (task-definition ARN is a placeholder). See
-  `deploy/README.md` for the full rollout/rollback procedure.
-- **Staging exercise (Step 10).** Documented the full staging procedure (apply both stacks, then
-  acceptance checks + canary rollout + forced rollback) in `deploy/README.md`. **Execution is
-  pending AWS credentials** (none available in this environment); recorded as an open item in
-  `AGENTS.md`.
-- **CI pipeline completion (Step 11).** `ci.yml` now has an `image` job (build, non-root UID check,
-  Trivy HIGH/CRITICAL scan → GitHub Security SARIF, CycloneDX SBOM + image digest artifacts) and a
-  non-blocking `runtime-smoke` job (LocalStack + Redis via `docker compose`, schema seed by
-  `scripts/seed-localstack.sh`, graceful-shutdown-under-load smoke, teardown). Verified live: the
-  shutdown smoke passes (140 in-flight OK, 2s exit). ECR push (OIDC) left as a production-only gate.
-- **Operational runbook (Step 12).** Added a runnable-by-a-stranger runbook to `README.md`
-  covering deploy, rollback, secret rotation, readiness-DOWN triage and container incident
-  response, cross-referencing `deploy/README.md` and `docs/adr/0001-production-platform.md`.
-- **Reusable LocalStack seed script.** Extracted `scripts/seed-localstack.sh` from the README's
-  "Configure LocalStack" block so the identical commands run locally and in CI; idempotent.
+- **Runtime & Deployment epic (S0–S14) — completed.** The production runtime shape is defined,
+  shipped and exercised end-to-end:
+  - **Platform pivot (ADR-0002)** — production target is now **on-premises bare metal**: Docker
+    Compose fleets behind an NGINX weighted blue/green load balancer, with LocalStack emulating
+    DynamoDB/S3 and Redis alongside. `docs/adr/0002-onprem-bare-metal-platform.md` records the
+    decision; ADR-0001 (ECS Fargate + CodeDeploy) is superseded but its versioned manifests are
+    kept untouched as a ready-made migration path to real AWS.
+  - **Container** — multi-stage `Dockerfile` (Maven build stage → Temurin 21 JRE runtime),
+    non-root user (UID/GID 10001), exec-form entrypoint, hardened `.dockerignore` (secrets and
+    deploy/scripts material never enter the build context).
+  - **Supply chain (CI `image` job)** — builds the image, fails on UID 0, scans with Trivy
+    (HIGH/CRITICAL, SARIF → GitHub Security), uploads a CycloneDX SBOM + immutable image-ID
+    artifact. The separate `image-security.yml` workflow was removed as duplication.
+  - **Prod config contract (fail-fast, explicit credential source)** — `ProdConfigValidator`
+    requires `aws.credentials.source` ∈ {`static`, `workload-identity`} in prod: `static`
+    demands access/secret keys (LocalStack target), `workload-identity` forbids them (real-AWS
+    task-role target). `AwsCredentialsProviderResolver` switches providers on the flag.
+    Startup still aborts on any missing required value (`jwt.secret`, endpoints, bucket, Redis).
+  - **Health model + automated proof** — liveness/readiness probes gate on DynamoDB + S3;
+    probe paths unauthenticated, all other `/actuator/**` authenticated. New unit tests
+    (`DynamoDbHealthIndicatorTest`, `S3HealthIndicatorTest`) and `HealthProbeFlowIT` prove the
+    failure → readiness DOWN → recovery cycle against Testcontainers LocalStack.
+  - **Graceful shutdown under load** — `scripts/shutdown-under-load-test.sh` verifies the six
+    drain criteria under concurrent traffic (ran twice consecutively: 130/129 in-flight OK).
+  - **Production stack (`deploy/docker-compose.bluegreen.yml`)** — blue (8081) / green (8082)
+    fleets + NGINX LB (8080) + LocalStack + Redis; non-root, read-only root FS + tmpfs, CPU/RAM
+    limits, health checks with start periods, `depends_on: service_healthy` ordering,
+    `restart: unless-stopped`. Operator contract documented in `deploy/.env.example`.
+  - **Blue/green rollout scripts** — `scripts/bluegreen-deploy.sh` (green readiness gate →
+    canary 10% with 30 s observation + automatic abort-to-blue → cutover, optional image-tag
+    argument) and `scripts/bluegreen-rollback.sh` (instant traffic revert). NGINX upstream uses
+    `down` (not the nonexistent `weight=0`), explicit `keepalive 32`, `proxy_next_upstream error
+    timeout`, passive health checks, and runtime DNS re-resolution (`resolver 127.0.0.11` +
+    `zone` + `resolve`, pinned `nginx:1.27.4-alpine`) so recreated containers are picked up
+    without reloads.
+  - **Deploy + rollback exercise executed successfully** (previously pending): full local
+    production exercise against the compose stack — smoke through the LB, canary deploy of v2,
+    cutover proven by stopping blue while green served, rollback PASS, and LB resilience proven
+    by recreating blue with a different IP (auto-healed without reload). Results recorded in
+    `deploy/README.md` §1.6.
+  - **Operational runbook** — new `docs/release-runbook.md`: deploy, rollback, secret rotation,
+    readiness-DOWN triage, incident response (crash loops, LB 5xx, Redis outage, LocalStack
+    outage), routine operations; legacy AWS deltas summarised in an appendix.
+- **Reusable LocalStack seed script.** `scripts/seed-localstack.sh` (extracted from the README's
+  "Configure LocalStack" block) is now idempotent with existence pre-checks, POSIX sh, and a
+  fallback that runs `awslocal` inside the LocalStack container when the host AWS CLI cannot talk
+  to emulated S3.
 - **Basic rate limiting (S10 of quality-observability).** New `RateLimitFilter` +
   `FixedWindowRateLimiter` apply a per-client fixed-window throttle to `/api/v1/auth/register`
   and `/api/v1/auth/authenticate`. Configurable via the `rate-limit.*` properties
@@ -70,6 +72,21 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **LocalStack seeding GSI shape (`scripts/seed-localstack.sh`).** The `Users.email-index` was
+  provisioned keyed on `email` instead of the literal dotted attribute `profile.email` used by
+  `DynamoDbConfig`. On freshly seeded volumes, registration succeeded but every login silently
+  returned 401 (items stored, never indexed). The seed now matches the adapter's GSI mapping.
+- **NGINX blue/green config.** `weight=0` does not exist in nginx and crashed the LB at startup;
+  a fleet out of rotation now uses `down`. Added upstream keepalive (off by default before
+  nginx 1.29.7), explicit `proxy_next_upstream error timeout` (never retries non-idempotent
+  POSTs across fleets), and runtime DNS re-resolution — without it, nginx cached a fleet's IP at
+  config load and routed to a dead address after any container recreation (observed as 504s
+  during the exercise).
+- **Rollback script.** `docker compose stop --no-deps` is not a valid flag combination (stop has
+  no `--no-deps`); the script also now recreates only the target fleet on deploy.
+- **CI image digest capture.** `{{index .RepoDigests 0}}` fails with "index out of range" for
+  locally built, un-pushed images; the image job now records `{{.Id}}`, and the `runtime-smoke`
+  job no longer runs when the build job failed (`if: always()` removed from job level).
 - **Auth cache serialization.** `UserDetailsServiceImpl` cached Spring Security's `User`, which
   cannot be round-tripped by `GenericJackson2JsonRedisSerializer` (no default constructor) — the
   first request after a cache write worked, but the next cache hit failed with a

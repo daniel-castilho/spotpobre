@@ -308,50 +308,13 @@ everything else under `/actuator/**` is authenticated (see `SecurityConfig`).
 
 ## Operational runbook
 
-> How to operate this service in production without having written the code. Source of truth for a
-> first incident: `deploy/README.md` (rollout/rollback) + `docs/adr/0001-production-platform.md`.
-
-**Endpoints** — entry point is the ALB DNS name (see `deploy/stack.yaml` output `LoadBalancerDnsName`).
-All app routes are under `/api/v1/*`. Auth: `POST /api/v1/auth/register` and `/api/v1/auth/authenticate`
-return a JWT; pass it as `Authorization: Bearer <token>`.
-
-**Deploy a new version**
-1. CI builds+scans the image and publishes the digest to ECR (artifact `image-digest.txt`).
-2. Update the `ImageDigest` parameter of `deploy/stack.yaml` with the new digest and update the
-   stack; the `CODE_DEPLOY` service triggers a blue/green deployment through the deployment group
-   (`deploy/codedeploy.yaml` + `deploy/appspec.yaml`). See `deploy/README.md → Rollout`.
-3. Watch: `aws deploy get-deployment --deployment-id <id>` and the green target group health.
-
-**Roll back**
-- Automatic: any rollback alarm (sustained 5xx, latency, zero healthy hosts) or a failing health
-  gate aborts the deployment and resumes blue traffic.
-- Manual: stop the in-flight deployment —
-  `aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled` — or re-deploy the
-  previous AppSpec (with the previous task-definition ARN) via `aws deploy create-deployment`.
-  See `deploy/README.md → Rollback procedure`.
-
-**Rotate secrets**
-- Create a new version of the `JwtSecret` Secrets Manager secret (`/spotpobre/<env>/jwt-secret`),
-  then update the service: `aws ecs update-service ... --force-new-deployment`. Old tokens stay valid
-  until `jwt.expiration` (default 1h) elapses; no downtime.
-- Never edit `application.yaml`'s `jwt.secret` for production — it is a dev-only example.
-
-**When readiness is DOWN**
-1. `GET /actuator/health/readiness` → inspect the response (requires auth for details). The failing
-   component is either `dynamoDb` or `s3` (Redis is a cache and excluded from the gate).
-2. If `s3`: verify the bucket exists and the task role has `s3:GetObject/PutObject/ListBucket`.
-3. If `dynamoDb`: verify tables exist and the task role has `dynamodb:*` on `table/*`.
-4. Once the dependency is restored, readiness returns to UP automatically; ALB health checks resume
-   routing traffic.
-
-**Incident response (container failures)**
-- `aws ecs describe-tasks --cluster <cluster> --tasks <task>` + `aws logs` on
-  `/ecs/spotpobre-<env>` for the container exit code.
-- If a container crashes at startup: verify `ProdConfigValidator` did not block it (missing env
-  variable or static AWS keys in prod). Inspect the container logs for the abort message.
-- If `RedisConnectionFailureException` on authenticated requests while readiness is UP: known debt
-  (no Redis-outage fallback) — restart the task to re-warm the cache, or treat Redis availability as
-  part of incident severity.
+> How to operate this service in production without having written the code: deploy, rollback,
+> secret rotation, readiness-DOWN triage and container incident response.
+>
+> **Source of truth: [`docs/release-runbook.md`](docs/release-runbook.md)** (production target:
+> on-premises Docker Compose + NGINX blue/green + LocalStack, per
+> `docs/adr/0002-onprem-bare-metal-platform.md`). Manifests and the recorded rollout exercise:
+> [`deploy/README.md`](deploy/README.md).
 
 ## Current State
 
@@ -383,30 +346,33 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   Basic per-client rate limiting (`RateLimitFilter` + `FixedWindowRateLimiter`, fixed window,
   in-memory) throttles `/api/v1/auth/register` and `/api/v1/auth/authenticate` with
   `429 Too Many Requests`; limits are externalized via `rate-limit.*` (env-overridable in prod).
-- **Runtime & Deployment (epic in progress)** — the production runtime shape is now defined and
-  partially shipped:
-  - **ADR** (`docs/adr/0001-production-platform.md`) — ECS Fargate + ECR + ALB + Secrets Manager +
-    task-role identity + CodeDeploy blue/green.
+- **Runtime & Deployment (epic complete)** — production runs **on-premises bare metal**
+  (ADR-0002): Docker Compose blue/green fleets behind an NGINX weighted load balancer, with
+  LocalStack emulating DynamoDB/S3 and Redis alongside.
+  - **ADR** (`docs/adr/0002-onprem-bare-metal-platform.md`) — Compose + NGINX + LocalStack target;
+    ADR-0001 (ECS Fargate + CodeDeploy) is superseded but its manifests remain versioned as a
+    migration path to real AWS.
   - **Container** — multi-stage `Dockerfile` (Maven build → Temurin 21 JRE), non-root user
-    (UID/GID 10001), exec-form entrypoint, `.dockerignore`.
-  - **Supply chain** — base images pinned by digest; `.github/workflows/image-security.yml` fails
-    on UID 0, scans with Trivy (SARIF to GitHub Security), and generates a CycloneDX SBOM artifact.
-  - **Prod config contract (fail-fast)** — `ProdConfigValidator` (prod profile only) aborts startup
-     when a required value is missing (`jwt.secret`, `aws.region`, DynamoDB/S3 endpoints, bucket,
-     Redis host) and rejects static AWS credentials in prod; the AWS clients resolve credentials from
-     the task role (`AwsCredentialsProviderResolver`) instead of requiring long-lived keys.
-   - **Health model** — liveness/readiness probes (see "Monitoring endpoints" below) with a
-     documented readiness gate (DynamoDB + S3) and secured actuator routes.
-   - **Auth cache fix** — the Redis `userCache` now stores a Jackson-friendly DTO
-     (`CachedUserDetails`) instead of Spring Security's `User`, which cannot be round-tripped by
-     `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
-     hit would fail with a 401).
-   - **Deployment manifests (`deploy/`)** — versioned CloudFormation for the ADR-0001 platform:
-     `stack.yaml` (VPC/NAT, SGs, IAM task execution + task role, ALB with **blue/green weighted
-     listener**, ECS cluster/task/service with `CODE_DEPLOY` controller, autoscaling) and
-     `codedeploy.yaml` / `appspec.yaml` (CodeDeploy blue/green application + deployment group with
-     `WITH_TRAFFIC_CONTROL`, canary 10%/5min config, automatic rollback alarms). `task-definition.json`
-     is a reference artifact. Image pinned by digest; secrets from Secrets Manager; non-root image.
+    (UID/GID 10001), exec-form entrypoint, hardened `.dockerignore`.
+  - **Supply chain** — CI `image` job: build, UID-0 check, Trivy HIGH/CRITICAL scan (SARIF →
+    GitHub Security), CycloneDX SBOM + immutable image-ID artifacts.
+  - **Prod config contract (fail-fast)** — `ProdConfigValidator` requires an explicit
+    `aws.credentials.source` (`static` for LocalStack with keys, `workload-identity` for real-AWS
+    task roles) and aborts startup on any missing required value; `AwsCredentialsProviderResolver`
+    switches providers on it.
+  - **Health model** — liveness/readiness probes gating on DynamoDB + S3 (see "Monitoring
+    endpoints" below), secured actuator routes, automated failure/recovery tests
+    (`HealthProbeFlowIT`).
+  - **Deployment** — `deploy/docker-compose.bluegreen.yml` (hardened fleets + LB + LocalStack +
+    Redis), `scripts/bluegreen-deploy.sh` / `bluegreen-rollback.sh` (health-gated canary 10% →
+    cutover → instant rollback). Deploy + rollback exercised successfully end-to-end; results in
+    `deploy/README.md`.
+  - **Operations** — runbook at `docs/release-runbook.md`; graceful-shutdown verification via
+    `scripts/shutdown-under-load-test.sh`.
+- **Auth cache** — the Redis `userCache` stores a Jackson-friendly DTO (`CachedUserDetails`)
+  instead of Spring Security's `User`, which cannot be round-tripped by
+  `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
+  hit failed with a 401).
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
   SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
   `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
@@ -428,10 +394,9 @@ Deliberately not implemented yet (candidate backlog):
 - Pagination on more list endpoints (artists, albums)
 - Per-user quotas (beyond the basic endpoint rate limiting already shipped)
 - Email verification and password recovery
-- **Runtime & Deployment remainder** — a staging exercise that proves deploy + rollback against
-   real AWS (Step 10), the full CI image pipeline gate (Step 11) and the operational runbook (Step 12).
-   The env-var contract, image, health model and manifests are already in place
-   (`application-prod.yaml`, `Dockerfile`, ADR, `deploy/`).
+- **Migrate to a real AWS account** — the versioned ECS/CodeDeploy manifests (ADR-0001 backup,
+  `deploy/stack.yaml` + `codedeploy.yaml`) become the target again; flip
+  `AWS_CREDENTIALS_SOURCE=workload-identity`, provision DynamoDB/S3 natively and retire LocalStack.
 
 ## Documentation
 
@@ -444,7 +409,9 @@ Deliberately not implemented yet (candidate backlog):
 | `docs/testing-playbook.md` | Test taxonomy, principles, patterns, regression checklist & smoke |
 | `docs/lessons.md` | Durable lessons learned from debugging and design decisions |
 | `docs/twelve-factor.md` | Twelve-Factor App reference & compliance matrix |
-| `docs/adr/0001-production-platform.md` | ADR: ECS Fargate + ECR + ALB + Secrets Manager + CodeDeploy choice |
-| `deploy/README.md` | Runtime shape, runtime contract, and blue/green rollout + rollback procedure |
+| `docs/adr/0001-production-platform.md` | ADR (superseded): ECS Fargate + ECR + ALB + Secrets Manager + CodeDeploy — kept as the real-AWS migration path |
+| `docs/adr/0002-onprem-bare-metal-platform.md` | ADR: current production platform — on-premises bare metal, Docker Compose + NGINX blue/green + LocalStack |
+| `docs/release-runbook.md` | Operational runbook: deploy, rollback, secret rotation, readiness-DOWN triage, incident response |
+| `deploy/README.md` | Deployment manifests, runtime contract, blue/green scripts and the recorded rollout exercise |
 | `docker-compose.yaml` | LocalStack (DynamoDB, S3) + Redis for local development |
 | `pom.xml` | Dependency, build and annotation-processor configuration |

@@ -185,11 +185,15 @@ new violations — flag them to the human instead.
   S6 decision in `application.yaml`). Closing it needs either a cache-outage tolerant `CacheManager`
   (degrade to direct DynamoDB lookup), or adding Redis to the readiness gate. The serialization
   side is already fixed (`CachedUserDetails` DTO — see CHANGELOG `Unreleased`).
-- **Blue/green rollout not exercised against real AWS.** `deploy/codedeploy.yaml` and the
-  rollback alarms are structurally validated locally only; staging Exercise (S10) is pending AWS
-  credentials. The first real deployment must prove the canary 10%/5min shift, the readiness gate
-  (DynamoDB+S3) and the automatic rollback (5xx/latency/zero-healthy-host alarms + deployment
-  failure) end to end.
+- **Blue/green exercise proven locally; AWS-native path unexercised.** The on-premises
+  production target (ADR-0002) was exercised end-to-end against the compose stack: canary deploy,
+  cutover, rollback and LB IP-change resilience all PASS (`deploy/README.md` §1.6). What remains
+  unproven is only the **legacy AWS-native path** (ADR-0001: CodeDeploy canary 10%/5min shift,
+  rollback alarms, task-role identity) — it activates when the project migrates to a real AWS
+  account (see README Roadmap); its first real deployment must prove those gates end to end.
+- **Shutdown smoke is non-blocking in CI.** The `runtime-smoke` job warns but does not fail the
+  pipeline (testing-playbook gap 7). Promote it to a hard gate together with the failsafe work
+  above so `mvn verify` covers slice/IT/smoke in one command.
 
 ## Notes
 
