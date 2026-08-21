@@ -7,6 +7,8 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-20
+
 ### Added
 
 - **Runtime & Deployment epic (S0–S14) — completed.** The production runtime shape is defined,
