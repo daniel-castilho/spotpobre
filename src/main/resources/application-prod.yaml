@@ -15,11 +15,14 @@ spring:
 
 aws:
   region: ${AWS_REGION}
-  # Workload identity: production uses the ECS task role (IAM) via DefaultCredentialsProvider.
-  # Static AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are FORBIDDEN in production — the
-  # ProdConfigValidator aborts startup if they are set (see docs/adr/0001-production-platform.md).
-  # Empty by default so the dev defaults in application.yaml never leak into prod.
+  # Credential source (ADR-0002). AWS_CREDENTIALS_SOURCE selects how production obtains
+  # AWS credentials — the ProdConfigValidator enforces coherence at startup:
+  #   static             → on-premises LocalStack target: dummy keys REQUIRED below
+  #                        (emulated AWS has no IAM).
+  #   workload-identity  → real AWS target (ADR-0001 path): keys must be UNSET; the SDK
+  #                        default chain resolves the task/instance role.
   credentials:
+    source: ${AWS_CREDENTIALS_SOURCE}
     access-key: ${AWS_ACCESS_KEY_ID:}
     secret-key: ${AWS_SECRET_ACCESS_KEY:}
   dynamodb:

@@ -22,10 +22,16 @@ class ProdConfigValidatorTest {
     private void givenRequiredProperties() {
         when(environment.getProperty("jwt.secret")).thenReturn("secret");
         when(environment.getProperty("aws.region")).thenReturn("us-east-1");
-        when(environment.getProperty("aws.dynamodb.endpoint")).thenReturn("https://dynamodb.us-east-1.amazonaws.com");
-        when(environment.getProperty("aws.s3.endpoint")).thenReturn("https://s3.us-east-1.amazonaws.com");
+        when(environment.getProperty("aws.dynamodb.endpoint")).thenReturn("http://localstack:4566");
+        when(environment.getProperty("aws.s3.endpoint")).thenReturn("http://localstack:4566");
         when(environment.getProperty("aws.s3.bucket-name")).thenReturn("spotpobre-songs");
-        when(environment.getProperty("spring.data.redis.host")).thenReturn("redis.internal");
+        when(environment.getProperty("spring.data.redis.host")).thenReturn("redis");
+        when(environment.getProperty("aws.credentials.source")).thenReturn("static");
+    }
+
+    private void givenCredentialKeys(String accessKey, String secretKey) {
+        when(environment.getProperty("aws.credentials.access-key")).thenReturn(accessKey);
+        when(environment.getProperty("aws.credentials.secret-key")).thenReturn(secretKey);
     }
 
     @Test
@@ -39,10 +45,10 @@ class ProdConfigValidatorTest {
     }
 
     @Test
-    void prodProfile_withStaticCredentials_shouldFailFast() {
+    void prodProfile_missingCredentialSource_shouldFailFast() {
         givenRequiredProperties();
         when(environment.getActiveProfiles()).thenReturn(prodProfile);
-        when(environment.getProperty("aws.credentials.access-key")).thenReturn("AKIA1234567890");
+        when(environment.getProperty("aws.credentials.source")).thenReturn(null);
 
         ProdConfigValidator validator = new ProdConfigValidator(environment);
 
@@ -50,11 +56,56 @@ class ProdConfigValidatorTest {
     }
 
     @Test
-    void prodProfile_allRequiredAndNoStaticCredentials_shouldPass() {
+    void prodProfile_unknownCredentialSource_shouldFailFast() {
         givenRequiredProperties();
         when(environment.getActiveProfiles()).thenReturn(prodProfile);
-        when(environment.getProperty("aws.credentials.access-key")).thenReturn("");
-        when(environment.getProperty("aws.credentials.secret-key")).thenReturn("");
+        when(environment.getProperty("aws.credentials.source")).thenReturn("env-file");
+
+        ProdConfigValidator validator = new ProdConfigValidator(environment);
+
+        assertThrows(IllegalStateException.class, validator::afterPropertiesSet);
+    }
+
+    @Test
+    void prodProfile_staticSourceWithoutKeys_shouldFailFast() {
+        givenRequiredProperties();
+        when(environment.getActiveProfiles()).thenReturn(prodProfile);
+        givenCredentialKeys("", "");
+
+        ProdConfigValidator validator = new ProdConfigValidator(environment);
+
+        assertThrows(IllegalStateException.class, validator::afterPropertiesSet);
+    }
+
+    @Test
+    void prodProfile_staticSourceWithDummyKeys_shouldPass() {
+        givenRequiredProperties();
+        when(environment.getActiveProfiles()).thenReturn(prodProfile);
+        givenCredentialKeys("test", "test");
+
+        ProdConfigValidator validator = new ProdConfigValidator(environment);
+
+        assertDoesNotThrow(validator::afterPropertiesSet);
+    }
+
+    @Test
+    void prodProfile_workloadIdentitySourceWithStaticKeys_shouldFailFast() {
+        givenRequiredProperties();
+        when(environment.getActiveProfiles()).thenReturn(prodProfile);
+        when(environment.getProperty("aws.credentials.source")).thenReturn("workload-identity");
+        givenCredentialKeys("AKIA1234567890", "shhh");
+
+        ProdConfigValidator validator = new ProdConfigValidator(environment);
+
+        assertThrows(IllegalStateException.class, validator::afterPropertiesSet);
+    }
+
+    @Test
+    void prodProfile_workloadIdentitySourceWithoutKeys_shouldPass() {
+        givenRequiredProperties();
+        when(environment.getActiveProfiles()).thenReturn(prodProfile);
+        when(environment.getProperty("aws.credentials.source")).thenReturn("workload-identity");
+        givenCredentialKeys("", "");
 
         ProdConfigValidator validator = new ProdConfigValidator(environment);
 

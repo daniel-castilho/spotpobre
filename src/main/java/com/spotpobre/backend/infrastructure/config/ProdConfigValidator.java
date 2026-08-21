@@ -6,9 +6,11 @@ import org.springframework.beans.factory.InitializingBean;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Twelve-Factor factor 3 — fail fast when required production configuration is missing.
+ * Twelve-Factor factor 3 — fail fast when required production configuration is missing or
+ * incoherent.
  *
  * <p>With the {@code prod} profile active, {@code application-prod.yaml} binds every
  * environment-specific value from an env var (e.g. {@code JWT_SECRET}). An unresolved
@@ -17,10 +19,15 @@ import java.util.List;
  * no-op in every other profile. Enforced to run before the AWS clients are built via
  * {@code @DependsOn} in {@link DynamoDbConfig}.
  *
- * <p>Workload identity: production AWS access MUST come from the ECS task role
- * (DefaultCredentialsProvider), never from static {@code AWS_ACCESS_KEY_ID} /
- * {@code AWS_SECRET_ACCESS_KEY}. The validator therefore fails if static credentials are present
- * in the {@code prod} profile, enforcing the S5 contract from the runtime-deployment epic.
+ * <p>Credential source model (ADR-0002): {@code AWS_CREDENTIALS_SOURCE} selects how production
+ * obtains AWS credentials.
+ *
+ * <ul>
+ *   <li>{@code static} — on-premises LocalStack target: static (dummy) keys are REQUIRED,
+ *       because emulated AWS has no IAM.</li>
+ *   <li>{@code workload-identity} — real AWS target (ADR-0001 path): static keys are FORBIDDEN;
+ *       the SDK default provider chain resolves the task/instance role.</li>
+ * </ul>
  */
 @Component
 public class ProdConfigValidator implements InitializingBean {
@@ -31,13 +38,11 @@ public class ProdConfigValidator implements InitializingBean {
             "aws.dynamodb.endpoint",
             "aws.s3.endpoint",
             "aws.s3.bucket-name",
-            "spring.data.redis.host"
+            "spring.data.redis.host",
+            "aws.credentials.source"
     );
 
-    private static final List<String> FORBIDDEN_PROPERTIES = List.of(
-            "aws.credentials.access-key",
-            "aws.credentials.secret-key"
-    );
+    private static final Set<String> VALID_CREDENTIAL_SOURCES = Set.of("static", "workload-identity");
 
     private final Environment environment;
 
@@ -60,14 +65,36 @@ public class ProdConfigValidator implements InitializingBean {
             }
         }
 
-        for (String key : FORBIDDEN_PROPERTIES) {
-            if (isResolved(key)) {
-                throw new IllegalStateException(
-                        "Forbidden production configuration: '" + key + "' is set. "
-                                + "Production must use the ECS task role (workload identity) via "
-                                + "DefaultCredentialsProvider; static AWS access keys are not allowed "
-                                + "(see docs/adr/0001-production-platform.md).");
-            }
+        validateCredentialSource();
+    }
+
+    private void validateCredentialSource() {
+        String source = environment.getProperty("aws.credentials.source").trim().toLowerCase();
+        if (!VALID_CREDENTIAL_SOURCES.contains(source)) {
+            throw new IllegalStateException(
+                    "Invalid 'aws.credentials.source': '" + source + "'. "
+                            + "Allowed values are 'static' (on-premises LocalStack — dummy keys "
+                            + "required) or 'workload-identity' (real AWS — task/instance role, "
+                            + "no static keys). See docs/adr/0002-onprem-bare-metal-platform.md.");
+        }
+
+        boolean accessKeySet = isResolved("aws.credentials.access-key");
+        boolean secretKeySet = isResolved("aws.credentials.secret-key");
+
+        if ("static".equals(source) && (!accessKeySet || !secretKeySet)) {
+            throw new IllegalStateException(
+                    "AWS_CREDENTIALS_SOURCE=static requires AWS_ACCESS_KEY_ID and "
+                            + "AWS_SECRET_ACCESS_KEY to be set (emulated AWS endpoints have no IAM; "
+                            + "use the LocalStack dummy keys). See docs/adr/0002-onprem-bare-metal-platform.md.");
+        }
+
+        if ("workload-identity".equals(source) && (accessKeySet || secretKeySet)) {
+            throw new IllegalStateException(
+                    "Forbidden production configuration: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY "
+                            + "are set but AWS_CREDENTIALS_SOURCE=workload-identity. Real AWS "
+                            + "production must use the task/instance role via "
+                            + "DefaultCredentialsProvider; unset the static keys (see "
+                            + "docs/adr/0001-production-platform.md).");
         }
     }
 

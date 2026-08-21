@@ -21,10 +21,14 @@ public record AwsProperties(
         DynamoDbProperties dynamodb
 ) {
     /**
-     * Static credentials are optional: dev/local testing uses them, production must use the
-     * ECS task role (workload identity) instead — set only the region and leave these null.
+     * Credential source model (ADR-0002). {@code source} selects how AWS credentials are
+     * obtained: {@code static} for emulated endpoints such as on-premises LocalStack (both keys
+     * required), {@code workload-identity} for real AWS (keys must be unset; the SDK default
+     * provider chain resolves the task/instance role). Unset in dev — the resolver then infers
+     * from key presence.
      */
     public record CredentialsProperties(
+            String source,
             String accessKey,
             String secretKey
     ) {
