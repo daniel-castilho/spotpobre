@@ -98,12 +98,12 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   `CachedUserDetailsTest` (round-trip through the real serializer) and verified end-to-end with
   Redis connected.
 
-## [0.4.1] - 2026-08-19
+## [0.8.1] - 2026-08-19
 
 ### Added
 
 - **Dockerfile.** Multi-stage Dockerfile created for production deployment: build stage with Maven, runtime stage with Eclipse Temurin 21 JRE. Supports `docker build` and container startup.
-- **Quality observability (P2 epic).** Completed steps: JaCoCo coverage gate (35% line / 15% branch), SpotBugs static analysis (0 bugs), OWASP Dependency Check configured (report only). Dockerfile added for production builds. Rate limiting was added in a later entry (see `Unreleased`).
+- **Quality observability (P2 epic).** Completed steps: JaCoCo coverage gate (35% line / 15% branch), SpotBugs static analysis (0 bugs), OWASP Dependency Check configured (report only). Dockerfile added for production builds. Rate limiting was added in a later entry (see `0.9.0`).
 
 ### Changed
 
@@ -116,6 +116,61 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   (`.github/workflows/dependency-review.yml`) added.
 
 ---
+
+## [0.8.0] - 2026-08-18
+
+### Added
+
+- **Typed HTTP contracts completed (http-contracts epic).** Domain-level `ConflictException` and
+  `NotFoundException`; REST authentication error handlers (`RestAuthenticationEntryPoint`,
+  `RestAccessDeniedHandler`) returning the standard error envelope instead of default Spring
+  responses; shared `RestErrorResponseWriter`. New `ErrorHandlingFlowIT` exercises validation
+  errors, 401/403, 404/409 business conflicts and unknown routes end-to-end.
+- **JaCoCo coverage reporting.** `jacoco-maven-plugin` with prepare-agent/report goals wired into
+  surefire (`@{argLine}`); reports generated under `target/site/jacoco/`.
+- **quality-observability-production epic specification** and implementation sequence added under
+  `tasks/`.
+
+---
+
+## [0.7.0] - 2026-08-18
+
+### Changed
+
+- **Security and error-handling refinements.** JWT authentication filter restructured;
+  `SecurityConfig` updates; `GlobalExceptionHandler` normalized; controller refinements for
+  playlist and like flows.
+- **Service-layer consistency pass.** Constructor-injection and port-alignment adjustments across
+  album, like, playlist, song and user services; corresponding test updates.
+
+---
+
+## [0.6.0] - 2026-08-18
+
+### Changed
+
+- **Architectural purity (S2–S7 of the architectural-purity epic).** `PlaylistController` and
+  `LikeController` now depend only on application inbound ports (`*UseCase`); direct
+  `UserRepository` calls replaced by the new `GetCurrentUserUseCase` application port + service
+  (registered in `ApplicationBeanConfig`). Public API behaviour unchanged.
+
+### Removed
+
+- Stray LocalStack TLS cache files (`server.test.pem*`) dropped from git tracking.
+
+---
+
+## [0.5.0] - 2026-08-18
+
+### Changed
+
+- **Typed exceptions for upload confirmation.** `ConfirmSongUploadService` throws
+  `NotFoundException` (HTTP 404 with the standard error envelope) instead of
+  `IllegalArgumentException`/400 for business rule violations (song not belonging to album,
+  storage key mismatch).
+
+---
+
 ## [0.4.0] - 2026-08-18
 
 ### Added
