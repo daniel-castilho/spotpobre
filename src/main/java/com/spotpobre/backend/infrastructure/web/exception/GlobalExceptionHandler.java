@@ -2,15 +2,22 @@ package com.spotpobre.backend.infrastructure.web.exception;
 
 import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.ForbiddenException;
+import com.spotpobre.backend.domain.common.IdempotencyConflictException;
+import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.common.PayloadTooLargeException;
+import com.spotpobre.backend.domain.common.RateLimiterUnavailableException;
+import com.spotpobre.backend.domain.common.UploadIntegrityException;
 import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
 import com.spotpobre.backend.infrastructure.web.dto.response.ErrorResponse;
+import com.spotpobre.backend.infrastructure.web.filter.RequestSizeLimitFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -71,6 +78,67 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handlePlaylistConcurrentModification(
             PlaylistConcurrentModificationException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(PayloadTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handlePayloadTooLarge(PayloadTooLargeException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        if (hasCause(ex, RequestSizeLimitFilter.BodyLimitExceededException.class)) {
+            return buildResponse(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    "Payload Too Large",
+                    "Request body exceeds the maximum allowed size of 64 KB.",
+                    request,
+                    null
+            );
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST, "Validation Error", "Malformed request body", request, null);
+    }
+
+    private static boolean hasCause(final Throwable throwable, final Class<? extends Throwable> type) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause() == current ? null : current.getCause();
+        }
+        return false;
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyConflict(
+            IdempotencyConflictException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "Idempotency Conflict", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(IdempotencyInProgressException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyInProgress(
+            IdempotencyInProgressException ex, HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Request In Progress",
+                ex.getMessage(),
+                request,
+                null,
+                Map.of("Retry-After", String.valueOf(Math.max(1, ex.getRetryAfterSeconds())))
+        );
+    }
+
+    @ExceptionHandler(RateLimiterUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimiterUnavailable(
+            RateLimiterUnavailableException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(UploadIntegrityException.class)
+    public ResponseEntity<ErrorResponse> handleUploadIntegrity(UploadIntegrityException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "Upload Integrity Failure", ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -141,6 +209,16 @@ public class GlobalExceptionHandler {
             final String message,
             final HttpServletRequest request,
             final Map<String, String> validationErrors) {
+        return buildResponse(status, error, message, request, validationErrors, Map.of());
+    }
+
+    private ResponseEntity<ErrorResponse> buildResponse(
+            final HttpStatus status,
+            final String error,
+            final String message,
+            final HttpServletRequest request,
+            final Map<String, String> validationErrors,
+            final Map<String, String> headers) {
         ErrorResponse errorResponse = new ErrorResponse(
                 Instant.now(),
                 status.value(),
@@ -149,6 +227,8 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(),
                 validationErrors
         );
-        return new ResponseEntity<>(errorResponse, status);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(status);
+        headers.forEach(builder::header);
+        return builder.body(errorResponse);
     }
 }

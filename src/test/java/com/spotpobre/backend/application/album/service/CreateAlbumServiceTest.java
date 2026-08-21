@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,8 +38,7 @@ class CreateAlbumServiceTest {
         CreateAlbumUseCase.CreateAlbumCommand command = new CreateAlbumUseCase.CreateAlbumCommand(
                 "Test Album",
                 artistId,
-                "https://cdn.example.com/cover.jpg",
-                List.of("Song 1")
+                "https://cdn.example.com/cover.jpg"
         );
 
         when(artistRepository.findById(artistId)).thenReturn(Optional.of(artist));
@@ -65,8 +63,7 @@ class CreateAlbumServiceTest {
         CreateAlbumUseCase.CreateAlbumCommand command = new CreateAlbumUseCase.CreateAlbumCommand(
                 "Test Album",
                 missingArtistId,
-                null,
-                List.of()
+                null
         );
 
         when(artistRepository.findById(missingArtistId)).thenReturn(Optional.empty());

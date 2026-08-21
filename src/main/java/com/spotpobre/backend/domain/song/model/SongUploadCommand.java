@@ -1,5 +1,7 @@
 package com.spotpobre.backend.domain.song.model;
 
+import com.spotpobre.backend.domain.common.PayloadTooLargeException;
+
 import java.util.Locale;
 import java.util.Set;
 
@@ -37,7 +39,7 @@ public record SongUploadCommand(String contentType, long contentLengthBytes) {
             throw new IllegalArgumentException("Content length must be greater than zero.");
         }
         if (contentLengthBytes > MAX_CONTENT_LENGTH_BYTES) {
-            throw new IllegalArgumentException("File exceeds the maximum allowed size of 500 MB.");
+            throw new PayloadTooLargeException("Declared audio size exceeds the maximum allowed size of 500 MB.");
         }
         contentType = normalized;
     }

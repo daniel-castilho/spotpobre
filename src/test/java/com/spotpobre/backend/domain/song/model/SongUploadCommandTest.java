@@ -1,5 +1,6 @@
 package com.spotpobre.backend.domain.song.model;
 
+import com.spotpobre.backend.domain.common.PayloadTooLargeException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,8 +24,8 @@ class SongUploadCommandTest {
     }
 
     @Test
-    void constructor_rejectsOversizedFile() {
-        assertThrows(IllegalArgumentException.class, () ->
+    void constructor_rejectsOversizedFileWithTypedPayloadTooLarge() {
+        assertThrows(PayloadTooLargeException.class, () ->
                 new SongUploadCommand("audio/mpeg", SongUploadCommand.MAX_CONTENT_LENGTH_BYTES + 1));
     }
 

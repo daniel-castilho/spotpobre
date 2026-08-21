@@ -106,7 +106,6 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
         CreateAlbumRequest createAlbumRequest = new CreateAlbumRequest(
                 "Integration Album",
                 UUID.fromString(artistId),
-                null,
                 null
         );
         String albumId = given()
@@ -200,7 +199,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
 
         // 2. As ADMIN, create an album for that artist
         CreateAlbumRequest createAlbumRequest = new CreateAlbumRequest(
-                "Stream Album", UUID.fromString(artistId), null, null
+                "Stream Album", UUID.fromString(artistId), null
         );
         String albumId = given()
                 .header("Authorization", "Bearer " + adminToken)
