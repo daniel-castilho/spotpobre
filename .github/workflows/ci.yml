@@ -52,7 +52,7 @@ jobs:
           name: spotpobre-api-jar
           path: target/spotpobre-*.jar
 
-  # S11 — build the production image and verify its supply-chain hygiene.
+  # S13 — build the production image and verify its supply-chain hygiene.
   image:
     needs: build
     runs-on: ubuntu-latest
@@ -64,8 +64,9 @@ jobs:
           IMAGE="spotpobre-api:${{ github.sha }}"
           docker build -t "$IMAGE" .
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-          # Record the digest so the same immutable reference can be deployed/rolled back.
-          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" > image-digest.txt
+          # Record the immutable image ID so the same reference can be deployed/rolled back.
+          # (.RepoDigests is empty for locally built, un-pushed images.)
+          docker inspect --format='{{.Id}}' "$IMAGE" > image-digest.txt
           cat image-digest.txt
 
       - name: Non-root check (must fail on UID 0)
@@ -110,13 +111,12 @@ jobs:
             sbom.cdx.json
             image-digest.txt
 
-  # S11 — runtime shutdown smoke. Non-blocking: exercises graceful drain under load
+  # S13 — runtime shutdown smoke. Non-blocking: exercises graceful drain under load
   # against LocalStack + Redis. Gated by the image-build path is intentionally NOT
   # applied (see testing-playbook gap 7: shutdown test has no CI gate yet).
   runtime-smoke:
     needs: build
     runs-on: ubuntu-latest
-    if: always()
     steps:
       - uses: actions/checkout@v4
 

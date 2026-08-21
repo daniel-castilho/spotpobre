@@ -21,8 +21,10 @@ class SpotpobreApplicationTests {
 
     @Test
     void mainApplicationStarts() {
+        // Ephemeral port: the suite must not depend on 8080 being free (e.g. when the
+        // blue/green compose stack is running on the host).
         try (ConfigurableApplicationContext context =
-                     SpringApplication.run(SpotpobreApplication.class)) {
+                     SpringApplication.run(SpotpobreApplication.class, "--server.port=0")) {
             assertThat(context).isNotNull();
             assertThat(context.isActive()).isTrue();
         }
