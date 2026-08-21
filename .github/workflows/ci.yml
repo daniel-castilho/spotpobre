@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v5
         with:
@@ -57,7 +57,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build image
         run: |
@@ -80,7 +80,8 @@ jobs:
           echo "OK: image runs as non-root ($out)"
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.30.0
+        # aquasecurity/trivy-action v0.36.0 (plain tags like 0.30.0 do not exist; only v-prefixed do)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: spotpobre-api:${{ github.sha }}
           format: sarif
@@ -90,13 +91,14 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
 
       - name: Generate SBOM
-        uses: aquasecurity/trivy-action@0.30.0
+        # aquasecurity/trivy-action v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: spotpobre-api:${{ github.sha }}
           format: cyclonedx
@@ -118,21 +120,27 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Start external services (LocalStack + Redis)
         run: docker compose up -d
 
-      - name: Wait for LocalStack readiness
+      - name: Wait for LocalStack readiness (DynamoDB + S3)
         run: |
           for i in $(seq 1 30); do
-            if aws --endpoint-url=http://localhost:4566 --region us-east-1 \
-               --access-key-id test --secret-access-key test sts get-caller-identity >/dev/null 2>&1; then
-              echo "LocalStack is ready"; exit 0
+            if AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+                 aws --endpoint-url=http://localhost:4566 dynamodb list-tables >/dev/null 2>&1 \
+               && AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+                 aws --endpoint-url=http://localhost:4566 s3api list-buckets >/dev/null 2>&1; then
+              echo "LocalStack DynamoDB and S3 are ready"
+              exit 0
             fi
             sleep 2
           done
-          echo "LocalStack did not become ready"; exit 1
+
+          docker compose logs localstack
+          echo "LocalStack DynamoDB/S3 did not become ready"
+          exit 1
 
       - name: Provision DynamoDB schema + S3 bucket
         run: ./scripts/seed-localstack.sh
