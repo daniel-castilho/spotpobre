@@ -1,0 +1,137 @@
+# Spotpobre API — production deployment target (on-premises bare metal, ADR-0002).
+#
+# Two application fleets (blue = current, green = next) behind an NGINX load balancer whose
+# weighted upstream reproduces the ALB/CodeDeploy blue/green semantics of the legacy AWS
+# manifests (deploy/stack.yaml — kept as a documented backup for a future real-AWS account).
+# AWS APIs (DynamoDB + S3) are provided by LocalStack on the same host; Redis is the auth cache.
+#
+# Prerequisites (see deploy/README.md):
+#   cp deploy/.env.example deploy/.env      # then fill JWT_SECRET (never committed)
+#   docker compose -f deploy/docker-compose.bluegreen.yml up -d --build
+#   ./scripts/seed-localstack.sh            # provision DynamoDB tables + S3 bucket
+#   ./scripts/bluegreen-deploy.sh           # blue 100 -> canary green 10% -> green 100
+#   ./scripts/bluegreen-rollback.sh         # green 0 -> blue 100 (if a rollout fails)
+#
+# Deploying a new version: build a new image tag, recreate green with it, then run the
+# deploy script (it also does this for you when given the tag):
+#   docker build -t spotpobre-api:v2 .
+#   ./scripts/bluegreen-deploy.sh spotpobre-api:v2
+
+name: spotpobre-prod
+
+services:
+  # ------------------------------------------------------------------ App: blue (current) fleet
+  blue:
+    image: ${IMAGE_BLUE:-spotpobre-api:local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: spotpobre-blue
+    env_file: .env
+    environment:
+      SERVER_PORT: "8081"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+    ports: ["8081:8081"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 800m
+    cpus: 1.5
+    restart: unless-stopped
+    depends_on:
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # ------------------------------------------------------------------ App: green (next) fleet
+  green:
+    image: ${IMAGE_GREEN:-spotpobre-api:local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: spotpobre-green
+    env_file: .env
+    environment:
+      SERVER_PORT: "8082"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+    ports: ["8082:8082"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 800m
+    cpus: 1.5
+    restart: unless-stopped
+    depends_on:
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8082/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # ------------------------------------------------------------------ Load balancer (ALB stand-in)
+  loadbalancer:
+    build:
+      context: ..
+      dockerfile: deploy/nginx-lb/Dockerfile
+    image: spotpobre-lb:local
+    container_name: spotpobre-lb
+    ports: ["8080:8080"]
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    depends_on:
+      blue:
+        condition: service_healthy
+      green:
+        condition: service_healthy
+    command: nginx -g 'daemon off;'
+
+  # ------------------------------------------------------------------ AWS API emulation (DynamoDB + S3)
+  localstack:
+    image: localstack/localstack:3.2
+    container_name: spotpobre-localstack
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: dynamodb,s3
+      DEBUG: "0"
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./.localstack}:/var/lib/localstack"
+    mem_limit: 600m
+    cpus: 1.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # ------------------------------------------------------------------ Auth cache
+  redis:
+    image: redis:7-alpine
+    container_name: spotpobre-redis
+    ports: ["6379:6379"]
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 5s

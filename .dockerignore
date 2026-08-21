@@ -12,6 +12,10 @@ target/
 
 # Local runtime artefacts
 .localstack/
+deploy/
+!deploy/nginx-bluegreen.conf
+scripts/
+mp3/
 docker-compose.yaml
 Dockerfile
 .dockerignore

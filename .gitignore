@@ -9,11 +9,15 @@ mp3/
 
 ### Local runtime state (LocalStack volume from docker-compose) ###
 /.localstack/
+/deploy/.localstack/
 
 ### Environment files ###
 .env
 .env.*
 !*.env.example
+
+### On-premises blue/green runtime state (ADR-0002) ###
+deploy/nginx-bluegreen.runtime.conf
 
 ### STS ###
 .apt_generated

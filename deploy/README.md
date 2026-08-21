@@ -1,7 +1,137 @@
-# Spotpobre API — Deployment manifests (S8 + S9)
+# Spotpobre API — Deployment
 
-Versioned deployment manifests for the platform chosen in `docs/adr/0001-production-platform.md`:
-**ECS Fargate + ECR + ALB + Secrets Manager + ECS Task Role + CodeDeploy blue/green**.
+Production deployment for **on-premises bare metal with LocalStack** (`docs/adr/0002-onprem-bare-metal-platform.md`).
+The AWS-native manifests from ADR-0001 are kept at the bottom of this file as a **documented
+legacy backup** for a future real-AWS account.
+
+---
+
+## 1. Production target: Docker Compose + NGINX blue/green (ADR-0002)
+
+| File                        | Purpose                                                                                         |
+| :-------------------------- | :---------------------------------------------------------------------------------------------- |
+| `docker-compose.bluegreen.yml` | Production stack: blue fleet (8081), green fleet (8082), NGINX LB (8080), LocalStack (DynamoDB+S3), Redis. Non-root containers, read-only root FS, resource limits, health checks. |
+| `nginx-bluegreen.conf`      | LB config template (weighted upstream). Build-time default: blue 100%, green out of rotation.    |
+| `nginx-lb/Dockerfile`       | NGINX 1.27.4 image (≥1.27.3 required for OSS upstream `resolve`).                                |
+| `.env.example`              | The operator contract: every env var the `prod` profile requires. Copy to `.env` and fill in.     |
+
+Scripts (repo root `scripts/`):
+
+| Script                     | Purpose                                                                                          |
+| :------------------------- | :----------------------------------------------------------------------------------------------- |
+| `seed-localstack.sh`       | Provision DynamoDB tables + S3 bucket. Host AWS CLI first; falls back to `awslocal` inside the LocalStack container when the host CLI cannot talk to emulated S3. |
+| `bluegreen-deploy.sh`      | Health-gated rollout: [optional new image tag] → green readiness gate → canary 10% (30s observation) → cutover 100%. |
+| `bluegreen-rollback.sh`    | Instant rollback: traffic back to blue 100%, green stopped.                                       |
+| `shutdown-under-load-test.sh` | Reproducible graceful-shutdown-under-load verification (S8).                                    |
+
+### 1.1 First deployment
+
+```sh
+# 0) One-time: operator contract (never committed)
+cp deploy/.env.example deploy/.env
+#   edit deploy/.env: JWT_SECRET="$(openssl rand -base64 48)" etc.
+
+# 1) Application image (non-root, digest-recorded by CI)
+docker build -t spotpobre-api:local .
+
+# 2) Stack (LocalStack + Redis first, fleets after they are healthy, LB last)
+docker compose -f deploy/docker-compose.bluegreen.yml up -d
+
+# 3) Provision AWS-emulation schema (tables + bucket)
+./scripts/seed-localstack.sh
+
+# 4) Fleets flip healthy once dependencies exist; start the LB if it waited on them
+docker compose -f deploy/docker-compose.bluegreen.yml up -d loadbalancer
+
+# 5) Smoke through the LB
+curl -s http://localhost:8080/actuator/health/readiness          # 200
+curl -s -X POST http://localhost:8080/api/v1/auth/register ...   # JWT returned
+```
+
+> On a **fresh volume**, fleets report unhealthy until step 3 exists — that is the S6 readiness
+> gate working (DynamoDB/S3 missing → DOWN). They recover automatically once seeded.
+
+### 1.2 Deploying a new version (blue/green canary)
+
+```sh
+docker build -t spotpobre-api:vNEXT .
+./scripts/bluegreen-deploy.sh spotpobre-api:vNEXT
+```
+
+What it does (the stand-in for ALB weighted shifting / CodeDeploy canary):
+
+1. Recreates **green** with the new image.
+2. **Health gate**: green readiness must be 200 before any traffic moves.
+3. **Canary**: green takes 10% of traffic for a 30 s observation window; any readiness loss
+   aborts back to blue 100% automatically.
+4. **Cutover**: green 100%, blue drained to 0% but left running for instant rollback.
+
+Post-cutover verification used in the recorded exercise: stop blue briefly — the LB must keep
+serving via green (readiness 200 + successful register), then start blue again.
+
+### 1.3 Rollback
+
+```sh
+./scripts/bluegreen-rollback.sh
+```
+
+Traffic reverts to blue instantly (NGINX reload), green is stopped. Verify the script's final
+`PASS: blue serving 100%`.
+
+### 1.4 Runtime contract honoured by the compose stack
+
+| Concern            | Setting                                                                                            |
+| :----------------- | :------------------------------------------------------------------------------------------------- |
+| Profile & secrets  | `SPRING_PROFILES_ACTIVE=prod`; all values from `deploy/.env` (gitignored). `JWT_SECRET` never in Git/images/manifests. |
+| Credential source  | `AWS_CREDENTIALS_SOURCE=static` + LocalStack dummy keys (enforced coherent by `ProdConfigValidator`). Flip to `workload-identity` when moving to real AWS. |
+| Non-root           | App containers run UID/GID 10001 (verified in CI); `read_only: true` root FS + tmpfs `/tmp`.        |
+| Resource limits    | Apps 800 m RAM / 1.5 CPU each; LocalStack 600 m; Redis 128 m; LB 128 m.                             |
+| Probes             | Container healthcheck on `/actuator/health/readiness`; LB routes only to healthy fleets; non-probe `/actuator/**` stays authenticated. |
+| Graceful shutdown  | `spring.lifecycle.timeout-per-shutdown-phase=30s` (S8); compose `stop` sends SIGTERM and waits.     |
+| Restart policy     | `unless-stopped` on every service (survives host reboots).                                          |
+| Immutable artefact | Deploys reference image tags/digests built once (`IMAGE_GREEN=spotpobre-api:vN`).                   |
+
+### 1.5 NGINX LB notes (from the official docs)
+
+- **No `weight=0`**: a fleet out of rotation uses `down`; active weights ≥ 1.
+- **Upstream keepalive** is off by default before nginx 1.29.7 → explicit `keepalive 32;`
+  plus `proxy_http_version 1.1` + empty `Connection` header.
+- **Passive health checks**: `max_fails=3 fail_timeout=10s` marks a failing fleet down.
+- **Runtime DNS re-resolution** (`resolver 127.0.0.11 valid=10s` + `zone` + `resolve`, OSS since
+  1.27.3): recreated containers with new IPs are picked up within ~10 s without a reload — proven
+  in the recorded exercise. Requires the pinned `nginx:1.27.4-alpine`.
+- **`proxy_next_upstream error timeout`**: retries only transport-level failures; never duplicates
+  non-idempotent POSTs across fleets.
+
+### 1.6 Recorded staging exercise (S10/S11) — executed successfully
+
+Executed end-to-end against LocalStack on the host (2026-08-21):
+
+| # | Step | Result |
+| - | :--- | :----- |
+| 1 | `deploy/.env` created from example with random `JWT_SECRET`; image built | OK |
+| 2 | Stack up; fleets unhealthy on fresh volume (readiness gate correct); seeded; fleets flipped healthy | OK |
+| 3 | Smoke through LB: register returns JWT (prod profile, validator, secrets, DynamoDB GSI, Redis) | OK |
+| 4 | `bluegreen-deploy.sh spotpobre-api:v2`: green recreated → gate → canary 10%/30 s → cutover | PASS |
+| 5 | Cutover proof: blue stopped → LB still served readiness 200 + register via green | PASS |
+| 6 | `bluegreen-rollback.sh`: traffic reverted, green stopped, `PASS: blue serving 100%` | PASS |
+| 7 | LB resilience: blue recreated with a different IP while a squatter held the old one → LB served 200 without reload (`resolve` auto-healing) | PASS |
+
+Defects found and fixed during the exercise: invalid `weight=0` (LB crash-looped), stale-IP routing
+after manual fleet recreation (fixed by `resolve`), `docker compose stop --no-deps` misuse in the
+rollback script, and a pre-existing wrong GSI key in `scripts/seed-localstack.sh` that silently
+401-ed every login on freshly seeded volumes.
+
+---
+
+## 2. LEGACY BACKUP — AWS ECS Fargate manifests (ADR-0001, superseded)
+
+> Kept verbatim as a ready-made migration path for a future real-AWS account. Nothing in this
+> section applies to the current on-premises production target. Files: `stack.yaml`,
+> `codedeploy.yaml`, `appspec.yaml`, `task-definition.json`. See also
+> `docs/adr/0001-production-platform.md` (status: superseded).
+
+### 2.1 Files
 
 | File                    | Purpose                                                                                              |
 | :---------------------- | :--------------------------------------------------------------------------------------------------- |
@@ -10,18 +140,15 @@ Versioned deployment manifests for the platform chosen in `docs/adr/0001-product
 | `appspec.yaml`          | Reference **ECS AppSpec** (blue/green) submitted inline to CodeDeploy. Substitute the task-definition ARN before use. |
 | `task-definition.json`  | Reference task definition in native ECS JSON (used for manual `register-task-definition`). `REPLACE_WITH_*` placeholders — resolve them before use. |
 
-## Pre-requisites
+### 2.2 Pre-requisites
 
-- The **image pushed to ECR, referenced by digest** (immutable, supply-chain S3): `docker push`
-  tags the digest; use `<account>.dkr.ecr.<region>.amazonaws.com/spotpobre-api@sha256:...`.
-- A **Secrets Manager secret** with the JWT signing secret (dev example only; production must be a
-  strong random value): `aws secretsmanager create-secret --name /spotpobre/${ENV}/jwt-secret \
-   --secret-string "$(openssl rand -base64 48)"`
+- The **image pushed to ECR, referenced by digest** (immutable, supply-chain S3): `<account>.dkr.ecr.<region>.amazonaws.com/spotpobre-api@sha256:...`.
+- A **Secrets Manager secret** with the JWT signing secret:
+  `aws secretsmanager create-secret --name /spotpobre/${ENV}/jwt-secret --secret-string "$(openssl rand -base64 48)"`.
 - An **ACM certificate** in the target region for the HTTPS listener.
-- The S3 bucket (`spotpobre-songs`), DynamoDB tables and a reachable Redis already provisioned
-  (tables per the main README "Configure LocalStack" block — same schema in production).
+- DynamoDB tables and S3 bucket provisioned (same schema as `scripts/seed-localstack.sh`).
 
-## Apply order
+### 2.3 Apply order
 
 ```sh
 # 1) Foundation: networking, IAM, ECS service, ALB (blue/green target groups + weighted listener),
@@ -40,21 +167,12 @@ aws cloudformation deploy \
     DesiredCount=1 \
     MaxCapacity=3
 
-# 2) Rollout: CodeDeploy application + blue/green deployment group.
+# 2) Rollout: CodeDeploy application + blue/green deployment group. Imports foundation outputs.
 aws cloudformation deploy \
   --stack-name spotpobre-${ENV}-codedeploy \
   --template-file deploy/codedeploy.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    Environment=${ENV} \
-    ClusterName=$(aws cloudformation list-exports --query ...) \
-    ServiceName=... \
-    BlueTargetGroupArn=... \
-    GreenTargetGroupArn=... \
-    ListenerArn=... \
-    Rollback5xxAlarmName=... \
-    RollbackLatencyAlarmName=... \
-    RollbackReadinessAlarmName=...
+  --parameter-overrides Environment=${ENV}
 ```
 
 Expected outputs from `stack.yaml`: `LoadBalancerDnsName`, `ClusterName`, `ServiceName`,
@@ -62,174 +180,45 @@ Expected outputs from `stack.yaml`: `LoadBalancerDnsName`, `ClusterName`, `Servi
 `Rollback5xxAlarmName`, `RollbackLatencyAlarmName`, `RollbackReadinessAlarmName`
 (each exported as `spotpobre-${Environment}::<Name>` for cross-stack reference).
 
-## Runtime contract honoured by the stack
+> You cannot delete the foundation stack while the codedeploy stack imports from it; delete the
+> codedeploy stack first (CloudFormation enforces this via the `ImportValue` dependency).
+
+### 2.4 Runtime contract honoured by the stack
 
 | Concern                | Manifest setting                                                                                 |
 | :--------------------- | :------------------------------------------------------------------------------------------------ |
-| Workload identity      | `TaskRole` (IAM) grants DynamoDB + S3; **no** static `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` anywhere. The app uses `DefaultCredentialsProvider` (`AwsCredentialsProviderResolver`). |
-| Secrets                | `JWT_SECRET` injected from Secrets Manager via `Secrets: [{ValueFrom: JwtSecretArn}]`; never in the image or plain env. |
-| Non-root               | `User: 10001:10001`, `ReadonlyRootFilesystem: true`.                                             |
-| Resource limits        | `Cpu: 512`, `Memory: 1024`, Fargate runtime.                                                     |
-| Probes                 | ECS container `healthCheck` on `/actuator/health/readiness` (`curl`, start period 60s) **and** ALB target-group health check on the same path (`Matcher: 200`). |
-| Graceful shutdown      | `HealthCheckGracePeriodSeconds: 90`; ALB deregistration delay aligns with the app's 30s graceful drain (S7). |
-| Autoscaling            | Target-tracking on average CPU (70%), 1–3 tasks.                                                 |
-| Structured logs        | `SPRING_PROFILES_ACTIVE=prod,json`, `awslogs` driver to `/ecs/spotpobre-${ENV}`.                  |
-| Immutability           | `ImageDigest` parameter pins the ECR image by digest; a new release = a new digest + stack update. |
+| Workload identity      | `TaskRole` (IAM) grants DynamoDB + S3; **no** static keys anywhere. `DefaultCredentialsProvider` via `AwsCredentialsProviderResolver` (`AWS_CREDENTIALS_SOURCE=workload-identity`). |
+| Secrets                | `JWT_SECRET` injected from Secrets Manager via `Secrets: [{ValueFrom: JwtSecretArn}]`.             |
+| Non-root               | `User: 10001:10001`, `ReadonlyRootFilesystem: true`.                                               |
+| Resource limits        | `Cpu: 512`, `Memory: 1024`, Fargate runtime.                                                       |
+| Probes                 | ECS container `healthCheck` on `/actuator/health/readiness` **and** ALB target-group health check (`Matcher: 200`). |
+| Graceful shutdown      | `HealthCheckGracePeriodSeconds: 90`; ALB deregistration delay aligns with the app's 30 s drain (S8). |
+| Autoscaling            | Target-tracking on average CPU (70%), 1–3 tasks.                                                   |
+| Structured logs        | `awslogs` driver to `/ecs/spotpobre-${ENV}`.                                                       |
+| Immutability           | `ImageDigest` parameter pins the ECR image by digest.                                              |
 
-## Rollout (blue/green)
+### 2.5 Rollout (CodeDeploy blue/green)
 
-The ECS service uses `DeploymentController: CODE_DEPLOY` with `WITH_TRAFFIC_CONTROL`. On each new
-release:
-
-1. CI registers a new ECS task definition for the digest-pinned image and writes the AppSpec
-   (`deploy/appspec.yaml` with the task-definition ARN substituted) inline:
+1. Register the new task definition for the digest-pinned image and submit the AppSpec inline:
    ```sh
    aws deploy create-deployment \
      --application-name spotpobre-${ENV} \
      --deployment-group-name spotpobre-${ENV}-blue-green \
      --revision revisionType=AppSpecContent,appSpecContent="$(cat deploy/appspec.yaml)" \
+     --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes \
      --region ${REGION}
    ```
-2. CodeDeploy launches the **green** task set with the new task definition and registers it on the
-   green target group (initially 0% traffic).
-3. **Health gate before full traffic**: the deployment config
-   `CodeDeployDefault.ECSCanary10Percent5Minutes` shifts **10%** of prod traffic to green and holds
-   for **5 minutes** (the observation window). During this window the ALB target-group health check
-   (`/actuator/health/readiness`, `Matcher: 200`) gates each host.
-4. If all alarms stay green, CodeDeploy shifts 100% to green over the next step, then **terminates the
-   blue task set** after `TerminationWaitTimeMinutes` (default 30).
+2. CodeDeploy launches the **green** task set on the green target group (0% traffic).
+3. **Health gate**: canary shifts **10%** and holds **5 minutes**; the ALB health check gates each host.
+4. Alarms green → shift to 100%; blue task set terminated after `TerminationWaitTimeMinutes` (30).
 
-### Automatic rollback criteria (defined in `deploy/codedeploy.yaml`)
+### 2.6 Automatic rollback criteria (`deploy/codedeploy.yaml`)
 
-CodeDeploy rolls back automatically when any trigger fires during the deployment:
+| Trigger                  | Alarm                            | Metric                       | Condition (3/3 × 60s)         |
+| :----------------------- | :------------------------------- | :--------------------------- | :---------------------------- |
+| Sustained 5xx            | `spotpobre-<env>-rollback-5xx`   | `HTTPCode_Target_5XX_Count`  | Sum ≥ 10 / min                |
+| Degraded latency         | `spotpobre-<env>-rollback-latency` | `TargetResponseTime`       | Avg ≥ 0.5 s                   |
+| Readiness DOWN           | `spotpobre-<env>-rollback-readiness` | `HealthyHostCount`       | Min < 1 (zero healthy hosts)  |
+| Deployment failure       | `CODE_DEPLOY_DEPLOYMENT_FAILURE` | CodeDeploy lifecycle         | Any deployment error          |
 
-| Trigger                  | Alarm (`deploy/stack.yaml`)            | Metric               | Condition (3/3 × 60s)        |
-| :----------------------- | :------------------------------------- | :------------------- | :--------------------------- |
-| Sustained 5xx            | `spotpobre-<env>-rollback-5xx`         | `HTTPCode_Target_5XX_Count` | Sum ≥ 10 / min              |
-| Degraded latency         | `spotpobre-<env>-rollback-latency`     | `TargetResponseTime` | Avg ≥ 0.5 s                 |
-| Readiness DOWN           | `spotpobre-<env>-rollback-readiness`   | `HealthyHostCount`   | Min < 1 (zero healthy hosts) |
-| Deployment failure       | `CODE_DEPLOY_DEPLOYMENT_FAILURE`       | CodeDeploy lifecycle | Any CodeDeploy deployment error |
-
-The readiness alarm is the dependency-failure signal: if DynamoDB/S3 is unavailable the readiness
-probe returns non-200, hosts go unhealthy, the alarm trips and CodeDeploy rolls back.
-
-## Observation window
-
-- **Canary 10% / 5 min** (`CodeDeployDefault.ECSCanary10Percent5Minutes`): 5 minutes of 10% traffic to
-  green — enough to expose 5xx, latency and readiness regressions before full cutover. Override with
-  `DeploymentConfigName` (e.g. `CodeDeployDefault.ECSAllAtOnce` for urgent fixes,
-  `CodeDeployDefault.ECSLinear10PercentEvery1Minutes` for slow shifts).
-- After 100% shift, the blue task set is terminated after the configured wait; monitor the green
-  target group for `HealthyHostCount` returning to the steady value.
-
-## Rollback procedure
-
-### Automatic
-Rollout rolls back on any trigger above; the previous (blue) revision keeps serving.
-
-### Manual (force a rollback early)
-```sh
-# Stop the in-flight deployment and roll back to the last known good revision.
-aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled --region ${REGION}
-# OR re-submit a deployment with the previous task definition ARN in deploy/appspec.yaml:
-#   replace REPLACE_WITH_TASK_DEFINITION_ARN with the previous task-def ARN and re-run
-#   aws deploy create-deployment --revision revisionType=AppSpecContent,appSpecContent=.
-```
-A rollback creates a new green task set with the old revision; verify `HealthyHostCount` recovers to
-the steady value before closing.
-
-## Staging exercise (S10)
-
-Apply the two stacks to staging, then prove deploy + rollback end-to-end. This step needs real AWS
-credentials for the staging account/profile — configure `AWS_PROFILE` (or env vars) before starting.
-
-### 1. Deploy
-
-```sh
-# 1) Foundation stack (service + ALB blue/green pair + rollback alarms).
-aws cloudformation deploy \
-  --stack-name spotpobre-staging \
-  --template-file deploy/stack.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    Environment=staging \
-    ImageDigest=${ECR_IMAGE_DIGEST} \
-    JwtSecretArn=arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:/spotpobre/staging/jwt-secret \
-    SslCertificateArn=${ACM_CERT_ARN} \
-    BucketName=spotpobre-songs-staging \
-    RedisHost=${REDIS_HOST} \
-    Rollback5xxThreshold=10 \
-    RollbackLatencyThresholdSeconds=0.5
-
-# 2) Rollout stack (CodeDeploy application + blue/green deployment group). It imports
-#    the service, target groups, listener and alarm names from the foundation stack,
-#    so no per-export parameters are needed.
-aws cloudformation deploy \
-  --stack-name spotpobre-staging-codedeploy \
-  --template-file deploy/codedeploy.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides Environment=staging
-```
-
-> Both stacks must reach `CREATE_COMPLETE`. The foundation stack exports each output as
-> `spotpobre-${Environment}::<Name>`, which `codedeploy.yaml` imports automatically.
-> **Warning:** you cannot delete the foundation stack while the codedeploy stack imports from it;
-> delete the codedeploy stack first (CloudFormation enforces this via the `ImportValue` dependency).
-
-### 2. Acceptance checks
-
-| # | Check | Expected |
-| - | :---- | :------- |
-| 1 | Service stable: `aws ecs wait services-stable --cluster ... --services ...` | returns 0 |
-| 2 | Open the ALB DNS name; `GET /actuator/health/liveness` | 200, `{"status":"UP"}` (no auth) |
-| 3 | `GET /actuator/health/readiness` | 200 UP; readiness gate is green (DynamoDB + S3 reachable) |
-| 4 | `GET /actuator/metrics` without a token | 401 (only probe paths are unauthenticated) |
-| 5 | Initial blue/green deploy (no new revision) | blue TG healthy hosts > 0, green TG 0, listener 100/0 |
-
-> **Dependency-failure probe (gate S6):** run only if an operator can tolerate downtime — temporarily
-> deny the app's task role `s3:GetObject`, then `GET /actuator/health/readiness` must go 503 and the
-> readiness alarm must stay green for healthy hosts while the role is denied, then recover to 200/UP
-> when the deny is removed. (Skip in the first run; record result separately.)
-
-### 3. Canary rollout exercise
-
-```sh
-aws deploy create-deployment \
-  --application-name spotpobre-staging \
-  --deployment-group-name spotpobre-staging-blue-green \
-  --revision revisionType=AppSpecContent,appSpecContent="$(cat deploy/appspec.yaml | sed s/REPLACE_WITH_TASK_DEFINITION_ARN/$NEW_TASK_DEF_ARN/)" \
-  --deployment-config-name CodeDeployDefault.ECSCanary10Percent5Minutes
-```
-
-Acceptance:
-- `AfterAllowTestTraffic` window: green task set has `RUNNING` tasks but listener still 100/0.
-- After the first 10% shift: `HealthyHostCount` on green > 0, no rollback alarm in ALARM, listener
-  shows ~10% weight on green (via `aws elbv2 describe-listener-rules` / prod traffic route).
-- Within `TerminationWaitTimeMinutes`: 100% green, blue task set `TERMINATED`.
-- `aws deploy get-deployment --deployment-id <id>` shows `status: Succeeded`.
-
-### 4. Rollback exercise
-
-```sh
-# Force an automatic rollback: raise the 5xx alarm threshold so a 5xx surge trips it mid-deploy,
-# or manually stop a deployment during the 10% canary window:
-aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled
-```
-
-Acceptance:
-- During the 10% window the deployment is stopped → state `Stopped` / `rollback`, blue resumes as
-  the healthy target group, traffic returns to 100% blue within the grace period.
-- Confirm no 5xx spike on the blue fleet during rollback.
-
-### Recorded result
-
-> Staging exercise is **not executable in this environment** (no AWS credentials/config available
-> — `aws sts get-caller-identity` returns "config profile not found"). Running steps 1–4 with the
-> staging `AWS_PROFILE` is the definition-of-done for S10; attach the log + acceptance results here.
-
-
-
-1. CI pushes the new image to ECR (digest-pinned) and registers a new task definition.
-2. CI submits the AppSpec (with the new task-definition ARN) via `aws deploy create-deployment`
-   (see Rollout above) — CodeDeploy performs the health-gated blue/green traffic shift.
-3. Optionally update `stack.yaml`'s `ImageDigest` if the base stack should track the latest digest.
+Manual early rollback: `aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled`.
