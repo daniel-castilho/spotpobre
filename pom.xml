@@ -36,7 +36,7 @@
 		<logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
 		<bouncycastle.version>1.80</bouncycastle.version>
 		<testcontainers.version>1.21.4</testcontainers.version>
-		<rest-assured.version>5.4.0</rest-assured.version>
+		<rest-assured.version>6.0.1</rest-assured.version>
 	</properties>
 
 	<dependencyManagement>
