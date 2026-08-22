@@ -6,6 +6,7 @@ import com.spotpobre.backend.domain.artist.model.ArtistAccount;
 import com.spotpobre.backend.domain.artist.model.ArtistPermission;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.user.model.Role;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
@@ -83,6 +84,25 @@ class CreateArtistServiceTest {
 
         // When & Then
         assertThrows(NotFoundException.class, () -> createArtistService.createArtist(command));
+        verify(artistRepository, never()).createWithOwner(any(), any());
+    }
+
+    @Test
+    void shouldThrowWhenOwnerUserLacksArtistRole() {
+        // Given
+        UUID nonArtistUserId = UUID.randomUUID();
+        User plainUser = User.builder()
+                .id(new UserId(nonArtistUserId))
+                .profile(new UserProfile("Plain", "plain@example.com", "BR"))
+                .password("hash")
+                .roles(Set.of(Role.USER))
+                .build();
+        when(userRepository.findById(new UserId(nonArtistUserId))).thenReturn(Optional.of(plainUser));
+        CreateArtistUseCase.CreateArtistCommand command =
+                new CreateArtistUseCase.CreateArtistCommand("Unownable Artist", nonArtistUserId);
+
+        // When & Then
+        assertThrows(ForbiddenException.class, () -> createArtistService.createArtist(command));
         verify(artistRepository, never()).createWithOwner(any(), any());
     }
 

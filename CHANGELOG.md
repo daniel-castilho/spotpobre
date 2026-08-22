@@ -13,12 +13,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   `ROLE_ARTIST`; they now come from an explicit `ArtistAccount` aggregate
   (PK `artistId`, SK `userId`, permission `OWNER` | `MANAGER`, pure domain type in
   `domain/artist/model`). Every new artist is created together with an `OWNER` account in a single
-  DynamoDB transactional write (`ArtistRepository.createWithOwner`); admins grant additional
-  `MANAGER` memberships via `POST /api/v1/artists/{artistId}/accounts` and revoke them via
-  `DELETE /api/v1/artists/{artistId}/accounts/{userId}` (both admin-only, rule 7). Access checks
-  are centralised in `RequireArtistAccessUseCase` / `ArtistAccessService`: creating an album or
-  uploading/confirming a song on an album now requires a membership on the owning artist
-  (admins bypass, non-members get 403 fail-closed).
+  DynamoDB transactional write (`ArtistRepository.createWithOwner`); the designated owner must
+  exist and hold `ROLE_ARTIST`, otherwise creation is rejected without partial persistence.
+  Admins grant additional `MANAGER` memberships via `POST /api/v1/artists/{artistId}/accounts`
+  and revoke them via `DELETE /api/v1/artists/{artistId}/accounts/{userId}` (both admin-only,
+  rule 7). Access checks are centralised in `RequireArtistAccessUseCase` / `ArtistAccessService`:
+  creating an album or uploading/confirming a song on an album now requires a membership on the
+  owning artist (admins bypass, non-members get 403 fail-closed). Access denials and admin
+  overrides emit structured audit logs with safe UUIDs only.
 - **LocalStack support for the new table** — `scripts/seed-localstack.sh` and the README setup
   create the `ArtistAccounts` table; `scripts/backfill-artist-accounts.sh` assigns a designated
   user as `OWNER` of every pre-existing artist (dry-run by default, idempotent, `--apply` to

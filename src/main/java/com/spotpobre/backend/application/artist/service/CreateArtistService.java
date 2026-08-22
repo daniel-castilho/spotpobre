@@ -5,7 +5,10 @@ import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.domain.artist.model.ArtistAccount;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.user.model.Role;
+import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +26,13 @@ public class CreateArtistService implements CreateArtistUseCase {
     @Transactional
     public Artist createArtist(final CreateArtistCommand command) {
         Objects.requireNonNull(command.ownerUserId(), "ownerUserId is required");
-        userRepository.findById(new UserId(command.ownerUserId()))
+        final User owner = userRepository.findById(new UserId(command.ownerUserId()))
                 .orElseThrow(() -> new NotFoundException(
                         "Owner user not found: " + command.ownerUserId()));
+        if (!owner.getRoles().contains(Role.ARTIST)) {
+            throw new ForbiddenException(
+                    "Owner user must have ROLE_ARTIST: " + command.ownerUserId());
+        }
 
         final Artist artist = Artist.create(command.name());
         final ArtistAccount ownerAccount = ArtistAccount.owner(
