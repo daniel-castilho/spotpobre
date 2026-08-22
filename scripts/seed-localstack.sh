@@ -118,4 +118,14 @@ create_table Likes \
   --global-secondary-indexes "IndexName=entityId-index,KeySchema=[{AttributeName=entityCompositeKey,KeyType=HASH},{AttributeName=userId,KeyType=RANGE}],Projection={ProjectionType=ALL}" \
   --billing-mode PAY_PER_REQUEST
 
+create_table IdempotencyRecords \
+  --attribute-definitions AttributeName=scopeKey,AttributeType=S \
+  --key-schema AttributeName=scopeKey,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+
+# Durable idempotency relies on DynamoDB TTL for physical cleanup of expired records.
+run_aws dynamodb update-time-to-live \
+  --table-name IdempotencyRecords \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
+
 echo "[seed] LocalStack environment configured successfully!"

@@ -224,6 +224,17 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
+# IdempotencyRecords table (durable idempotency store, PK scopeKey + DynamoDB TTL)
+aws --endpoint-url=http://localhost:4566 dynamodb create-table \
+    --table-name IdempotencyRecords \
+    --attribute-definitions AttributeName=scopeKey,AttributeType=S \
+    --key-schema AttributeName=scopeKey,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+
+aws --endpoint-url=http://localhost:4566 dynamodb update-time-to-live \
+    --table-name IdempotencyRecords \
+    --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds"
+
 echo "LocalStack environment configured successfully!"
 ```
 
@@ -345,6 +356,14 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   upload/confirm require a membership on the owning artist (admins bypass; non-members get
   403). Existing environments: create the `ArtistAccounts` table and run
   `scripts/backfill-artist-accounts.sh <owner-user-id> --apply`.
+- **Durable idempotency foundation** — claim-and-lease protocol core for safe retries of
+  mutating operations, fully proven at the domain/application/adapter layers but **not yet
+  exposed on any endpoint** (endpoint wiring is the next step of the api-design-excellence-p0
+  epic). The new `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
+  `expiresAtEpochSeconds`, 24 h retention) stores only SHA-256 digests and validated safe
+  snapshots — never raw keys, e-mails, IPs, JWTs or signed URLs. Existing environments: create
+  the table and enable TTL (commands in the LocalStack setup above; already part of
+  `scripts/seed-localstack.sh`).
 - **Song upload** — direct-to-S3 via presigned URLs. `POST /albums/{id}/songs` authorizes the
   upload (content type, max 500 MB) and returns 10-minute presigned PUT URL(s); the client PUTs
   the audio to S3; `POST .../songs/{songId}/confirm` verifies the object (or completes multipart).

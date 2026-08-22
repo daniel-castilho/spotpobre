@@ -12,6 +12,8 @@ import com.spotpobre.backend.application.artist.service.CreateArtistService;
 import com.spotpobre.backend.application.artist.service.GrantArtistAccountService;
 import com.spotpobre.backend.application.artist.service.RevokeArtistAccountService;
 import com.spotpobre.backend.application.artist.service.SearchArtistsService;
+import com.spotpobre.backend.application.idempotency.IdempotencyCoordinator;
+import com.spotpobre.backend.application.idempotency.port.out.IdempotencyMetrics;
 import com.spotpobre.backend.application.like.port.in.PutLikeUseCase;
 import com.spotpobre.backend.application.like.port.in.DeleteLikeUseCase;
 import com.spotpobre.backend.application.like.service.LikeStrategy;
@@ -55,6 +57,7 @@ import com.spotpobre.backend.application.user.service.RegisterUserService;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistAccountRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.idempotency.port.IdempotencyRecordRepository;
 import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
@@ -248,5 +251,14 @@ public class ApplicationBeanConfig {
     @Bean
     public Clock clock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    public IdempotencyCoordinator idempotencyCoordinator(
+            IdempotencyRecordRepository idempotencyRecordRepository,
+            Clock clock,
+            IdempotencyMetrics idempotencyMetrics
+    ) {
+        return new IdempotencyCoordinator(idempotencyRecordRepository, clock, idempotencyMetrics);
     }
 }

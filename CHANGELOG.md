@@ -9,6 +9,29 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **Durable idempotency foundation (spec §5, steps S7–S8).** New pure domain core under
+  `domain/idempotency` (`IdempotencyScope`, `CanonicalRequestHash` v1, `LeaseToken`,
+  `ResultSnapshot`, `FailureDescriptor`, `IdempotencyRecord`) and a claim-and-lease protocol
+  coordinator in `application/idempotency` (`IdempotencyCoordinator` with `Claim` /
+  `ClaimOutcome`), backed by the conditional repository port `IdempotencyRecordRepository`.
+  The DynamoDB adapter persists only digests and validated safe snapshots to the new
+  `IdempotencyRecords` table (PK `scopeKey`, TTL attribute `expiresAtEpochSeconds`, 24 h):
+  raw keys, e-mails, IPs, JWTs, signed URLs and credentials are structurally excluded
+  (`ResultSnapshot` rejects absolute URLs / `eyJ` / passwords; `FailureDescriptor` accepts
+  deterministic 4xx only). Protocol semantics: single-winner conditional claims with a stable
+  preassigned resource ID, replay of COMPLETED results and FAILED_FINAL 4xx, 409 on key reuse
+  with a different canonical request, lease takeover after expiry preserving the resource ID,
+  and replacement of logically expired records ahead of DynamoDB's eventual physical deletion.
+  Low-cardinality metrics via the outbound port `IdempotencyMetrics`
+  (Micrometer: `spotpobre_idempotency_claims_total`, `spotpobre_idempotency_transitions_total`).
+  Provisioning (seed script, README setup, Testcontainers base class) creates the table and
+  enables TTL. No endpoint consumes the coordinator yet by design — endpoint wiring follows in
+  the next step once crash-recovery primitives are proven.
+- **Tests** — 38 unit tests (value-object guards, coordinator claim/replay/takeover/expiry/
+  lost-lease flows against an in-memory fake) plus
+  `DynamoDbIdempotencyRecordRepositoryAdapterIT` covering round-trip, duplicate-claim,
+  foreign-lease, takeover-preserving-resource-ID, logical-expiry replacement, release and a
+  concurrent single-winner race against Testcontainers LocalStack.
 - **Artist accounts (memberships).** Management rights on an artist are no longer implied by
   `ROLE_ARTIST`; they now come from an explicit `ArtistAccount` aggregate
   (PK `artistId`, SK `userId`, permission `OWNER` | `MANAGER`, pure domain type in

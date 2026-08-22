@@ -16,6 +16,8 @@ import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.Projection;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
+import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification;
+import software.amazon.awssdk.services.dynamodb.model.UpdateTimeToLiveRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 
@@ -95,6 +97,18 @@ public abstract class AbstractIntegrationTest {
                 gsi("artistId-index", "artistId"));
         createTableIfMissing(dynamoDb, "Likes", "userId", "entityCompositeKey",
                 gsi("entityId-index", "entityCompositeKey", "userId"));
+        createTableIfMissing(dynamoDb, "IdempotencyRecords", "scopeKey", null);
+        enableTimeToLive(dynamoDb, "IdempotencyRecords");
+    }
+
+    private static void enableTimeToLive(DynamoDbClient dynamoDb, String tableName) {
+        dynamoDb.updateTimeToLive(UpdateTimeToLiveRequest.builder()
+                .tableName(tableName)
+                .timeToLiveSpecification(TimeToLiveSpecification.builder()
+                        .enabled(true)
+                        .attributeName("expiresAtEpochSeconds")
+                        .build())
+                .build());
     }
 
     private static StaticCredentialsProvider credentials() {

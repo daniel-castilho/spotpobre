@@ -4,6 +4,7 @@ import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.AlbumDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistAccountDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.IdempotencyRecordDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
@@ -142,6 +143,40 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<ArtistAccountDocument> artistAccountTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<ArtistAccountDocument> artistAccountTableSchema) {
         return enhancedClient.table("ArtistAccounts", artistAccountTableSchema);
+    }
+
+    @Bean
+    public TableSchema<IdempotencyRecordDocument> idempotencyRecordTableSchema() {
+        return TableSchema.builder(IdempotencyRecordDocument.class)
+                .newItemSupplier(IdempotencyRecordDocument::new)
+                .addAttribute(String.class, a -> a.name("scopeKey").getter(IdempotencyRecordDocument::getScopeKey).setter(IdempotencyRecordDocument::setScopeKey).tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("operationName").getter(IdempotencyRecordDocument::getOperationName).setter(IdempotencyRecordDocument::setOperationName))
+                .addAttribute(String.class, a -> a.name("routeTemplate").getter(IdempotencyRecordDocument::getRouteTemplate).setter(IdempotencyRecordDocument::setRouteTemplate))
+                .addAttribute(String.class, a -> a.name("actorScopeHash").getter(IdempotencyRecordDocument::getActorScopeHash).setter(IdempotencyRecordDocument::setActorScopeHash))
+                .addAttribute(Integer.class, a -> a.name("hashVersion").getter(IdempotencyRecordDocument::getHashVersion).setter(IdempotencyRecordDocument::setHashVersion))
+                .addAttribute(String.class, a -> a.name("requestHash").getter(IdempotencyRecordDocument::getRequestHash).setter(IdempotencyRecordDocument::setRequestHash))
+                .addAttribute(String.class, a -> a.name("state").getter(IdempotencyRecordDocument::getState).setter(IdempotencyRecordDocument::setState))
+                .addAttribute(String.class, a -> a.name("resourceType").getter(IdempotencyRecordDocument::getResourceType).setter(IdempotencyRecordDocument::setResourceType))
+                .addAttribute(String.class, a -> a.name("resourceId").getter(IdempotencyRecordDocument::getResourceId).setter(IdempotencyRecordDocument::setResourceId))
+                .addAttribute(String.class, a -> a.name("leaseTokenHash").getter(IdempotencyRecordDocument::getLeaseTokenHash).setter(IdempotencyRecordDocument::setLeaseTokenHash))
+                .addAttribute(Instant.class, a -> a.name("leaseUntil").getter(IdempotencyRecordDocument::getLeaseUntil).setter(IdempotencyRecordDocument::setLeaseUntil))
+                .addAttribute(String.class, a -> a.name("resultSnapshot").getter(IdempotencyRecordDocument::getResultSnapshot).setter(IdempotencyRecordDocument::setResultSnapshot))
+                .addAttribute(Integer.class, a -> a.name("responseStatus").getter(IdempotencyRecordDocument::getResponseStatus).setter(IdempotencyRecordDocument::setResponseStatus))
+                .addAttribute(String.class, a -> a.name("responseContentType").getter(IdempotencyRecordDocument::getResponseContentType).setter(IdempotencyRecordDocument::setResponseContentType))
+                .addAttribute(String.class, a -> a.name("location").getter(IdempotencyRecordDocument::getLocation).setter(IdempotencyRecordDocument::setLocation))
+                .addAttribute(Integer.class, a -> a.name("failureStatus").getter(IdempotencyRecordDocument::getFailureStatus).setter(IdempotencyRecordDocument::setFailureStatus))
+                .addAttribute(String.class, a -> a.name("failureType").getter(IdempotencyRecordDocument::getFailureType).setter(IdempotencyRecordDocument::setFailureType))
+                .addAttribute(String.class, a -> a.name("failureMessage").getter(IdempotencyRecordDocument::getFailureMessage).setter(IdempotencyRecordDocument::setFailureMessage))
+                .addAttribute(Instant.class, a -> a.name("createdAt").getter(IdempotencyRecordDocument::getCreatedAt).setter(IdempotencyRecordDocument::setCreatedAt))
+                .addAttribute(Instant.class, a -> a.name("updatedAt").getter(IdempotencyRecordDocument::getUpdatedAt).setter(IdempotencyRecordDocument::setUpdatedAt))
+                .addAttribute(Instant.class, a -> a.name("completedAt").getter(IdempotencyRecordDocument::getCompletedAt).setter(IdempotencyRecordDocument::setCompletedAt))
+                .addAttribute(Long.class, a -> a.name("expiresAtEpochSeconds").getter(IdempotencyRecordDocument::getExpiresAtEpochSeconds).setter(IdempotencyRecordDocument::setExpiresAtEpochSeconds))
+                .build();
+    }
+
+    @Bean
+    public DynamoDbTable<IdempotencyRecordDocument> idempotencyRecordTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<IdempotencyRecordDocument> idempotencyRecordTableSchema) {
+        return enhancedClient.table("IdempotencyRecords", idempotencyRecordTableSchema);
     }
 
     @Bean
