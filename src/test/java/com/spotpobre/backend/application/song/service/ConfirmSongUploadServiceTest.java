@@ -1,7 +1,9 @@
 package com.spotpobre.backend.application.song.service;
 
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -35,8 +37,16 @@ class ConfirmSongUploadServiceTest {
     @Mock
     private SongMetadataRepository songMetadataRepository;
 
+    @Mock
+    private AlbumRepository albumRepository;
+
+    @Mock
+    private RequireArtistAccessUseCase requireArtistAccess;
+
     @InjectMocks
     private ConfirmSongUploadService confirmSongUploadService;
+
+    private static final UUID ACTOR_ID = UUID.randomUUID();
 
     @Test
     void confirmUpload_matchingSong_delegatesToStoragePort() {
@@ -44,10 +54,12 @@ class ConfirmSongUploadServiceTest {
         Song song = Song.create("Title", albumId, "storage-key");
         ConfirmSongUploadUseCase.ConfirmSongUploadCommand command =
                 new ConfirmSongUploadUseCase.ConfirmSongUploadCommand(
-                        song.getId(), albumId, "storage-key", null, List.of()
+                        song.getId(), albumId, "storage-key", null, List.of(), ACTOR_ID, true
                 );
 
         when(songMetadataRepository.findById(song.getId())).thenReturn(Optional.of(song));
+        when(albumRepository.findById(albumId)).thenReturn(Optional.of(
+                com.spotpobre.backend.domain.album.model.Album.builder().id(albumId).build()));
 
         Song confirmed = confirmSongUploadService.confirmUpload(command);
 
@@ -63,7 +75,7 @@ class ConfirmSongUploadServiceTest {
         Song song = Song.create("Title", albumId, "storage-key");
         ConfirmSongUploadUseCase.ConfirmSongUploadCommand command =
                 new ConfirmSongUploadUseCase.ConfirmSongUploadCommand(
-                        song.getId(), new AlbumId(UUID.randomUUID()), "storage-key", null, List.of()
+                        song.getId(), new AlbumId(UUID.randomUUID()), "storage-key", null, List.of(), ACTOR_ID, true
                 );
 
         when(songMetadataRepository.findById(song.getId())).thenReturn(Optional.of(song));
@@ -78,7 +90,7 @@ class ConfirmSongUploadServiceTest {
         Song song = Song.create("Title", albumId, "storage-key");
         ConfirmSongUploadUseCase.ConfirmSongUploadCommand command =
                 new ConfirmSongUploadUseCase.ConfirmSongUploadCommand(
-                        song.getId(), albumId, "other-key", null, List.of()
+                        song.getId(), albumId, "other-key", null, List.of(), ACTOR_ID, true
                 );
 
         when(songMetadataRepository.findById(song.getId())).thenReturn(Optional.of(song));
@@ -92,7 +104,7 @@ class ConfirmSongUploadServiceTest {
         SongId songId = new SongId(UUID.randomUUID());
         ConfirmSongUploadUseCase.ConfirmSongUploadCommand command =
                 new ConfirmSongUploadUseCase.ConfirmSongUploadCommand(
-                        songId, new AlbumId(UUID.randomUUID()), "storage-key", null, List.of()
+                        songId, new AlbumId(UUID.randomUUID()), "storage-key", null, List.of(), ACTOR_ID, true
                 );
 
         when(songMetadataRepository.findById(songId)).thenReturn(Optional.empty());

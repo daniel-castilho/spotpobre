@@ -9,7 +9,9 @@ public interface CreateAlbumUseCase {
     record CreateAlbumCommand(
             String name,
             ArtistId artistId,
-            String coverArtUrl
+            String coverArtUrl,
+            java.util.UUID actorUserId,
+            boolean actorIsAdmin
     ) {
     }
 }

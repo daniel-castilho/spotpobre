@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.album.service;
 
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.model.Artist;
@@ -27,6 +28,11 @@ class CreateAlbumServiceTest {
     @Mock
     private AlbumRepository albumRepository;
 
+    @Mock
+    private RequireArtistAccessUseCase requireArtistAccess;
+
+    private static final java.util.UUID ACTOR_ID = java.util.UUID.randomUUID();
+
     @InjectMocks
     private CreateAlbumService createAlbumService;
 
@@ -38,7 +44,9 @@ class CreateAlbumServiceTest {
         CreateAlbumUseCase.CreateAlbumCommand command = new CreateAlbumUseCase.CreateAlbumCommand(
                 "Test Album",
                 artistId,
-                "https://cdn.example.com/cover.jpg"
+                "https://cdn.example.com/cover.jpg",
+                ACTOR_ID,
+                true
         );
 
         when(artistRepository.findById(artistId)).thenReturn(Optional.of(artist));
@@ -63,7 +71,9 @@ class CreateAlbumServiceTest {
         CreateAlbumUseCase.CreateAlbumCommand command = new CreateAlbumUseCase.CreateAlbumCommand(
                 "Test Album",
                 missingArtistId,
-                null
+                null,
+                ACTOR_ID,
+                true
         );
 
         when(artistRepository.findById(missingArtistId)).thenReturn(Optional.empty());

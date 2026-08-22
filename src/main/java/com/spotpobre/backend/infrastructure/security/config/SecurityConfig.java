@@ -51,10 +51,15 @@ public class SecurityConfig {
 
                         // Admin-only endpoints (authorities carry the ROLE_ prefix, see GetUserDetailsService)
                         .requestMatchers(HttpMethod.POST, "/api/v1/artists").hasRole(Role.ADMIN.name())
+                        .requestMatchers("/api/v1/artists/*/accounts/**").hasRole(Role.ADMIN.name())
 
-                        // Artist-only endpoints (presigned song upload)
+                        // Artist-only endpoints (presigned song upload). Application-level
+                        // membership checks (ArtistAccount) are enforced in the use cases.
                         .requestMatchers(HttpMethod.POST, "/api/v1/albums/*/songs").hasRole(Role.ARTIST.name())
                         .requestMatchers(HttpMethod.POST, "/api/v1/albums/*/songs/*/confirm").hasRole(Role.ARTIST.name())
+
+                        // Album creation requires artist role; membership is checked in the use case.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/albums").hasAnyRole(Role.ARTIST.name(), Role.ADMIN.name())
 
                         // Endpoints for any authenticated user
                         .requestMatchers("/api/v1/users/me").authenticated()

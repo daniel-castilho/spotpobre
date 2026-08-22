@@ -3,11 +3,14 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
+import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.song.model.CompletedUploadPart;
 import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
+import com.spotpobre.backend.domain.user.model.Role;
 import com.spotpobre.backend.infrastructure.web.dto.request.ConfirmSongUploadRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.CreateAlbumRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.InitiateSongUploadRequest;
@@ -22,6 +25,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,13 +44,24 @@ public class AlbumController {
     private final CreateAlbumUseCase createAlbumUseCase;
     private final InitiateSongUploadUseCase initiateSongUploadUseCase;
     private final ConfirmSongUploadUseCase confirmSongUploadUseCase;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final AlbumApiMapper albumApiMapper;
     private final SongApiMapper songApiMapper;
 
     @PostMapping
     @Operation(summary = "Create an album")
-    public ResponseEntity<AlbumResponse> createAlbum(@RequestBody @Valid final CreateAlbumRequest request) {
-        final var command = albumApiMapper.toCommand(request);
+    public ResponseEntity<AlbumResponse> createAlbum(
+            @RequestBody @Valid final CreateAlbumRequest request,
+            final Authentication authentication
+    ) {
+        final UUID actorUserId = currentUserId(authentication);
+        final var command = new CreateAlbumUseCase.CreateAlbumCommand(
+                request.name(),
+                request.artistId() == null ? null : new ArtistId(request.artistId()),
+                request.coverArtUrl(),
+                actorUserId,
+                isAdmin(authentication)
+        );
         final Album album = createAlbumUseCase.createAlbum(command);
         final AlbumResponse response = albumApiMapper.toResponse(album);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -64,13 +79,16 @@ public class AlbumController {
     )
     public ResponseEntity<InitiateSongUploadResponse> initiateSongUpload(
             @PathVariable final UUID albumId,
-            @RequestBody @Valid final InitiateSongUploadRequest request
+            @RequestBody @Valid final InitiateSongUploadRequest request,
+            final Authentication authentication
     ) {
         final var command = new InitiateSongUploadUseCase.InitiateSongUploadCommand(
                 request.title(),
                 new AlbumId(albumId),
                 request.contentType(),
-                request.contentLengthBytes()
+                request.contentLengthBytes(),
+                currentUserId(authentication),
+                isAdmin(authentication)
         );
         final var result = initiateSongUploadUseCase.initiateUpload(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(songApiMapper.toInitiateResponse(result));
@@ -87,7 +105,8 @@ public class AlbumController {
     public ResponseEntity<SongResponse> confirmSongUpload(
             @PathVariable final UUID albumId,
             @PathVariable final UUID songId,
-            @RequestBody @Valid final ConfirmSongUploadRequest request
+            @RequestBody @Valid final ConfirmSongUploadRequest request,
+            final Authentication authentication
     ) {
         final List<CompletedUploadPart> parts = request.parts() == null
                 ? List.of()
@@ -101,9 +120,20 @@ public class AlbumController {
                         new AlbumId(albumId),
                         request.storageKey(),
                         request.multipartUploadId(),
-                        parts
+                        parts,
+                        currentUserId(authentication),
+                        isAdmin(authentication)
                 )
         );
         return ResponseEntity.ok(songApiMapper.toSongResponse(song));
+    }
+
+    private UUID currentUserId(final Authentication authentication) {
+        return getCurrentUserUseCase.getCurrentUserId(authentication.getName()).value();
+    }
+
+    private static boolean isAdmin(final Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> ("ROLE_" + Role.ADMIN.name()).equals(authority.getAuthority()));
     }
 }

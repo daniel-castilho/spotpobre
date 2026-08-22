@@ -186,6 +186,14 @@ awslocal dynamodb create-table \
         ]" \
     --billing-mode PAY_PER_REQUEST
 
+# ArtistAccounts table (user memberships on an artist; PK artistId, SK userId;
+# no GSI in P0 — access checks always query by artist)
+awslocal dynamodb create-table \
+    --table-name ArtistAccounts \
+    --attribute-definitions AttributeName=artistId,AttributeType=S AttributeName=userId,AttributeType=S \
+    --key-schema AttributeName=artistId,KeyType=HASH AttributeName=userId,KeyType=RANGE \
+    --billing-mode PAY_PER_REQUEST
+
 # Albums table (GSI on artistId)
 awslocal dynamodb create-table \
     --table-name Albums \

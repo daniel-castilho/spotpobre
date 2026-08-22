@@ -45,6 +45,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
 
     private String adminToken;
     private String artistToken;
+    private UUID artistUserId;
 
     private static final String PASSWORD = "password123";
 
@@ -60,13 +61,16 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
         adminToken = lastToken;
         seedUserAndLogin("artist.flow@example.com", "ARTIST");
         artistToken = lastToken;
+        artistUserId = lastSeededUserId;
     }
 
     private String lastToken;
+    private UUID lastSeededUserId;
 
     private void seedUserAndLogin(String email, String role) {
+        lastSeededUserId = UUID.randomUUID();
         UserDocument user = UserDocument.builder()
-                .id(UUID.randomUUID().toString())
+                .id(lastSeededUserId.toString())
                 .profile(UserProfileDocument.builder().name("Test " + role).email(email).country("BR").build())
                 .password(passwordHasher.encode(PASSWORD))
                 .roles(Set.of(role))
@@ -88,7 +92,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
     @Test
     void shouldCreateArtistAndUploadSongSuccessfully() throws Exception {
         // 1. As ADMIN, create a new artist
-        CreateArtistRequest createArtistRequest = new CreateArtistRequest("The Integration Testers");
+        CreateArtistRequest createArtistRequest = new CreateArtistRequest("The Integration Testers", artistUserId);
         String artistId = given()
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(ContentType.JSON)
@@ -185,7 +189,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
     @Test
     void shouldDownloadSongContentViaSignedStreamingUrl() throws Exception {
         // 1. As ADMIN, create a new artist
-        CreateArtistRequest createArtistRequest = new CreateArtistRequest("Stream Testers");
+        CreateArtistRequest createArtistRequest = new CreateArtistRequest("Stream Testers", artistUserId);
         String artistId = given()
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(ContentType.JSON)

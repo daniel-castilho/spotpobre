@@ -12,7 +12,9 @@ public interface InitiateSongUploadUseCase {
             String title,
             AlbumId albumId,
             String contentType,
-            long contentLengthBytes
+            long contentLengthBytes,
+            java.util.UUID actorUserId,
+            boolean actorIsAdmin
     ) {
     }
 

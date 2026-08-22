@@ -2,6 +2,7 @@ package com.spotpobre.backend.infrastructure.config;
 
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.AlbumDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistAccountDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
@@ -23,6 +24,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.UUID;
 
 @Configuration
@@ -124,6 +126,22 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<ArtistDocument> artistTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<ArtistDocument> artistTableSchema) {
         return enhancedClient.table("Artists", artistTableSchema);
+    }
+
+    @Bean
+    public TableSchema<ArtistAccountDocument> artistAccountTableSchema() {
+        return TableSchema.builder(ArtistAccountDocument.class)
+                .newItemSupplier(ArtistAccountDocument::new)
+                .addAttribute(String.class, a -> a.name("artistId").getter(ArtistAccountDocument::getArtistId).setter(ArtistAccountDocument::setArtistId).tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("userId").getter(ArtistAccountDocument::getUserId).setter(ArtistAccountDocument::setUserId).tags(StaticAttributeTags.primarySortKey()))
+                .addAttribute(String.class, a -> a.name("permission").getter(ArtistAccountDocument::getPermission).setter(ArtistAccountDocument::setPermission))
+                .addAttribute(Instant.class, a -> a.name("createdAt").getter(ArtistAccountDocument::getCreatedAt).setter(ArtistAccountDocument::setCreatedAt))
+                .build();
+    }
+
+    @Bean
+    public DynamoDbTable<ArtistAccountDocument> artistAccountTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<ArtistAccountDocument> artistAccountTableSchema) {
+        return enhancedClient.table("ArtistAccounts", artistAccountTableSchema);
     }
 
     @Bean

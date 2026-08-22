@@ -101,6 +101,11 @@ create_table Artists \
   --global-secondary-indexes "IndexName=name-search-index,KeySchema=[{AttributeName=searchPartition,KeyType=HASH},{AttributeName=searchName,KeyType=RANGE}],Projection={ProjectionType=ALL}" \
   --billing-mode PAY_PER_REQUEST
 
+create_table ArtistAccounts \
+  --attribute-definitions AttributeName=artistId,AttributeType=S AttributeName=userId,AttributeType=S \
+  --key-schema AttributeName=artistId,KeyType=HASH AttributeName=userId,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST
+
 create_table Albums \
   --attribute-definitions AttributeName=id,AttributeType=S AttributeName=artistId,AttributeType=S \
   --key-schema AttributeName=id,KeyType=HASH \

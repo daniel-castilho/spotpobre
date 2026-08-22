@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.song.service;
 
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.model.AlbumId;
@@ -45,15 +46,20 @@ class InitiateSongUploadServiceTest {
     @Mock
     private AlbumRepository albumRepository;
 
+    @Mock
+    private RequireArtistAccessUseCase requireArtistAccess;
+
     @InjectMocks
     private InitiateSongUploadService initiateSongUploadService;
+
+    private static final UUID ACTOR_ID = UUID.randomUUID();
 
     @Test
     void initiateUpload_validAlbum_persistsPlaceholderAndReturnsPresignedUrl() {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "New Song Title", albumId, "audio/mpeg", 1024L
+                        "New Song Title", albumId, "audio/mpeg", 1024L, ACTOR_ID, true
                 );
         String expectedStorageId = "storage-key-12345";
         PresignedUploadResult upload = new PresignedUploadResult(
@@ -91,7 +97,7 @@ class InitiateSongUploadServiceTest {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "Missing Album Song", albumId, "audio/mpeg", 1024L
+                        "Missing Album Song", albumId, "audio/mpeg", 1024L, ACTOR_ID, true
                 );
 
         when(albumRepository.findById(albumId)).thenReturn(Optional.empty());
@@ -109,7 +115,7 @@ class InitiateSongUploadServiceTest {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "Bad Type", albumId, "video/mp4", 1024L
+                        "Bad Type", albumId, "video/mp4", 1024L, ACTOR_ID, true
                 );
 
         when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
@@ -125,7 +131,7 @@ class InitiateSongUploadServiceTest {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "Failing Song", albumId, "audio/mpeg", 1024L
+                        "Failing Song", albumId, "audio/mpeg", 1024L, ACTOR_ID, true
                 );
 
         when(albumRepository.findById(albumId)).thenReturn(Optional.of(Album.builder().build()));
@@ -142,7 +148,7 @@ class InitiateSongUploadServiceTest {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "Song", albumId, "audio/mpeg", 200L * 1024 * 1024
+                        "Song", albumId, "audio/mpeg", 200L * 1024 * 1024, ACTOR_ID, true
                 );
         String storageKey = "storage-key-12345";
         String multipartUploadId = "upload-id-12345";
@@ -172,7 +178,7 @@ class InitiateSongUploadServiceTest {
         AlbumId albumId = new AlbumId(UUID.randomUUID());
         InitiateSongUploadUseCase.InitiateSongUploadCommand command =
                 new InitiateSongUploadUseCase.InitiateSongUploadCommand(
-                        "Song", albumId, "audio/mpeg", 1024L
+                        "Song", albumId, "audio/mpeg", 1024L, ACTOR_ID, true
                 );
         String storageKey = "storage-key-12345";
         PresignedUploadResult upload = new PresignedUploadResult(

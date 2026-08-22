@@ -1,6 +1,8 @@
 package com.spotpobre.backend.application.song.service;
 
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
+import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -11,13 +13,19 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
 
     private final SongStoragePort songStoragePort;
     private final SongMetadataRepository songMetadataRepository;
+    private final AlbumRepository albumRepository;
+    private final RequireArtistAccessUseCase requireArtistAccess;
 
     public ConfirmSongUploadService(
             final SongStoragePort songStoragePort,
-            final SongMetadataRepository songMetadataRepository
+            final SongMetadataRepository songMetadataRepository,
+            final AlbumRepository albumRepository,
+            final RequireArtistAccessUseCase requireArtistAccess
     ) {
         this.songStoragePort = songStoragePort;
         this.songMetadataRepository = songMetadataRepository;
+        this.albumRepository = albumRepository;
+        this.requireArtistAccess = requireArtistAccess;
     }
 
     @Override
@@ -28,6 +36,11 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
         if (!song.getAlbumId().equals(command.albumId())) {
             throw new NotFoundException("Song does not belong to album: " + command.albumId());
         }
+        final var album = albumRepository.findById(song.getAlbumId())
+                .orElseThrow(() -> new NotFoundException("Album not found: " + song.getAlbumId()));
+        requireArtistAccess.requireAccess(
+                new RequireArtistAccessUseCase.ActorArtistRef(command.actorUserId(), command.actorIsAdmin()),
+                album.getArtistId());
         if (!song.getStorageId().equals(command.storageKey())) {
             throw new NotFoundException("Storage key does not match the song record.");
         }

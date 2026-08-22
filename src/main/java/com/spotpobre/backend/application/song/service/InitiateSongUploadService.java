@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.song.service;
 
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
@@ -18,21 +19,27 @@ public class InitiateSongUploadService implements InitiateSongUploadUseCase {
     private final SongStoragePort songStoragePort;
     private final SongMetadataRepository songMetadataRepository;
     private final AlbumRepository albumRepository;
+    private final RequireArtistAccessUseCase requireArtistAccess;
 
     public InitiateSongUploadService(
             final SongStoragePort songStoragePort,
             final SongMetadataRepository songMetadataRepository,
-            final AlbumRepository albumRepository
+            final AlbumRepository albumRepository,
+            final RequireArtistAccessUseCase requireArtistAccess
     ) {
         this.songStoragePort = songStoragePort;
         this.songMetadataRepository = songMetadataRepository;
         this.albumRepository = albumRepository;
+        this.requireArtistAccess = requireArtistAccess;
     }
 
     @Override
     public InitiateSongUploadResult initiateUpload(final InitiateSongUploadCommand command) {
-        albumRepository.findById(command.albumId())
+        final var album = albumRepository.findById(command.albumId())
                 .orElseThrow(() -> new NotFoundException("Album not found: " + command.albumId()));
+        requireArtistAccess.requireAccess(
+                new RequireArtistAccessUseCase.ActorArtistRef(command.actorUserId(), command.actorIsAdmin()),
+                album.getArtistId());
 
         final SongUploadCommand uploadCommand = new SongUploadCommand(
                 command.contentType(),

@@ -16,7 +16,9 @@ public interface ConfirmSongUploadUseCase {
             AlbumId albumId,
             String storageKey,
             String multipartUploadId,
-            List<CompletedUploadPart> completedParts
+            List<CompletedUploadPart> completedParts,
+            java.util.UUID actorUserId,
+            boolean actorIsAdmin
     ) {
     }
 }

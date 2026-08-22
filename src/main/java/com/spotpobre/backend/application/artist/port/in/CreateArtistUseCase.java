@@ -6,6 +6,6 @@ public interface CreateArtistUseCase {
 
     Artist createArtist(final CreateArtistCommand command);
 
-    record CreateArtistCommand(String name) {
+    record CreateArtistCommand(String name, java.util.UUID ownerUserId) {
     }
 }

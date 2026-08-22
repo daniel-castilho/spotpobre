@@ -7,6 +7,33 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Added
+
+- **Artist accounts (memberships).** Management rights on an artist are no longer implied by
+  `ROLE_ARTIST`; they now come from an explicit `ArtistAccount` aggregate
+  (PK `artistId`, SK `userId`, permission `OWNER` | `MANAGER`, pure domain type in
+  `domain/artist/model`). Every new artist is created together with an `OWNER` account in a single
+  DynamoDB transactional write (`ArtistRepository.createWithOwner`); admins grant additional
+  `MANAGER` memberships via `POST /api/v1/artists/{artistId}/accounts` and revoke them via
+  `DELETE /api/v1/artists/{artistId}/accounts/{userId}` (both admin-only, rule 7). Access checks
+  are centralised in `RequireArtistAccessUseCase` / `ArtistAccessService`: creating an album or
+  uploading/confirming a song on an album now requires a membership on the owning artist
+  (admins bypass, non-members get 403 fail-closed).
+- **LocalStack support for the new table** — `scripts/seed-localstack.sh` and the README setup
+  create the `ArtistAccounts` table; `scripts/backfill-artist-accounts.sh` assigns a designated
+  user as `OWNER` of every pre-existing artist (dry-run by default, idempotent, `--apply` to
+  write). Existing environments must run both before deploying this change.
+- **Tests** — unit tests for the domain model, grant/revoke/access services and updated
+  use-case tests; `DynamoDbArtistAccountRepositoryAdapterIT` covers atomic owner creation,
+  round-trip and isolation against Testcontainers LocalStack.
+
+### Changed
+
+- **Security rules tightened** — `POST /api/v1/albums` now accepts `ROLE_ARTIST` **or**
+  `ROLE_ADMIN` at the edge (real authorisation happens in the use case via membership);
+  `/api/v1/artists/*/accounts/**` is admin-only. Any `ROLE_ARTIST` user can no longer manage
+  artists they have no membership on.
+
 ## [0.9.0] - 2026-08-20
 
 ### Added

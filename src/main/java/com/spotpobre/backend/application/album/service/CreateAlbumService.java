@@ -1,6 +1,7 @@
 package com.spotpobre.backend.application.album.service;
 
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
@@ -13,6 +14,7 @@ public class CreateAlbumService implements CreateAlbumUseCase {
 
     private final ArtistRepository artistRepository;
     private final AlbumRepository albumRepository;
+    private final RequireArtistAccessUseCase requireArtistAccess;
 
     @Override
     @Transactional
@@ -20,6 +22,10 @@ public class CreateAlbumService implements CreateAlbumUseCase {
         // Validate that the artist exists
         artistRepository.findById(command.artistId())
                 .orElseThrow(() -> new NotFoundException("Artist not found: " + command.artistId()));
+
+        requireArtistAccess.requireAccess(
+                new RequireArtistAccessUseCase.ActorArtistRef(command.actorUserId(), command.actorIsAdmin()),
+                command.artistId());
 
         // For now, we are not creating the songs, just the album structure.
         // A more complex implementation would create Song entities here.

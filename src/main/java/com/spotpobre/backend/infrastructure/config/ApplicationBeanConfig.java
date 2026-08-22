@@ -3,8 +3,14 @@ package com.spotpobre.backend.infrastructure.config;
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
 import com.spotpobre.backend.application.album.service.CreateAlbumService;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
+import com.spotpobre.backend.application.artist.port.in.GrantArtistAccountUseCase;
+import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
+import com.spotpobre.backend.application.artist.port.in.RevokeArtistAccountUseCase;
 import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
+import com.spotpobre.backend.application.artist.service.ArtistAccessService;
 import com.spotpobre.backend.application.artist.service.CreateArtistService;
+import com.spotpobre.backend.application.artist.service.GrantArtistAccountService;
+import com.spotpobre.backend.application.artist.service.RevokeArtistAccountService;
 import com.spotpobre.backend.application.artist.service.SearchArtistsService;
 import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
 import com.spotpobre.backend.application.like.service.LikeStrategy;
@@ -45,6 +51,7 @@ import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
+import com.spotpobre.backend.domain.artist.port.ArtistAccountRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -109,17 +116,20 @@ public class ApplicationBeanConfig {
     public InitiateSongUploadUseCase initiateSongUploadUseCase(
             final SongStoragePort songStoragePort,
             final SongMetadataRepository songMetadataRepository,
-            final AlbumRepository albumRepository
+            final AlbumRepository albumRepository,
+            final RequireArtistAccessUseCase requireArtistAccessUseCase
     ) {
-        return new InitiateSongUploadService(songStoragePort, songMetadataRepository, albumRepository);
+        return new InitiateSongUploadService(songStoragePort, songMetadataRepository, albumRepository, requireArtistAccessUseCase);
     }
 
     @Bean
     public ConfirmSongUploadUseCase confirmSongUploadUseCase(
             final SongStoragePort songStoragePort,
-            final SongMetadataRepository songMetadataRepository
+            final SongMetadataRepository songMetadataRepository,
+            final AlbumRepository albumRepository,
+            final RequireArtistAccessUseCase requireArtistAccessUseCase
     ) {
-        return new ConfirmSongUploadService(songStoragePort, songMetadataRepository);
+        return new ConfirmSongUploadService(songStoragePort, songMetadataRepository, albumRepository, requireArtistAccessUseCase);
     }
 
     @Bean
@@ -171,8 +181,29 @@ public class ApplicationBeanConfig {
 
     // Artist Use Cases
     @Bean
-    public CreateArtistUseCase createArtistUseCase(final ArtistRepository artistRepository) {
-        return new CreateArtistService(artistRepository);
+    public CreateArtistUseCase createArtistUseCase(
+            final ArtistRepository artistRepository,
+            final UserRepository userRepository
+    ) {
+        return new CreateArtistService(artistRepository, userRepository);
+    }
+
+    @Bean
+    public RequireArtistAccessUseCase requireArtistAccessUseCase(final ArtistAccountRepository artistAccountRepository) {
+        return new ArtistAccessService(artistAccountRepository);
+    }
+
+    @Bean
+    public GrantArtistAccountUseCase grantArtistAccountUseCase(
+            final ArtistRepository artistRepository,
+            final ArtistAccountRepository artistAccountRepository
+    ) {
+        return new GrantArtistAccountService(artistRepository, artistAccountRepository);
+    }
+
+    @Bean
+    public RevokeArtistAccountUseCase revokeArtistAccountUseCase(final ArtistAccountRepository artistAccountRepository) {
+        return new RevokeArtistAccountService(artistAccountRepository);
     }
 
     @Bean
@@ -184,9 +215,10 @@ public class ApplicationBeanConfig {
     @Bean
     public CreateAlbumUseCase createAlbumUseCase(
             final ArtistRepository artistRepository,
-            final AlbumRepository albumRepository
+            final AlbumRepository albumRepository,
+            final RequireArtistAccessUseCase requireArtistAccessUseCase
     ) {
-        return new CreateAlbumService(artistRepository, albumRepository);
+        return new CreateAlbumService(artistRepository, albumRepository, requireArtistAccessUseCase);
     }
 
     // Like Use Cases
