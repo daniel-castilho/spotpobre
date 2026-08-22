@@ -63,10 +63,10 @@ class PlaylistLimitAndConcurrencyIT extends AbstractIntegrationTest {
         Playlist snapshotA = playlistRepository.findById(created.getId()).orElseThrow();
         Playlist snapshotB = playlistRepository.findById(created.getId()).orElseThrow();
 
-        snapshotA.addSong(Song.create("Song A", albumId, "storage-a"));
+        snapshotA.ensureSongPresent(Song.create("Song A", albumId, "storage-a"));
         playlistRepository.update(snapshotA);
 
-        snapshotB.addSong(Song.create("Song B", albumId, "storage-b"));
+        snapshotB.ensureSongPresent(Song.create("Song B", albumId, "storage-b"));
         assertThrows(PlaylistConcurrentModificationException.class, () -> playlistRepository.update(snapshotB));
 
         Playlist reloaded = playlistRepository.findById(created.getId()).orElseThrow();

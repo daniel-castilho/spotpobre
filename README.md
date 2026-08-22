@@ -284,7 +284,9 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | **Auth** | `POST` | `/api/v1/auth/register` | Register a new user. |
 | | `POST` | `/api/v1/auth/authenticate` | Authenticate a user and return a JWT. |
 | **Users** | `GET` | `/api/v1/users/me` | Return the authenticated user's profile. |
-| **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`). |
+| **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`; body carries `ownerUserId` — the target user must exist and hold `ROLE_ARTIST`; Artist + OWNER membership are created atomically). |
+| | `POST` | `/api/v1/artists/{artistId}/accounts` | Grant an artist membership (`OWNER`/`MANAGER`) to a user; admin-only. |
+| | `DELETE` | `/api/v1/artists/{artistId}/accounts/{userId}` | Revoke an artist membership; admin-only. |
 | | `GET` | `/api/v1/artists/search?query={q}&limit={n}&cursor={token}` | Search artists by name (case-insensitive, cursor-paginated; `limit` max 50). |
 | **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. |
 | | `POST` | `/api/v1/albums/{albumId}/songs` | Initiate a song upload (`ROLE_ARTIST`): validates type/size and returns short-lived presigned PUT URL(s). Files over 100 MB get S3 multipart part URLs. The API never accepts file bytes. |
@@ -296,9 +298,10 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `GET` | `/api/v1/playlists/{playlistId}` | Return a playlist's details. |
 | | `PATCH` | `/api/v1/playlists/{playlistId}` | Rename a playlist. |
 | | `DELETE` | `/api/v1/playlists/{playlistId}` | Delete a playlist. |
-| | `POST` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Add a song to a playlist. |
-| | `DELETE` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Remove a song from a playlist. |
-| **Likes** | `POST` | `/api/v1/likes/toggle` | Like or unlike a song, artist or playlist. |
+| | `PUT` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Add a song to a playlist (idempotent: repeated PUT keeps one membership, no version bump). |
+| | `DELETE` | `/api/v1/playlists/{playlistId}/songs/{songId}` | Remove a song from a playlist (idempotent: 204 whether present or absent). |
+| **Likes** | `PUT` | `/api/v1/users/me/likes/{entityType}/{entityId}` | Like an entity — `entityType` is lowercase `song`, `artist` or `playlist`; idempotent, preserves the original `likedAt`. |
+| | `DELETE` | `/api/v1/users/me/likes/{entityType}/{entityId}` | Unlike an entity; idempotent 204 whether the like exists or not. |
 
 ### Monitoring endpoints (Actuator)
 
@@ -346,8 +349,8 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   upload (content type, max 500 MB) and returns 10-minute presigned PUT URL(s); the client PUTs
   the audio to S3; `POST .../songs/{songId}/confirm` verifies the object (or completes multipart).
   No `byte[]` / `MultipartFile` on the API.
-- **Playlists** — full CRUD with owner authorization (IDOR fixed: authenticated users can only mutate playlists they own; 403 returned for unauthorized access), paginated listing and song membership.
-- **Likes** — adjacency-list persistence with a reverse GSI; implemented as a Strategy family
+- **Playlists** — full CRUD with owner authorization (IDOR fixed: authenticated users can only mutate playlists they own; 403 returned for unauthorized access), paginated listing and idempotent song membership (`PUT` add / `DELETE` remove; repeated operations are successful no-ops without version bumps, and concurrent same-song adds converge instead of 409).
+- **Likes** — desired-state and naturally idempotent: `PUT`/`DELETE /api/v1/users/me/likes/{entityType}/{entityId}` backed by conditional `createIfAbsent`/`deleteIfPresent` writes on the adjacency-list table (reverse GSI kept for counts); implemented as a Strategy family
   (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
 - **Search** — songs by title and artists by name via DynamoDB GSIs, case-insensitive (write-time
   normalized `searchTitle`/`searchName` sort keys) and cursor-paginated (`ExclusiveStartKey` +

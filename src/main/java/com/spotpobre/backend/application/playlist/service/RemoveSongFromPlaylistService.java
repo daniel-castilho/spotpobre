@@ -21,7 +21,11 @@ public class RemoveSongFromPlaylistService implements RemoveSongFromPlaylistUseC
 
         PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
-        playlist.removeSong(command.songId());
+        // Desired-state semantics: already-absent is a successful no-op (no write, no version bump).
+        if (!playlist.ensureSongAbsent(command.songId())) {
+            return playlist;
+        }
+
         playlistRepository.update(playlist);
         return playlist;
     }

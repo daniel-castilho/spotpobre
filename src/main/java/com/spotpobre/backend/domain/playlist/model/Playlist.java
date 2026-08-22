@@ -74,15 +74,37 @@ public class Playlist {
         this.version = version;
     }
 
-    public void addSong(final Song song) {
+    public boolean containsSong(final SongId songId) {
+        return songs.stream().anyMatch(song -> song.getId().equals(songId));
+    }
+
+    /**
+     * Desired-state membership operation: ensures the song is part of this playlist.
+     * Returns {@code true} when the song was added; {@code false} when it was already
+     * present (no state change, no version bump).
+     *
+     * @throws IllegalStateException when the playlist already holds MAX_SONGS unique songs
+     */
+    public boolean ensureSongPresent(final Song song) {
+        Objects.requireNonNull(song, "song is required");
+        if (containsSong(song.getId())) {
+            return false;
+        }
         if (songs.size() >= MAX_SONGS) {
             throw new IllegalStateException("Playlist cannot have more than " + MAX_SONGS + " songs.");
         }
-        this.songs.add(song);
+        songs.add(song);
+        return true;
     }
 
-    public void removeSong(final SongId songId) {
-        this.songs.removeIf(song -> song.getId().equals(songId));
+    /**
+     * Desired-state membership operation: ensures the song is not part of this playlist.
+     * Returns {@code true} when the song was removed; {@code false} when it was already
+     * absent (no state change, no version bump).
+     */
+    public boolean ensureSongAbsent(final SongId songId) {
+        Objects.requireNonNull(songId, "songId is required");
+        return songs.removeIf(song -> song.getId().equals(songId));
     }
 
     public void updateDetails(final String newName) {

@@ -4,15 +4,18 @@ import com.spotpobre.backend.domain.like.model.EntityType;
 import com.spotpobre.backend.domain.like.model.Like;
 import com.spotpobre.backend.domain.user.model.UserId;
 
-import java.util.Optional;
-
 public interface LikeRepository {
 
-    void save(Like like);
+    /**
+     * Creates the like only when no like exists yet for the deterministic
+     * {@code (userId, entityType#entityId)} key. Returns {@code true} when this call created
+     * the like; {@code false} when an existing like (and its original likedAt) was preserved.
+     */
+    boolean createIfAbsent(Like like);
 
-    void delete(UserId userId, String entityId, EntityType entityType);
-
-    Optional<Like> findById(UserId userId, String entityId, EntityType entityType);
-
-    long countLikesByEntity(String entityId, EntityType entityType);
+    /**
+     * Deletes the like only when it exists. Returns {@code true} when this call deleted a
+     * like; {@code false} when there was nothing to delete.
+     */
+    boolean deleteIfPresent(UserId userId, String entityId, EntityType entityType);
 }

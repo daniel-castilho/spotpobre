@@ -52,7 +52,7 @@ class RemoveSongFromPlaylistServiceTest {
         Song songToRemove = Song.create("Song to Remove", new AlbumId(UUID.randomUUID()), "storage-id");
         songToRemove.setId(songIdToRemove);
 
-        existingPlaylist.addSong(songToRemove);
+        existingPlaylist.ensureSongPresent(songToRemove);
 
         when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(existingPlaylist));
 
@@ -61,6 +61,24 @@ class RemoveSongFromPlaylistServiceTest {
         assertNotNull(updatedPlaylist);
         assertTrue(updatedPlaylist.getSongs().isEmpty());
         verify(playlistRepository, times(1)).update(updatedPlaylist);
+    }
+
+    @Test
+    void shouldBeNoOpWithoutWriteWhenSongAlreadyAbsent() {
+        PlaylistId playlistId = new PlaylistId(UUID.randomUUID());
+        SongId songId = new SongId(UUID.randomUUID());
+        UserId ownerId = UserId.generate();
+        RemoveSongFromPlaylistUseCase.RemoveSongFromPlaylistCommand command =
+                new RemoveSongFromPlaylistUseCase.RemoveSongFromPlaylistCommand(
+                        playlistId, songId, ownerId);
+
+        Playlist existingPlaylist = Playlist.create("My Playlist", ownerId);
+        when(playlistRepository.findById(playlistId)).thenReturn(Optional.of(existingPlaylist));
+
+        Playlist result = removeSongFromPlaylistService.removeSongFromPlaylist(command);
+
+        assertTrue(result.getSongs().isEmpty());
+        verify(playlistRepository, never()).update(any());
     }
 
     @Test

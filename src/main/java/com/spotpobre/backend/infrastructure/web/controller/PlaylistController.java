@@ -26,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -114,7 +115,7 @@ public class PlaylistController {
     }
 
     @DeleteMapping("/playlists/{playlistId}/songs/{songId}")
-    public ResponseEntity<PlaylistResponse> removeSongFromPlaylist(
+    public ResponseEntity<Void> removeSongFromPlaylist(
             @PathVariable final UUID playlistId,
             @PathVariable final UUID songId,
             final Principal principal
@@ -124,9 +125,8 @@ public class PlaylistController {
                 new SongId(songId),
                 getCurrentUserUseCase.getCurrentUserId(principal.getName())
         );
-        final Playlist updatedPlaylist = removeSongFromPlaylistUseCase.removeSongFromPlaylist(command);
-        final PlaylistResponse response = mapper.toResponse(updatedPlaylist);
-        return ResponseEntity.ok(response);
+        removeSongFromPlaylistUseCase.removeSongFromPlaylist(command);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me/playlists")
@@ -153,7 +153,7 @@ public class PlaylistController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/playlists/{playlistId}/songs/{songId}")
+    @PutMapping("/playlists/{playlistId}/songs/{songId}")
     public ResponseEntity<PlaylistResponse> addSongToPlaylist(
             @PathVariable final UUID playlistId,
             @PathVariable final UUID songId,

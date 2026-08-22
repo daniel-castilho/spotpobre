@@ -12,10 +12,12 @@ import com.spotpobre.backend.application.artist.service.CreateArtistService;
 import com.spotpobre.backend.application.artist.service.GrantArtistAccountService;
 import com.spotpobre.backend.application.artist.service.RevokeArtistAccountService;
 import com.spotpobre.backend.application.artist.service.SearchArtistsService;
-import com.spotpobre.backend.application.like.port.in.ToggleLikeUseCase;
+import com.spotpobre.backend.application.like.port.in.PutLikeUseCase;
+import com.spotpobre.backend.application.like.port.in.DeleteLikeUseCase;
 import com.spotpobre.backend.application.like.service.LikeStrategy;
 import com.spotpobre.backend.application.like.service.LikeStrategyFactory;
-import com.spotpobre.backend.application.like.service.ToggleLikeService;
+import com.spotpobre.backend.application.like.service.PutLikeService;
+import com.spotpobre.backend.application.like.service.DeleteLikeService;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.DeletePlaylistUseCase;
@@ -228,11 +230,19 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    public ToggleLikeUseCase toggleLikeUseCase(
+    public PutLikeUseCase putLikeUseCase(
             LikeRepository likeRepository,
             LikeStrategyFactory likeStrategyFactory
     ) {
-        return new ToggleLikeService(likeRepository, likeStrategyFactory);
+        return new PutLikeService(likeRepository, likeStrategyFactory);
+    }
+
+    @Bean
+    public DeleteLikeUseCase deleteLikeUseCase(
+            LikeRepository likeRepository,
+            LikeStrategyFactory likeStrategyFactory
+    ) {
+        return new DeleteLikeService(likeRepository, likeStrategyFactory);
     }
 
     @Bean

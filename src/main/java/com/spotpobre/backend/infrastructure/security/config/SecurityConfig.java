@@ -64,8 +64,10 @@ public class SecurityConfig {
                         // Endpoints for any authenticated user
                         .requestMatchers("/api/v1/users/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/albums/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/likes/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/users/me/likes/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/users/me/likes/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/playlists").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/playlists/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/playlists/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/playlists/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/playlists/**").authenticated()

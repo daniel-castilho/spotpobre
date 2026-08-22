@@ -31,6 +31,21 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **BREAKING: likes are now desired-state PUT/DELETE.** `POST /api/v1/likes/toggle` was removed.
+  Like mutations move to `PUT /api/v1/users/me/likes/{entityType}/{entityId}` (like) and
+  `DELETE /api/v1/users/me/likes/{entityType}/{entityId}` (unlike), where `entityType` is lowercase
+  `song`, `artist` or `playlist` and `entityId` is a UUID. Both are idempotent, return 204 with no
+  body, and mutation responses no longer carry `newLikeCount` (the GSI count is eventually
+  consistent and not transactionally coupled to the mutation). Missing target entity returns 404;
+  concurrent opposite operations follow last-successful-storage-operation semantics.
+- **BREAKING: playlist song membership is idempotent PUT/DELETE.** Adding a song is now
+  `PUT /api/v1/playlists/{playlistId}/songs/{songId}` (was POST): repeated PUT keeps one membership
+  with no version increment when already present; a concurrent same-song PUT that loses optimistic
+  locking reloads and succeeds when the desired membership already exists instead of surfacing a
+  409; genuinely different concurrent modifications still return 409 for retry. Removing a song
+  keeps the same path but now always returns 204 — removing an absent song is a successful no-op
+  with no persistence write or version bump. The 100-unique-songs maximum and owner-only access
+  rules are unchanged.
 - **Security rules tightened** — `POST /api/v1/albums` now accepts `ROLE_ARTIST` **or**
   `ROLE_ADMIN` at the edge (real authorisation happens in the use case via membership);
   `/api/v1/artists/*/accounts/**` is admin-only. Any `ROLE_ARTIST` user can no longer manage

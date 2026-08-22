@@ -116,11 +116,11 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
                 .statusCode(403)
                 .body("error", equalTo("Forbidden"));
 
-        //    Add song to playlist
+        //    Add song to playlist (non-owner)
         given()
                 .header("Authorization", "Bearer " + attackerToken)
                 .when()
-                .post("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .put("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
                 .then()
                 .statusCode(403)
                 .body("error", equalTo("Forbidden"));
@@ -150,7 +150,17 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
         given()
                 .header("Authorization", "Bearer " + ownerToken)
                 .when()
-                .post("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .put("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(200)
+                .body("songs", hasSize(1));
+
+        //    Repeated add of the same song must stay a successful no-op (one membership,
+        //    no duplicate) — naturally idempotent desired-state semantics
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .when()
+                .put("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
                 .then()
                 .statusCode(200)
                 .body("songs", hasSize(1));
@@ -161,8 +171,15 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
                 .when()
                 .delete("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
                 .then()
-                .statusCode(200)
-                .body("songs", hasSize(0));
+                .statusCode(204);
+
+        //    Repeated remove of the absent song stays successful (no-op, no error)
+        given()
+                .header("Authorization", "Bearer " + ownerToken)
+                .when()
+                .delete("/api/v1/playlists/{playlistId}/songs/{songId}", playlistId, songId)
+                .then()
+                .statusCode(204);
 
         //    Delete own playlist
         given()
