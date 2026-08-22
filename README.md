@@ -335,6 +335,13 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   the application layer.
 - **Catalog** — artists, albums and songs aggregates with rich domain models (`Album` aggregate,
   `Song`, `SongMetadata`).
+- **Artist accounts** — management rights on an artist come from an explicit membership
+  (`ArtistAccount`: `OWNER` | `MANAGER`, PK `artistId`, SK `userId`), not from `ROLE_ARTIST`
+  alone. Every new artist is created atomically with an `OWNER` account; admins grant/revoke
+  `MANAGER` memberships via `/api/v1/artists/{artistId}/accounts`. Album creation and song
+  upload/confirm require a membership on the owning artist (admins bypass; non-members get
+  403). Existing environments: create the `ArtistAccounts` table and run
+  `scripts/backfill-artist-accounts.sh <owner-user-id> --apply`.
 - **Song upload** — direct-to-S3 via presigned URLs. `POST /albums/{id}/songs` authorizes the
   upload (content type, max 500 MB) and returns 10-minute presigned PUT URL(s); the client PUTs
   the audio to S3; `POST .../songs/{songId}/confirm` verifies the object (or completes multipart).
