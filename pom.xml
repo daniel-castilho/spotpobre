@@ -38,8 +38,12 @@
 		<jjwt.version>0.12.5</jjwt.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<springdoc.version>3.1.0</springdoc.version>
-		<logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
-		<bouncycastle.version>1.80</bouncycastle.version>
+        <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
+        <!-- CVE-2026-59901 / CVE-2026-55831 / CVE-2026-55833 / CVE-2026-56745 /
+             CVE-2026-56819 (Trivy HIGH gate): overrides the Boot-managed Netty
+             BOM until the next Boot release manages >= 4.2.16.Final natively. -->
+        <netty.version>4.2.16.Final</netty.version>
+        <bouncycastle.version>1.84</bouncycastle.version>
 		<testcontainers.version>1.21.4</testcontainers.version>
 		<rest-assured.version>6.0.1</rest-assured.version>
 	</properties>

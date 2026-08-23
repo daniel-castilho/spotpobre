@@ -143,6 +143,19 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   `/api/v1/artists/*/accounts/**` is admin-only. Any `ROLE_ARTIST` user can no longer manage
   artists they have no membership on.
 
+### Security
+
+- **Closed the six fixable HIGH/CRITICAL findings flagged by the new Trivy gate** (CI run
+  32652460147), all in the application jar:
+  - Netty pinned to **4.2.16.Final** by overriding Boot's managed `netty.version` property
+    (Boot 4.1.0 manages 4.2.15.Final) — closes CVE-2026-59901 (bzip2 infinite loop,
+    codec-compression), CVE-2026-55831 / CVE-2026-55833 / CVE-2026-56745 (SPDY/codec-http
+    denial of service) and CVE-2026-56819 (HTTP/2 decompression ByteBuf leak, codec-http2),
+    all confirmed fixed upstream in 4.2.16.Final (Netty 4.2.16 release notes / NVD).
+  - BouncyCastle bumped 1.80 → **1.84**, closing CRITICAL CVE-2025-14813 (GOSTCTR counter
+    wraps after 255 blocks) plus CVE-2026-0636, CVE-2026-3505, CVE-2026-5588 and
+    CVE-2026-5598 fixed in the same upstream release.
+
 ## [0.9.0] - 2026-08-20
 
 ### Added
