@@ -1,6 +1,7 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
-import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
+import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase;
+import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase.CreateAlbumOutcome;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
@@ -29,6 +30,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,30 +43,40 @@ import java.util.UUID;
 @Tag(name = "Albums", description = "Album catalog and artist song uploads")
 public class AlbumController {
 
-    private final CreateAlbumUseCase createAlbumUseCase;
+    private final CreateAlbumIdempotentlyUseCase createAlbumIdempotentlyUseCase;
     private final InitiateSongUploadUseCase initiateSongUploadUseCase;
     private final ConfirmSongUploadUseCase confirmSongUploadUseCase;
     private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final AlbumApiMapper albumApiMapper;
     private final SongApiMapper songApiMapper;
 
+    /**
+     * Album creation requires a durable {@code Idempotency-Key} (spec §4.3). The authenticated
+     * actor scopes the claim; membership authorization is re-checked before the claim on every
+     * call, including replays.
+     */
     @PostMapping
     @Operation(summary = "Create an album")
     public ResponseEntity<AlbumResponse> createAlbum(
+            @RequestHeader(value = "Idempotency-Key", required = false) final String idempotencyKey,
             @RequestBody @Valid final CreateAlbumRequest request,
             final Authentication authentication
     ) {
         final UUID actorUserId = currentUserId(authentication);
-        final var command = new CreateAlbumUseCase.CreateAlbumCommand(
+        final var command = new CreateAlbumIdempotentlyUseCase.CreateAlbumCommand(
                 request.name(),
                 request.artistId() == null ? null : new ArtistId(request.artistId()),
                 request.coverArtUrl(),
                 actorUserId,
                 isAdmin(authentication)
         );
-        final Album album = createAlbumUseCase.createAlbum(command);
-        final AlbumResponse response = albumApiMapper.toResponse(album);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        final CreateAlbumOutcome outcome =
+                createAlbumIdempotentlyUseCase.createAlbumIdempotently(idempotencyKey, command);
+
+        // Original success status is preserved on replay (creation responds 201).
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Idempotency-Replayed", String.valueOf(outcome.replayed()))
+                .body(albumApiMapper.toResponse(outcome.album()));
     }
 
     @PostMapping("/{albumId}/songs")

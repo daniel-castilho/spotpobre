@@ -299,7 +299,7 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `POST` | `/api/v1/artists/{artistId}/accounts` | Grant an artist membership (`OWNER`/`MANAGER`) to a user; admin-only. |
 | | `DELETE` | `/api/v1/artists/{artistId}/accounts/{userId}` | Revoke an artist membership; admin-only. |
 | | `GET` | `/api/v1/artists/search?query={q}&limit={n}&cursor={token}` | Search artists by name (case-insensitive, cursor-paginated; `limit` max 50). |
-| **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. |
+| **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. Requires `Idempotency-Key` — replays return the same album with `Idempotency-Replayed: true`, key reuse with a different request → 409; membership on the owning artist (or admin) is re-checked before the claim on every call. |
 | | `POST` | `/api/v1/albums/{albumId}/songs` | Initiate a song upload (`ROLE_ARTIST`): validates type/size and returns short-lived presigned PUT URL(s). Files over 100 MB get S3 multipart part URLs. The API never accepts file bytes. |
 | | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
 | **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
@@ -356,14 +356,16 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   upload/confirm require a membership on the owning artist (admins bypass; non-members get
   403). Existing environments: create the `ArtistAccounts` table and run
   `scripts/backfill-artist-accounts.sh <owner-user-id> --apply`.
-- **Durable idempotency (spec §4.3 / §5)** — claim-and-lease protocol core plus the first two
-  wired endpoints: `POST /api/v1/auth/register` and admin-only `POST /api/v1/artists` now require
+- **Durable idempotency (spec §4.3 / §5)** — claim-and-lease protocol core plus the first wired
+  endpoints: `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists` and
+  `POST /api/v1/albums` now require
   an `Idempotency-Key` header (400 when missing/invalid), return `Idempotency-Replayed` headers,
   replay completed outcomes without re-execution, answer 409 (+ capped positive `Retry-After`)
   for concurrent duplicates and key reuse with a different request, and recover the **same
   resource** after a crash between claim and completion (stable preassigned ID + lease takeover).
   Registration replays mint a fresh JWT; artist creation reserves a stable artist ID before the
-  atomic Artist + OWNER write. The `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
+  atomic Artist + OWNER write; album creation re-checks membership authorization before the
+  claim on every call. The `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
   `expiresAtEpochSeconds`, 24 h retention) stores only SHA-256 digests and validated safe
   snapshots — never raw keys, e-mails, IPs, JWTs or signed URLs. Existing environments: create
   the table and enable TTL (commands in the LocalStack setup above; already part of

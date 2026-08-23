@@ -115,6 +115,7 @@ class ArtistSongFlowIT extends AbstractFlowIT {
         );
         String albumId = given()
                 .header("Authorization", "Bearer " + adminToken)
+                .header("Idempotency-Key", "it-album-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(createAlbumRequest)
                 .when()
@@ -209,6 +210,7 @@ class ArtistSongFlowIT extends AbstractFlowIT {
         );
         String albumId = given()
                 .header("Authorization", "Bearer " + adminToken)
+                .header("Idempotency-Key", "it-album-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(createAlbumRequest)
                 .when()

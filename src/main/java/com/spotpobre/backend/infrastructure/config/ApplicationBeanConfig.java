@@ -1,6 +1,8 @@
 package com.spotpobre.backend.infrastructure.config;
 
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
+import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase;
+import com.spotpobre.backend.application.album.service.CreateAlbumIdempotentService;
 import com.spotpobre.backend.application.album.service.CreateAlbumService;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistIdempotentlyUseCase;
@@ -274,6 +276,18 @@ public class ApplicationBeanConfig {
             Clock clock
     ) {
         return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository, passwordHasher, clock);
+    }
+
+    @Bean
+    public CreateAlbumIdempotentlyUseCase createAlbumIdempotentlyUseCase(
+            IdempotencyCoordinator idempotencyCoordinator,
+            ArtistRepository artistRepository,
+            AlbumRepository albumRepository,
+            RequireArtistAccessUseCase requireArtistAccessUseCase,
+            Clock clock
+    ) {
+        return new CreateAlbumIdempotentService(idempotencyCoordinator, artistRepository,
+                albumRepository, requireArtistAccessUseCase, clock);
     }
 
     @Bean
