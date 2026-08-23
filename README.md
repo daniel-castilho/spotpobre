@@ -257,6 +257,7 @@ The application will be available at `http://localhost:8080`.
 | Run the dev server | `./mvnw spring-boot:run` |
 | Run pure unit tests (no Docker needed) | `./mvnw test` |
 | Run slice + E2E tests (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
+| Full gate: unit + slice/E2E tests, SpotBugs, JaCoCo, OWASP and jar | `./mvnw verify` |
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
@@ -271,12 +272,12 @@ The project follows a comprehensive test strategy to guarantee quality and robus
 - **Slice integration tests** — use **Testcontainers** with **LocalStack** to boot a real AWS
   environment locally and validate the persistence and storage layers against DynamoDB/S3
   (`DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`). They are named `*IT` so they
-  do **not** run in the default `./mvnw test`; execute them explicitly with
-  `./mvnw test -Dtest='*IT'` (requires Docker).
+  do **not** run in the default `./mvnw test`; the maven-failsafe-plugin runs them in
+  `./mvnw verify` (requires Docker), or alone with `./mvnw test -Dtest='*IT'`.
 - **End-to-end (E2E) tests** — use **RestAssured** against the full application on a random port
   (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) with Testcontainers. They validate complete
   user flows from controller to database (`AuthenticationFlowIT`, `ArtistSongFlowIT`,
-  `PlaylistFlowIT`). Same `*IT` naming convention — run explicitly with `./mvnw test -Dtest='*IT'`.
+  `PlaylistFlowIT`). Same `*IT` naming convention — also run by `./mvnw verify`.
 
 ## API & Documentation
 

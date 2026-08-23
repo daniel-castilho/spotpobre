@@ -91,6 +91,11 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **`./mvnw verify` is now the single full gate.** The `maven-failsafe-plugin` runs the slice
+  integration and E2E `*IT` classes during `integration-test`, so one command covers unit tests,
+  integration/E2E tests, SpotBugs, JaCoCo check, OWASP Dependency Check and the production jar
+  (Docker required). `./mvnw test` remains the Docker-free unit loop; `-Dtest='*IT'` still works
+  for running integration tests alone.
 - **BREAKING: likes are now desired-state PUT/DELETE.** `POST /api/v1/likes/toggle` was removed.
   Like mutations move to `PUT /api/v1/users/me/likes/{entityType}/{entityId}` (like) and
   `DELETE /api/v1/users/me/likes/{entityType}/{entityId}` (unlike), where `entityType` is lowercase

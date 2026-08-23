@@ -59,6 +59,7 @@ task.
 | Run the dev server | `./mvnw spring-boot:run` → http://localhost:8080 |
 | Run pure unit tests (no Docker needed) | `./mvnw test` |
 | Run slice + E2E tests explicitly (needs Docker + LocalStack) | `./mvnw test -Dtest='*IT'` |
+| Full gate: unit + slice/E2E tests, SpotBugs, JaCoCo, OWASP and jar | `./mvnw verify` |
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
@@ -67,8 +68,9 @@ task.
 > Prefer the fast unit-test loop (`./mvnw test`); it needs **no Docker**. The slice integration and
 > E2E tests (`*IT` classes — e.g. `DynamoDbPlaylistRepositoryAdapterIT`, `S3SongStorageAdapterIT`,
 > `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT`) are **not** picked up by the default
-> surefire run (no failsafe plugin yet) — run them explicitly with `./mvnw test -Dtest='*IT'` after
-> infrastructure changes, or on a machine with Docker.
+> surefire run — `./mvnw verify` runs them via the failsafe plugin together with the quality checks
+> and the jar (needs Docker), or run them alone with `./mvnw test -Dtest='*IT'` after
+> infrastructure changes.
 
 ## Architecture
 
@@ -142,8 +144,8 @@ src/main/java/com/spotpobre/backend/
   download). All are `*IT` classes (requires Docker).
 - **End-to-end:** `AuthenticationFlowIT`, `ArtistSongFlowIT`, `PlaylistFlowIT` use **RestAssured**
   against the full application on a random port (`@SpringBootTest(webEnvironment =
-  RANDOM_PORT)`) with Testcontainers. Run all `*IT` classes explicitly with
-  `./mvnw test -Dtest='*IT'`.
+  RANDOM_PORT)`) with Testcontainers. `./mvnw verify` runs them via the failsafe plugin, or run
+  all `*IT` classes alone with `./mvnw test -Dtest='*IT'`.
 - Test method names: `method_condition_expectedResult` or descriptive `should ...`.
 - After significant changes run `./mvnw clean package` and smoke-test against
   `docker-compose up -d` (plus the LocalStack setup commands from `README.md`).
@@ -165,9 +167,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **E2E tests not wired into the build via failsafe.** No failsafe plugin, so `*IT` tests only run
-  via `-Dtest='*IT'` or in the CI workflow's dedicated step. Adding failsafe + `mvn verify` would
-  make the full gate a single command locally.
 - **MapStruct unmapped-property warning.** `ArtistApiMapper` produces a compiler warning for the
   unmapped `songs` target property on `ArtistResponse` (the `songs` field is intentionally omitted —
   artists are not returned with their song list at this endpoint). This is a pre-existing benign
@@ -192,8 +191,8 @@ new violations — flag them to the human instead.
   rollback alarms, task-role identity) — it activates when the project migrates to a real AWS
   account (see README Roadmap); its first real deployment must prove those gates end to end.
 - **Shutdown smoke is non-blocking in CI.** The `runtime-smoke` job warns but does not fail the
-  pipeline (testing-playbook gap 7). Promote it to a hard gate together with the failsafe work
-  above so `mvn verify` covers slice/IT/smoke in one command.
+  pipeline (testing-playbook gap 7). Promote it to a hard gate so the pipeline fails on
+  shutdown-drain regressions.
 
 ## Notes
 

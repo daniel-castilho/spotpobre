@@ -240,6 +240,23 @@
                     <argLine>-XX:+EnableDynamicAgentLoading @{argLine}</argLine>
                 </configuration>
             </plugin>
+            <!-- Slice/E2E integration tests (*IT classes, Testcontainers) run in the
+                 integration-test phase so `./mvnw verify` is the single full gate. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>-XX:+EnableDynamicAgentLoading @{argLine}</argLine>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
     <!-- JaCoCo coverage plugin -->
     <plugin>
         <groupId>org.jacoco</groupId>

@@ -124,17 +124,13 @@ the process is still alive, in-flight requests complete with 200, new requests a
 the process exits within the 30s grace period. Requires LocalStack + Redis running with the schema
 provisioned (README) and a built jar.
 
-### 3.6 Important lifecycle limitation
+### 3.6 Full gate
 
-`./mvnw clean package` is a production artifact build, but it is **not the complete test gate**: the project does not yet configure `maven-failsafe-plugin`, so `*IT` classes only run through the explicit command above or the dedicated CI step.
-
-Tracked improvement:
-
-- Surefire → `*Test` during `test`;
-- Failsafe → `*IT` during `integration-test` / `verify`;
-- `./mvnw verify` → one complete local/CI gate, optionally behind an integration profile when Docker is not available.
-
-Do not claim that `clean package` alone validates integration/E2E behaviour until Failsafe is wired.
+`./mvnw verify` is the complete local gate: Surefire runs `*Test` during `test`, the
+maven-failsafe-plugin runs `*IT` during `integration-test`, and the bound quality executions
+(SpotBugs, JaCoCo check, OWASP Dependency Check) plus the packaged jar complete at `verify`.
+Requires Docker. `./mvnw clean package` alone remains **only** a production artifact build —
+do not claim it validates integration/E2E behaviour.
 
 ---
 
@@ -354,7 +350,7 @@ Failure output should identify the resource/operation without printing passwords
 | **Coverage**        | JaCoCo threshold fails                                 | Add meaningful behaviour tests; do not exclude code merely to raise the percentage          |
 | **Static analysis** | SpotBugs fails                                         | Fix the finding or document a narrowly justified suppression with human review              |
 | **Dependency scan** | CVE reported                                           | Assess reachability/severity, upgrade or add a justified, expiring suppression              |
-| **Discovery**       | `*IT` not picked up                                    | Run the explicit `-Dtest='*IT'` command; Failsafe is not configured yet                     |
+| **Discovery**       | `*IT` not picked up                                    | Failsafe only runs them in `./mvnw verify`; use that, or the explicit `-Dtest='*IT'` command |
 
 When many tests fail, triage in this order:
 
@@ -385,11 +381,8 @@ Root cause: one concise sentence
 ./mvnw test
 # when persistence/storage/security/HTTP changed:
 ./mvnw test -Dtest='*IT' -DfailIfNoTests=false
-# when quality/build configuration changed:
-./mvnw jacoco:check
-./mvnw spotbugs:check
-./mvnw dependency-check:check -DfailBuildOnAnyVulnerability=false
-./mvnw clean package
+# or, for the complete gate (tests + ITs + quality checks + jar):
+./mvnw verify
 ```
 
 ---
