@@ -80,6 +80,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **The runtime shutdown smoke never passed in CI — and nothing noticed because it was
+  non-blocking.** The `runtime-smoke` job launched the production jar with the runner's default
+  JDK (17), which cannot load the Java 21 jar, so readiness never came UP and every run failed
+  into a swallowed warning; the script also predated the mandatory register `Idempotency-Key`
+  and discarded the application log on failure. The job now pins Temurin 21, sends a fresh
+  idempotency key per run, dumps the application-log tail on any failure, and the step is
+  promoted to a hard gate: shutdown-drain regressions fail the pipeline (testing-playbook
+  regression item 7 closed).
 - **Silenced the MapStruct unmapped-property warning on `ArtistApiMapper`.** The mapper omitted
   `ArtistResponse.songs` intentionally (artists are never returned with their song list), but only
   a stale comment documented it, so every compile logged an "Unmapped target property" warning.

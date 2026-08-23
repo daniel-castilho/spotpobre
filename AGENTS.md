@@ -185,9 +185,6 @@ new violations — flag them to the human instead.
   unproven is only the **legacy AWS-native path** (ADR-0001: CodeDeploy canary 10%/5min shift,
   rollback alarms, task-role identity) — it activates when the project migrates to a real AWS
   account (see README Roadmap); its first real deployment must prove those gates end to end.
-- **Shutdown smoke is non-blocking in CI.** The `runtime-smoke` job warns but does not fail the
-  pipeline (testing-playbook gap 7). Promote it to a hard gate so the pipeline fails on
-  shutdown-drain regressions.
 
 ## Notes
 

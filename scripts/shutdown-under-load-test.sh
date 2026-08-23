@@ -29,7 +29,16 @@ BASE_URL="http://localhost:${PORT}"
 GRACE_PERIOD_SECONDS=30
 
 log()  { printf '[S7] %s\n' "$*"; }
-fail() { printf '[S7] FAIL: %s\n' "$*" >&2; exit 1; }
+# Dump the application log on every failure path: the most common boot failures
+# (wrong JDK, port conflicts, config errors) are invisible without it.
+fail() {
+    printf '[S7] FAIL: %s\n' "$*" >&2
+    if [ -f /tmp/spotpobre-shutdown-app.log ]; then
+        printf '[S7] --- application log (last 40 lines) ---\n' >&2
+        tail -n 40 /tmp/spotpobre-shutdown-app.log >&2 || true
+    fi
+    exit 1
+}
 
 # --- Prerequisites -------------------------------------------------------------
 [ -f "$JAR" ] || fail "jar not found at $JAR (build with ./mvnw clean package -DskipTests)"
@@ -64,12 +73,17 @@ done
 log "readiness UP"
 
 # Register a user to obtain an authenticated token (needed for /users/me).
+# Registration is durable-idempotent (spec §4.3): every run sends a fresh unique
+# key (16-128 chars of [A-Za-z0-9._:-]) so the smoke never replays a stored outcome.
+IDEMPOTENCY_KEY="shutdown-smoke-$(date +%s)-$$-a1b2c3d4e5f6"
 email="shutdown-$(date +%s)@example.com"
 reg_body="{\"name\":\"Shutdown User\",\"email\":\"$email\",\"password\":\"password123\",\"country\":\"US\"}"
 reg_out=$(curl -s --max-time 10 -X POST "$BASE_URL/api/v1/auth/register" \
-    -H "Content-Type: application/json" -d "$reg_body")
+    -H "Content-Type: application/json" \
+    -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+    -d "$reg_body")
 TOKEN=$(printf '%s' "$reg_out" | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))" 2>/dev/null || true)
-[ -n "$TOKEN" ] || fail "could not register a user / obtain a token"
+[ -n "$TOKEN" ] || fail "could not register a user / obtain a token (response: $reg_out)"
 echo "$TOKEN" > /tmp/spotpobre-shutdown-token.txt
 log "authenticated (token acquired)"
 

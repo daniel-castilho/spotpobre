@@ -230,9 +230,11 @@ Keep this section honest. Move an item out only when an automated test/gate exis
    `S3HealthIndicator` exist and the readiness gate is defined, but there are no automated tests for
    dependency failure → readiness DOWN, recovery → UP, liveness staying UP, and probe-endpoint
    security.
-7. **Graceful shutdown has a reproducible script but no CI gate.** `scripts/shutdown-under-load-test.sh`
-   passes reliably (concurrent traffic, SIGTERM, readiness DOWN, in-flight 200s, exit within grace
-   period), but it is not wired into CI as an automated job.
+7. **Graceful shutdown CI gate — RESOLVED.** `scripts/shutdown-under-load-test.sh` now GATES the
+   `runtime-smoke` job on every push/PR (previously warn-only). Two latent defects were fixed when
+   promoting it: the CI job ran `java -jar` with the runner's default JDK (17), which cannot load
+   the Java 21 jar (explicit `setup-java` added), and registration predated the now-mandatory
+   `Idempotency-Key` header; failures dump the application-log tail for diagnosability.
 8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
 9. **JaCoCo thresholds are an initial floor, not a quality target.** Current gates are 35% line and 15% branch coverage and should increase gradually. Coverage does not prove assertion quality.
 10. **OWASP scan is advisory.** Vulnerability findings do not currently fail the build.
