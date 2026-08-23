@@ -111,6 +111,20 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **Dependency maintenance wave merged from Dependabot** (all CI-green on rebased branches):
+  Maven wrapper 3.9.11 → 3.9.16, jjwt 0.12.5 → 0.13.0 (single additive change per the upstream
+  release notes), JaCoCo 0.8.9 → 0.8.15, spotbugs-maven-plugin 4.9.3.0 → 4.10.3.0 (SpotBugs core
+  4.10.3 — mostly false-negative/false-positive fixes; gate stays watchful for new findings),
+  MapStruct 1.5.5.Final → 1.6.3 and spring-cloud-aws 4.0.2 → 4.1.0 (both verified against our
+  usage: none of the documented 1.6 breaking changes apply; SC-AWS 4.1.x is the Boot-4-era line).
+- **Adopted Testcontainers 2.0.5** with its breaking changes handled in one place
+  (`AbstractIntegrationTest`): renamed modules (`localstack` → `testcontainers-localstack`,
+  `junit-jupiter` → `testcontainers-junit-jupiter`), relocated `LocalStackContainer`
+  (`org.testcontainers.localstack`), service enum replaced by name strings in `withServices`, and
+  the unified no-arg `getEndpoint()` replacing `getEndpointOverride(service)`. The LocalStack
+  image deliberately stays pinned at `localstack/localstack:3.2` — project policy: bumping the
+  image is the last-resort option, and 3.2 predates the March 2026 `LOCALSTACK_AUTH_TOKEN`
+  requirement of newer images.
 - **Upgraded to Spring Boot 4.1** (from 3.5.7): Spring Framework 7 / Security 7 / Tomcat 11 with
   modularized starters — `spring-boot-starter-web` renamed to `spring-boot-starter-webmvc`, cache
   autoconfiguration now requires the explicit `spring-boot-starter-cache`, health indicators move
@@ -161,6 +175,10 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Security
 
+- **Pinned the httpcore5 family to 5.4.3** via Boot's `httpcore5.version` override property:
+  spring-cloud-aws 4.1.0 pulls `org.apache.httpcomponents.core5:httpcore5`/-h2 into the jar at
+  Boot's managed 5.4.2, which carries CVE-2026-54399 / CVE-2026-54428 (HIGH, fixed in 5.4.3) —
+  caught by the new Trivy HIGH/CRITICAL gate on PR #6's preview run before it ever reached main.
 - **Closed the six fixable HIGH/CRITICAL findings flagged by the new Trivy gate** (CI run
   32652460147), all in the application jar:
   - Netty pinned to **4.2.16.Final** by overriding Boot's managed `netty.version` property

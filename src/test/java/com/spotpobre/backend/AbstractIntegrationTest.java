@@ -3,7 +3,7 @@ package com.spotpobre.backend;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -38,8 +38,12 @@ public abstract class AbstractIntegrationTest {
     private static final LocalStackContainer localstack = startLocalStack();
 
     private static LocalStackContainer startLocalStack() {
+        // Testcontainers 2.x: withServices takes service-name strings (the
+        // Service enum was removed) and every LocalStack service shares the
+        // single container endpoint, so getEndpoint() replaces
+        // getEndpointOverride(service).
         LocalStackContainer container = new LocalStackContainer(localstackImage)
-                .withServices(LocalStackContainer.Service.S3, LocalStackContainer.Service.DYNAMODB);
+                .withServices("s3", "dynamodb");
         container.start();
         return container;
     }
@@ -47,8 +51,8 @@ public abstract class AbstractIntegrationTest {
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
         // AWS Endpoints
-        registry.add("aws.s3.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString());
-        registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString());
+        registry.add("aws.s3.endpoint", () -> localstack.getEndpoint().toString());
+        registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpoint().toString());
 
         // AWS Credentials for LocalStack — used by DynamoDbConfig and S3Config which build
         // clients with StaticCredentialsProvider from AwsProperties.credentials().
@@ -70,13 +74,13 @@ public abstract class AbstractIntegrationTest {
     @BeforeAll
     static void provisionLocalStack() {
         DynamoDbClient dynamoDb = DynamoDbClient.builder()
-                .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB))
+                .endpointOverride(localstack.getEndpoint())
                 .credentialsProvider(credentials())
                 .region(Region.of(localstack.getRegion()))
                 .build();
 
         S3Client s3 = S3Client.builder()
-                .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
+                .endpointOverride(localstack.getEndpoint())
                 .credentialsProvider(credentials())
                 .region(Region.of(localstack.getRegion()))
                 .build();

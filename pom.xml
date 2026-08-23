@@ -28,13 +28,13 @@
 
 	<properties>
 		<java.version>21</java.version>
-		<spring-cloud-aws.version>4.0.2</spring-cloud-aws.version>
+		<spring-cloud-aws.version>4.1.0</spring-cloud-aws.version>
 		<!-- Jackson 2 databind pin: the Boot 4 BOM manages only the new
 		     tools.jackson.core:jackson-databind (Jackson 3), leaving the legacy
 		     com.fasterxml line unmanaged — jjwt-jackson and our cursor/error JSON
 		     helpers still require it at runtime. -->
 		<jackson2-databind.version>2.22.2</jackson2-databind.version>
-		<mapstruct.version>1.5.5.Final</mapstruct.version>
+		<mapstruct.version>1.6.3</mapstruct.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<springdoc.version>3.1.0</springdoc.version>
@@ -44,7 +44,15 @@
              BOM until the next Boot release manages >= 4.2.16.Final natively. -->
         <netty.version>4.2.16.Final</netty.version>
         <bouncycastle.version>1.84</bouncycastle.version>
-		<testcontainers.version>1.21.4</testcontainers.version>
+        <!-- CVE-2026-54399 / CVE-2026-54428 (Trivy HIGH gate): Boot 4.1.0
+             manages the httpcore5 family at 5.4.2, which spring-cloud-aws
+             4.1.0 pulls into the application jar; 5.4.3 is the fixed line. -->
+        <httpcore5.version>5.4.3</httpcore5.version>
+		<!-- Testcontainers 2.x: modules renamed (localstack ->
+		     testcontainers-localstack, junit-jupiter ->
+		     testcontainers-junit-jupiter) and container classes relocated;
+		     see AbstractIntegrationTest for the API migration. -->
+		<testcontainers.version>2.0.5</testcontainers.version>
 		<rest-assured.version>6.0.1</rest-assured.version>
 	</properties>
 
@@ -195,12 +203,12 @@
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>junit-jupiter</artifactId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>localstack</artifactId>
+			<artifactId>testcontainers-localstack</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
