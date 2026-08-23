@@ -219,17 +219,20 @@ A feature is not fully covered if its only test mocks the behaviour that carries
 
 Keep this section honest. Move an item out only when an automated test/gate exists.
 
-1. **No Failsafe lifecycle integration.** `*IT` is not part of `mvn verify`; it runs by explicit Surefire selection.
+1. **Failsafe lifecycle integration — RESOLVED.** The `maven-failsafe-plugin` runs every `*IT`
+   class during `mvn verify` (`./mvnw verify` is the single full gate); explicit Surefire
+   selection (`-Dtest='*IT'`) still works for targeted runs.
 2. **No complete endpoint × HTTP method × role matrix.** Existing E2E tests cover critical authentication and playlist ownership paths, not every matcher in `SecurityConfig`.
-3. **Like persistence lacks a dedicated LocalStack integration test.** Toggle behaviour is unit-tested through a mocked `LikeRepository`; reverse-GSI count/pagination/eventual-consistency behaviour is not pinned end to end.
+3. **Like persistence LocalStack integration — RESOLVED.** `DynamoDbLikeRepositoryAdapterIT`
+   pins reverse-GSI count/pagination behaviour against real DynamoDB and `LikeFlowIT` covers the
+   desired-state PUT/DELETE flow end to end.
 4. **Not every DynamoDB adapter operation has direct integration coverage.** Several paths are covered indirectly by E2E, but an indirect flow may not exercise edge cases such as empty pages, large result sets or conditional failures.
 5. **Production fail-fast startup is not automated end to end.** `ProdConfigValidator` has unit
    coverage (`ProdConfigValidatorTest`), but booting the app with the `prod` profile against a real
    missing/forbidden variable set is only exercised manually.
-6. **Actuator probe failure/recovery is not automated.** The `DynamoDbHealthIndicator` /
-   `S3HealthIndicator` exist and the readiness gate is defined, but there are no automated tests for
-   dependency failure → readiness DOWN, recovery → UP, liveness staying UP, and probe-endpoint
-   security.
+6. **Actuator probe failure/recovery automation — RESOLVED.** `HealthProbeFlowIT` drives
+   dependency failure → readiness DOWN → recovery → UP with liveness staying UP against real
+   LocalStack containers.
 7. **Graceful shutdown CI gate — RESOLVED.** `scripts/shutdown-under-load-test.sh` now GATES the
    `runtime-smoke` job on every push/PR (previously warn-only). Two latent defects were fixed when
    promoting it: the CI job ran `java -jar` with the runner's default JDK (17), which cannot load
@@ -237,7 +240,11 @@ Keep this section honest. Move an item out only when an automated test/gate exis
    `Idempotency-Key` header; failures dump the application-log tail for diagnosability.
 8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
 9. **JaCoCo thresholds are an initial floor, not a quality target.** Current gates are 35% line and 15% branch coverage and should increase gradually. Coverage does not prove assertion quality.
-10. **OWASP scan is advisory.** Vulnerability findings do not currently fail the build.
+10. **Dependency vulnerability policy — CHANGED.** OWASP Dependency Check stays report-only by
+    design (`failBuildOnCVSS=11`, `failOnError=false`) so an unstable NVD can never break CI;
+    enforcement lives in the Trivy HIGH/CRITICAL image gate, which scans the production jar
+    inside the image and blocks the pipeline on fixable findings. Jar-level findings are tracked
+    via the Security-tab SARIF trail and pinned as they appear (netty, BouncyCastle, httpcore5).
 11. **No explicit mutation-testing or API schema compatibility gate.** Add only with human approval because both may require new tooling/dependencies.
 
 ---

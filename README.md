@@ -422,7 +422,10 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 - **Auth cache** — the Redis `userCache` stores a Jackson-friendly DTO (`CachedUserDetails`)
   instead of Spring Security's `User`, which cannot be round-tripped by
   `GenericJackson2JsonRedisSerializer` (previously a second authenticated request after a cache
-  hit failed with a 401).
+  hit failed with a 401). A Redis outage degrades gracefully instead of failing authentication:
+  a `CacheOutageTolerantErrorHandler` treats read failures as misses (direct DynamoDB lookup)
+  and swallows write/evict failures with loud WARNs, so Redis stays a best-effort cache and
+  readiness remains deliberately ungated on it (S6).
 - **CI/CD** — GitHub Actions workflow (`.github/workflows/ci.yml`) runs pure unit tests, then
   SpotBugs static analysis, then the `*IT` slice + E2E suite (Testcontainers), then
   `./mvnw clean package` on every push/PR. `DynamoDbConfig` / `S3Config` build AWS clients with
