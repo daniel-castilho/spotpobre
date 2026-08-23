@@ -1,12 +1,12 @@
 # Spotpobre API
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Spring](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 3** and a strict
-**Clean Architecture**. Its business core is 100% framework-free and 100% framework-free of code-generation
+Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 4.1** and a strict
+**Clean Architecture**. Its business core is 100% framework-free and free of code-generation
 tools: the `domain` layer holds plain Java entities (no Lombok, no annotation processors), rich business
 rules and outbound port interfaces, which keeps the application scalable, testable and independent of
 external technologies.
@@ -27,7 +27,7 @@ external technologies.
 
 | Category | Technology |
 | :--- | :--- |
-| **Language & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
+| **Language & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
 | **Build & Dependencies** | ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white) (with Maven Wrapper) |
 | **Security** | ![Spring Security](https://img.shields.io/badge/Spring_Security-6-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Tokens-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white) |
 | **Database** | ![Amazon DynamoDB](https://img.shields.io/badge/Amazon_DynamoDB-4053D6?style=for-the-badge&logo=amazon-dynamodb&logoColor=white) |

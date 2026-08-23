@@ -1,6 +1,6 @@
 # Testing Playbook
 
-**Role:** Define how to design, run, diagnose and maintain tests for this Java 21 / Spring Boot 3.5 Clean Architecture service (DynamoDB + S3 through LocalStack, Redis and JWT).
+**Role:** Define how to design, run, diagnose and maintain tests for this Java 21 / Spring Boot 4.1 Clean Architecture service (DynamoDB + S3 through LocalStack, Redis and JWT).
 **Audience:** Human contributors and AI software-engineering agents.
 **Stack constraints:** JUnit 5 + Mockito + Testcontainers (LocalStack) + RestAssured. Do not add a new test dependency without explicit human approval (`AGENTS.md`, rule 5).
 

@@ -154,7 +154,7 @@ inventing variants**. Prefer the pattern that matches existing code; if none fit
 
 ## 6. Spring Boot conventions
 
-- **Java 21 / Spring Boot 3.5.** Annotate services with `@Component` or register them via `@Bean`
+- **Java 21 / Spring Boot 4.1.** Annotate services with `@Component` or register them via `@Bean`
   in `infrastructure/config/ApplicationBeanConfig` (explicit wiring is preferred for use cases).
 - **Constructor injection only** (`@RequiredArgsConstructor` for Lombok-managed fields, or an
   explicit constructor). Never field injection.

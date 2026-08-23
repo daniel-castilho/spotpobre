@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Spotpobre API — a music streaming backend built with **Java 21 + Spring Boot 3.5** as a strict
+Spotpobre API — a music streaming backend built with **Java 21 + Spring Boot 4.1** as a strict
 **Clean Architecture** (layered) service. The business core (`domain` + `application`) is kept
 independent of `infrastructure` details: persistence (DynamoDB), storage (S3), security (JWT) and
 the web layer (Spring Web controllers) are all behind ports.

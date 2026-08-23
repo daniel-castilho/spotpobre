@@ -105,6 +105,16 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **Upgraded to Spring Boot 4.1** (from 3.5.7): Spring Framework 7 / Security 7 / Tomcat 11 with
+  modularized starters — `spring-boot-starter-web` renamed to `spring-boot-starter-webmvc`, cache
+  autoconfiguration now requires the explicit `spring-boot-starter-cache`, health indicators move
+  from `spring-boot.actuate.health` to `org.springframework.boot.health.contributor`,
+  `RedisCacheManagerBuilderCustomizer` moved to the new cache module package, and
+  `DaoAuthenticationProvider` takes its `UserDetailsService` via constructor. Jackson 3
+  (`tools.jackson.*`) replaces Jackson 2 in application code (`DynamoDbCursorHelper`,
+  `RestErrorResponseWriter`); the legacy `com.fasterxml.jackson.core:jackson-databind` 2.x line
+  stays pinned at 2.22.2 because jjwt-jackson still requires it at runtime. Companion bumps:
+  spring-cloud-aws 4.0.2, springdoc 3.1.0, rest-assured 6.0.1.
 - **CI actions moved to supported Node 24 runtimes.** `actions/cache` v4 → v6,
   `actions/upload-artifact` v4 → v7, `actions/download-artifact` v4 → v7,
   `actions/checkout` v5 → v7 and `actions/dependency-review-action` v4 → v5 (the former all
