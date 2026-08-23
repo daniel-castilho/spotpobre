@@ -7,6 +7,17 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Changed
+
+- **JaCoCo floors raised 35%/15% → 60%/60% (line/branch)** — non-negotiable minimum per project
+  decision, enforced by `jacoco:check` locally and in CI. Closed the branch-coverage gap with
+  contract tests for persistence documents (`UserDocument`, `SongDocument`, `PlaylistDocument`,
+  `UserProfileDocument`, `ArtistDocument`: equals/hashCode/toString/null-tolerance), null-safe
+  conversion coverage for every `UuidMapper` direction, `UserPersistenceMapper`
+  round-trips (including legacy rows without `emailVerifiedAt`) and `User`
+  equals/hashCode/toString plus verification-stamp semantics. Measured before raising:
+  85.7% line / 55.6% branch → after: 87.4% / 64.0%.
+
 ## [0.12.0] - 2026-08-23
 
 ### Added

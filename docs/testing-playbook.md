@@ -239,7 +239,7 @@ Keep this section honest. Move an item out only when an automated test/gate exis
    the Java 21 jar (explicit `setup-java` added), and registration predated the now-mandatory
    `Idempotency-Key` header; failures dump the application-log tail for diagnosability.
 8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
-9. **JaCoCo thresholds are an initial floor, not a quality target.** Current gates are 35% line and 15% branch coverage and should increase gradually. Coverage does not prove assertion quality.
+9. **JaCoCo thresholds raised to a real floor (60% line / 60% branch) — RESOLVED as a gate, ongoing as a target.** Both floors now sit at 0.60 (previously 0.35/0.15) and are enforced by `jacoco:check` locally and in CI. Coverage does not prove assertion quality; keep closing meaningful gaps when touched.
 10. **Dependency vulnerability policy — CHANGED.** OWASP Dependency Check stays report-only by
     design (`failBuildOnCVSS=11`, `failOnError=false`) so an unstable NVD can never break CI;
     enforcement lives in the Trivy HIGH/CRITICAL image gate, which scans the production jar
