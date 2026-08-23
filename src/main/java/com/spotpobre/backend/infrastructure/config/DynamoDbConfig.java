@@ -2,7 +2,7 @@ package com.spotpobre.backend.infrastructure.config;
 
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.AlbumDocument;
-import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistAccountDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.AccountTokenDocument;import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistAccountDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.ArtistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.IdempotencyRecordDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
@@ -209,5 +209,23 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<LikeDocument> likesTable(final DynamoDbEnhancedClient enhancedClient) {
         return enhancedClient.table("Likes", TableSchema.fromBean(LikeDocument.class));
+    }
+
+    @Bean
+    public TableSchema<AccountTokenDocument> accountTokenTableSchema() {
+        return TableSchema.builder(AccountTokenDocument.class)
+                .newItemSupplier(AccountTokenDocument::new)
+                .addAttribute(String.class, a -> a.name("tokenHash").getter(AccountTokenDocument::getTokenHash).setter(AccountTokenDocument::setTokenHash).tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("userId").getter(AccountTokenDocument::getUserId).setter(AccountTokenDocument::setUserId))
+                .addAttribute(String.class, a -> a.name("purpose").getter(AccountTokenDocument::getPurpose).setter(AccountTokenDocument::setPurpose))
+                .addAttribute(Long.class, a -> a.name("expiresAtEpochSeconds").getter(AccountTokenDocument::getExpiresAtEpochSeconds).setter(AccountTokenDocument::setExpiresAtEpochSeconds))
+                .addAttribute(Long.class, a -> a.name("usedAtEpochSeconds").getter(AccountTokenDocument::getUsedAtEpochSeconds).setter(AccountTokenDocument::setUsedAtEpochSeconds))
+                .addAttribute(Instant.class, a -> a.name("createdAt").getter(AccountTokenDocument::getCreatedAt).setter(AccountTokenDocument::setCreatedAt))
+                .build();
+    }
+
+    @Bean
+    public DynamoDbTable<AccountTokenDocument> accountTokenTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<AccountTokenDocument> accountTokenTableSchema) {
+        return enhancedClient.table("AccountTokens", accountTokenTableSchema);
     }
 }

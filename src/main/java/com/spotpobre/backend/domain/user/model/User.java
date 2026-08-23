@@ -85,6 +85,17 @@ public class User {
         this.profile = newProfile;
     }
 
+    /**
+     * Replaces the local password with an already-hashed value (callers encode through the
+     * {@code PasswordHasher} port before reaching the aggregate).
+     */
+    public void changePassword(final String encodedPassword) {
+        if (encodedPassword == null || encodedPassword.isBlank()) {
+            throw new IllegalArgumentException("Encoded password cannot be blank");
+        }
+        this.password = encodedPassword;
+    }
+
     public void grantRole(final Role role) {
         this.roles.add(role);
     }

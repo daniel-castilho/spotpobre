@@ -128,4 +128,14 @@ run_aws dynamodb update-time-to-live \
   --table-name IdempotencyRecords \
   --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
 
+create_table AccountTokens \
+  --attribute-definitions AttributeName=tokenHash,AttributeType=S \
+  --key-schema AttributeName=tokenHash,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+
+# Account-lifecycle tokens (password recovery) rely on DynamoDB TTL for cleanup.
+run_aws dynamodb update-time-to-live \
+  --table-name AccountTokens \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
+
 echo "[seed] LocalStack environment configured successfully!"

@@ -151,3 +151,14 @@ provisioning, README schema block and `AbstractIntegrationTest` provisioning. Ro
 reverse adoption order (stop writing → verify no in-flight records → drop table); because all
 writes are conditional creates keyed by new PKs, dropping a table never corrupts existing
 domain data.
+## Account tokens (password recovery)
+
+- **Source of truth:** the `AccountTokens` table, PK `tokenHash` (lowercase hex SHA-256 of the
+  raw token value). Raw tokens are never persisted — only the hash, mirroring the idempotency
+  store's digest-only rule. `expiresAtEpochSeconds` drives DynamoDB TTL; `usedAtEpochSeconds`
+  marks redemption.
+- Single-use is enforced by a conditional write (`usedAtEpochSeconds` must not exist): two
+  concurrent redemptions of the same link cannot both succeed. Redeemed/expired/unknown tokens
+  all answer 404 — indistinguishable, because tokens are secrets.
+- Purposes (`PASSWORD_RESET`, `EMAIL_VERIFICATION`) are namespaced on the row so a token issued
+  for one flow can never redeem another.

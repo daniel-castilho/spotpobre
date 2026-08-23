@@ -7,7 +7,7 @@ services:
       - "4566:4566"            # Edge port for all services
       - "4510-4559:4510-4559"  # External services port range
     environment:
-      - SERVICES=dynamodb,s3
+      - SERVICES=dynamodb,s3,ses
       - DEBUG=0
       - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test

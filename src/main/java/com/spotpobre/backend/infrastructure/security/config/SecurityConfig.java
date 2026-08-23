@@ -42,6 +42,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                       .requestMatchers(HttpMethod.POST, "/api/v1/auth/password/recover").permitAll()
+                       .requestMatchers(HttpMethod.POST, "/api/v1/auth/password/reset").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                         // Probe endpoints used by the ALB / orchestrator — must be reachable

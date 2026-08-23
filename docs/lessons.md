@@ -3,6 +3,18 @@
 Practical findings from running and hardening the project's test/infra setup. Add to this file
 whenever a non-obvious failure or design decision cost real debugging time.
 
+## Debugging discipline (how to attack failures)
+
+- **Research beats trial-and-error.** When a failure is not instantly explainable from local
+  evidence, search the web FIRST (exact error text / symptom + component + "fixed version").
+  Knowing the problem, the symptom and being able to phrase the query is half the solution.
+  Recent examples: trivy-action's SARIF severity gotcha (#309), NVD 429/503 retry policy,
+  Testcontainers 2.x API removals — all solved by primary-source lookup, none by guessing.
+- **Triage many errors easiest-first.** With a wall of failures, fix the cheap independent ones
+  first (missing annotation, wrong import, stale stub) to shrink noise, then re-run to surface
+  what is actually deep. Always build a full error inventory (`grep` the compiler/test output,
+  `sort -u`) before touching code; fix one root cause per edit.
+
 ## Testcontainers / Docker
 
 - **docker-java in Testcontainers 1.19.x cannot talk to Docker 29+** (daemon API 1.53, MinAPIVersion

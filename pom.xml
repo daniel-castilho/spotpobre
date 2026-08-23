@@ -138,6 +138,13 @@
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>dynamodb-enhanced</artifactId>
 		</dependency>
+		<!-- SES v1 client for transactional account emails (password recovery).
+			 Emulated by LocalStack Community; version managed by the
+			 spring-cloud-aws BOM. Approved per provider decision (SES). -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ses</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.mapstruct</groupId>

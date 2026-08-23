@@ -43,7 +43,7 @@ public abstract class AbstractIntegrationTest {
         // single container endpoint, so getEndpoint() replaces
         // getEndpointOverride(service).
         LocalStackContainer container = new LocalStackContainer(localstackImage)
-                .withServices("s3", "dynamodb");
+                .withServices("s3", "dynamodb", "ses");
         container.start();
         return container;
     }
@@ -53,6 +53,8 @@ public abstract class AbstractIntegrationTest {
         // AWS Endpoints
         registry.add("aws.s3.endpoint", () -> localstack.getEndpoint().toString());
         registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpoint().toString());
+        // SES shares the LocalStack edge; the adapter must hit the mapped port, not 4566.
+        registry.add("email.sesEndpoint", () -> localstack.getEndpoint().toString());
 
         // AWS Credentials for LocalStack — used by DynamoDbConfig and S3Config which build
         // clients with StaticCredentialsProvider from AwsProperties.credentials().
@@ -103,6 +105,8 @@ public abstract class AbstractIntegrationTest {
                 gsi("entityId-index", "entityCompositeKey", "userId"));
         createTableIfMissing(dynamoDb, "IdempotencyRecords", "scopeKey", null);
         enableTimeToLive(dynamoDb, "IdempotencyRecords");
+        createTableIfMissing(dynamoDb, "AccountTokens", "tokenHash", null);
+        enableTimeToLive(dynamoDb, "AccountTokens");
     }
 
     private static void enableTimeToLive(DynamoDbClient dynamoDb, String tableName) {

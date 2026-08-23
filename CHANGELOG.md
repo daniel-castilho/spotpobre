@@ -7,6 +7,23 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Added
+
+- **Password recovery via AWS SES** (roadmap: email verification and password recovery —
+  recovery ships now; email verification reuses the same foundation next).
+  `POST /api/v1/auth/password/recover` always answers 202 without revealing whether the address
+  exists (no account enumeration; provider failures are logged, never surfaced). Known addresses
+  receive a single-use token (32 random bytes; only its SHA-256 hash is stored in the new
+  TTL-backed `AccountTokens` table) inside a reset link built from `APP_BASE_URL`.
+  `POST /api/v1/auth/password/reset` redeems it atomically (conditional write burns the token,
+  so replays of a used link answer 404 exactly like unknown ones), encodes the new password with
+  the Argon2id `PasswordHasher` and persists. Delivery goes through the new outbound port
+  `EmailSenderPort`; the first adapter is `SesEmailSenderAdapter` (SES v1 API — emulated by
+  LocalStack Community, so dev/CI exercise real sends offline). Swapping providers later means
+  adding an adapter, nothing else. Proven by `PasswordRecoveryFlowIT` (full journey incl.
+  old-password 401 / new-password 200 and token replay 404), `SesEmailSenderAdapterIT` against
+  the LocalStack SES emulation, and service unit tests.
+
 ## [0.11.0] - 2026-08-23
 
 ### Added

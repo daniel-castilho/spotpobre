@@ -3,10 +3,14 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase.RegistrationOutcome;
+import com.spotpobre.backend.application.user.port.in.RequestPasswordRecoveryUseCase;
+import com.spotpobre.backend.application.user.port.in.ResetPasswordUseCase;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.infrastructure.security.service.JwtService;
 import com.spotpobre.backend.infrastructure.web.dto.request.AuthenticationRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RegisterRequest;
+import com.spotpobre.backend.infrastructure.web.dto.request.RequestPasswordRecoveryRequest;
+import com.spotpobre.backend.infrastructure.web.dto.request.ResetPasswordRequest;
 import com.spotpobre.backend.infrastructure.web.dto.response.AuthenticationResponse;
 import com.spotpobre.backend.infrastructure.web.mapper.AuthApiMapper;
 import jakarta.validation.Valid;
@@ -29,6 +33,8 @@ public class AuthenticationController {
 
     private final RegisterUserIdempotentlyUseCase registerUserIdempotentlyUseCase;
     private final AuthenticateUserUseCase authenticateUserUseCase;
+    private final RequestPasswordRecoveryUseCase requestPasswordRecoveryUseCase;
+    private final ResetPasswordUseCase resetPasswordUseCase;
     private final JwtService jwtService;
     private final AuthApiMapper mapper;
 
@@ -72,5 +78,26 @@ public class AuthenticationController {
 
         final String token = jwtService.generateToken(userDetails);
         return new AuthenticationResponse(token);
+    }
+
+    /**
+     * Always acknowledges 202 regardless of e-mail existence: the response must not leak which
+     * addresses have accounts. Delivery failures never change the answer.
+     */
+    @PostMapping("/password/recover")
+    public ResponseEntity<Void> requestPasswordRecovery(
+            @RequestBody @Valid final RequestPasswordRecoveryRequest request) {
+        requestPasswordRecoveryUseCase.requestRecovery(
+                new RequestPasswordRecoveryUseCase.RequestPasswordRecoveryCommand(request.email()));
+        return ResponseEntity.accepted().build();
+    }
+
+    /** Redeems a single-use recovery token and replaces the account password. */
+    @PostMapping("/password/reset")
+    public ResponseEntity<Void> resetPassword(
+            @RequestBody @Valid final ResetPasswordRequest request) {
+        resetPasswordUseCase.resetPassword(
+                new ResetPasswordUseCase.ResetPasswordCommand(request.token(), request.newPassword()));
+        return ResponseEntity.noContent().build();
     }
 }

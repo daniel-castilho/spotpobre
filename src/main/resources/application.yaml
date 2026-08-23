@@ -45,6 +45,14 @@ rate-limit:
     - /api/v1/auth/authenticate
   client-ip-header: X-Forwarded-For
 
+email:
+  # SES identity used as the From header; must be verified in production.
+  from-address: ${EMAIL_FROM_ADDRESS:no-reply@spotpobre.local}
+  ses-endpoint: ${EMAIL_SES_ENDPOINT:http://localhost:4566}
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
 management:
   endpoints:
     web:

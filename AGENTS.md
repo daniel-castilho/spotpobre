@@ -179,6 +179,10 @@ new violations — flag them to the human instead.
 ## Notes
 
 - Do **not** push to the remote unless the human explicitly asks.
+- **Debugging discipline:** research the web before trial-and-error whenever a failure is not
+  immediately explainable (exact symptom + component + "fixed version" as the query); when many
+  errors pile up, inventory them all first and fix the easiest ones to reduce noise. Details in
+  `docs/lessons.md` → "Debugging discipline".
 - For current project status and pending work, see `README.md` ("Current State" / "Roadmap").
 - Secrets live in environment variables only — never committed. The `jwt.secret` in
   `application.yaml` is a dev-only example.
