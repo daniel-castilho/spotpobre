@@ -1,6 +1,8 @@
 package com.spotpobre.backend.infrastructure.config;
 
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
+import org.springframework.cache.annotation.CachingConfigurer;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
@@ -10,7 +12,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 import java.time.Duration;
 
 @Configuration
-public class CacheConfig {
+public class CacheConfig implements CachingConfigurer {
 
     public static final String USER_CACHE = "userCache";
 
@@ -31,5 +33,15 @@ public class CacheConfig {
                                 .disableCachingNullValues()
                                 .serializeValuesWith(SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
                 );
+    }
+
+    /**
+     * S6 degradation policy: a Redis outage must never fail the request path. Infrastructure
+     * errors become cache misses (direct source lookups); write/evict failures are logged and
+     * skipped. See {@link CacheOutageTolerantErrorHandler}.
+     */
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new CacheOutageTolerantErrorHandler();
     }
 }

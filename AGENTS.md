@@ -167,13 +167,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **Auth cache has no Redis-outage fallback.** `UserDetailsServiceImpl.loadUserByUsername` is
-  `@Cacheable(USER_CACHE)` with no `unless`/fallback, so a Redis outage makes every authenticated
-  request fail (JWT filter → cache miss → `RedisConnectionFailureException`) even though the
-  readiness probe reports UP (Redis is deliberately not part of the readiness gate — it is a cache,
-  S6 decision in `application.yaml`). Closing it needs either a cache-outage tolerant `CacheManager`
-  (degrade to direct DynamoDB lookup), or adding Redis to the readiness gate. The serialization
-  side is already fixed (`CachedUserDetails` DTO — see CHANGELOG `Unreleased`).
 - **Blue/green exercise proven locally; AWS-native path unexercised.** The on-premises
   production target (ADR-0002) was exercised end-to-end against the compose stack: canary deploy,
   cutover, rollback and LB IP-change resilience all PASS (`deploy/README.md` §1.6). What remains

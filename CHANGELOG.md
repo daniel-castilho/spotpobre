@@ -80,6 +80,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **Auth lookups survive a Redis outage** (AGENTS debt: auth cache had no fallback). A new
+  `CacheOutageTolerantErrorHandler` wired through `CachingConfigurer` treats cache
+  infrastructure failures as misses and swallows write/evict/clear failures with loud WARNs, so
+  `UserDetailsServiceImpl.loadUserByUsername` degrades to the direct DynamoDB lookup instead of
+  failing every authenticated request. Readiness remains deliberately ungated on Redis (S6);
+  the policy covers every Redis-backed cache, current and future. Proven by
+  `AuthCacheOutageResilienceIT`: a real Redis container serving `userCache` is killed
+  mid-flight and authentication keeps working from source.
 - **Closed the playlist-limit creation race** (AGENTS debt: count-then-insert). Creating a
   playlist now commits the row and the owner's counter advance in one DynamoDB transaction whose
   condition rejects anything that would exceed `MAX_PLAYLISTS_PER_USER = 10` — two strictly
