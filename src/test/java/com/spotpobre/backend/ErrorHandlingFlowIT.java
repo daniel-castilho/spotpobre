@@ -135,6 +135,7 @@ class ErrorHandlingFlowIT extends AbstractIntegrationTest {
 
         given()
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "it-reg-" + java.util.UUID.randomUUID())
                 .body(duplicate)
                 .when()
                 .post("/api/v1/auth/register")
@@ -190,6 +191,7 @@ class ErrorHandlingFlowIT extends AbstractIntegrationTest {
 
         return given()
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "it-reg-" + java.util.UUID.randomUUID())
                 .body(registerRequest)
                 .when()
                 .post("/api/v1/auth/register")

@@ -21,6 +21,18 @@ public class User {
     }
 
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
+        return createWithLocalPassword(UserId.generate(), profile, password);
+    }
+
+    /**
+     * Creates a local-registration user under a preassigned stable identifier, so a durable
+     * idempotency claim can reserve the ID before the write and retries recover the same user.
+     */
+    public static User createWithLocalPassword(final UserId userId, final UserProfile profile,
+                                               final String password) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id cannot be null.");
+        }
         if (profile == null) {
             throw new IllegalArgumentException("User profile cannot be null.");
         }
@@ -29,7 +41,7 @@ public class User {
         }
         final Set<Role> defaultRoles = EnumSet.of(Role.USER);
         return new User.Builder()
-                .id(UserId.generate())
+                .id(userId)
                 .profile(profile)
                 .password(password)
                 .roles(defaultRoles)

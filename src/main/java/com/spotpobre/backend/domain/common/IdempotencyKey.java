@@ -1,6 +1,5 @@
 package com.spotpobre.backend.domain.common;
 
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -24,10 +23,13 @@ public final class IdempotencyKey {
     /**
      * Validates the raw client-supplied header value.
      *
-     * @throws IllegalArgumentException if null, out of bounds, or contains disallowed characters
+     * @throws IllegalArgumentException if null/blank (missing), out of bounds, or contains
+     *                                  disallowed characters — all map to HTTP 400
      */
     public static IdempotencyKey of(final String raw) {
-        Objects.requireNonNull(raw, "Idempotency-Key header is required");
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key header is required");
+        }
         if (raw.length() < MIN_LENGTH || raw.length() > MAX_LENGTH) {
             throw new IllegalArgumentException(
                     "Idempotency-Key must be between " + MIN_LENGTH + " and " + MAX_LENGTH + " characters");

@@ -20,8 +20,10 @@ class IdempotencyKeyTest {
     }
 
     @Test
-    void rejectsNull() {
-        assertThrows(NullPointerException.class, () -> IdempotencyKey.of(null));
+    void rejectsNullAsMissingHeader() {
+        // A missing key is a client error (HTTP 400), not a server fault.
+        assertThrows(IllegalArgumentException.class, () -> IdempotencyKey.of(null));
+        assertThrows(IllegalArgumentException.class, () -> IdempotencyKey.of("   "));
     }
 
     @Test

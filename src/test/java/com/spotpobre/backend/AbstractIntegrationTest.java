@@ -61,6 +61,11 @@ public abstract class AbstractIntegrationTest {
         // No Redis in the Testcontainers stack: fall back to an in-memory cache for the
         // @Cacheable lookups (userCache) so auth flows do not depend on an external Redis.
         registry.add("spring.cache.type", () -> "simple");
+
+        // Flow ITs share one cached context and hammer the auth endpoints from a single IP;
+        // the small dev default (20/min) would spuriously 429 them. RateLimitFlowIT runs in its
+        // own context with an explicit tight limit.
+        registry.add("rate-limit.limit", () -> "100000");
     }
 
     /**

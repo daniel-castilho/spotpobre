@@ -47,12 +47,14 @@ import com.spotpobre.backend.application.song.service.SearchSongsService;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
+import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.application.user.service.AuthenticationService;
 import com.spotpobre.backend.application.user.service.GetCurrentUserService;
 import com.spotpobre.backend.application.user.service.GetUserDetailsService;
 import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.application.user.service.GetUserProfileService;
+import com.spotpobre.backend.application.user.service.RegisterUserIdempotentService;
 import com.spotpobre.backend.application.user.service.RegisterUserService;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistAccountRepository;
@@ -260,5 +262,15 @@ public class ApplicationBeanConfig {
             IdempotencyMetrics idempotencyMetrics
     ) {
         return new IdempotencyCoordinator(idempotencyRecordRepository, clock, idempotencyMetrics);
+    }
+
+    @Bean
+    public RegisterUserIdempotentlyUseCase registerUserIdempotentlyUseCase(
+            IdempotencyCoordinator idempotencyCoordinator,
+            UserRepository userRepository,
+            PasswordHasher passwordHasher,
+            Clock clock
+    ) {
+        return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository, passwordHasher, clock);
     }
 }

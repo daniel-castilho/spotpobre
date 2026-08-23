@@ -199,7 +199,8 @@ class PlaylistFlowIT extends AbstractIntegrationTest {
         );
 
         return given()
-                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "it-reg-" + java.util.UUID.randomUUID())
+.contentType(ContentType.JSON)
                 .body(registerRequest)
                 .when()
                 .post("/api/v1/auth/register")

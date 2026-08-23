@@ -36,6 +36,7 @@ class AuthenticationFlowIT extends AbstractIntegrationTest {
 
         String token = given()
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "it-reg-" + java.util.UUID.randomUUID())
                 .body(registerRequest)
                 .when()
                 .post("/api/v1/auth/register")
@@ -68,6 +69,7 @@ class AuthenticationFlowIT extends AbstractIntegrationTest {
 
         given()
                 .contentType(ContentType.JSON)
+                .header("Idempotency-Key", "it-reg-" + java.util.UUID.randomUUID())
                 .body(registerRequest)
                 .when()
                 .post("/api/v1/auth/register")
