@@ -318,6 +318,8 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
 | | `POST` | `/api/v1/auth/password/recover` | Request a password-recovery e-mail (anonymous). Always answers 202 — no account enumeration. Requires SES reachable in the environment (LocalStack emulates it). |
 | | `POST` | `/api/v1/auth/password/reset` | Redeem a single-use recovery token and set a new password (anonymous; unknown/expired/redeemed tokens all answer 404). |
+| | `POST` | `/api/v1/auth/email/verification/resend` | Resend the verification e-mail (authenticated; always 202 — already-verified skips silently, per-user cooldown answers 429). |
+| | `POST` | `/api/v1/auth/email/verification/confirm` | Confirm the e-mail address with a single-use token (anonymous; success 204, malformed 400, unknown/expired/redeemed 404). Stamps `emailVerifiedAt`. |
 | **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
 | | `GET` | `/api/v1/songs/search?query={q}&limit={n}&cursor={token}` | Search songs by title (case-insensitive, cursor-paginated; `limit` max 50). |
 | **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. Requires `Idempotency-Key` — replays return the same playlist with `Idempotency-Replayed: true`, key reuse with a different request → 409; the authenticated user is the owner and claim scope. |
@@ -409,11 +411,12 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   Basic per-client rate limiting (`RateLimitFilter` + `FixedWindowRateLimiter`, fixed window,
   in-memory) throttles `/api/v1/auth/register` and `/api/v1/auth/authenticate` with
   `429 Too Many Requests`; limits are externalized via `rate-limit.*` (env-overridable in prod).
-- **Account lifecycle** — password recovery through single-use, TTL-backed tokens
-  (`AccountTokens` table stores only SHA-256 hashes; enumeration-safe endpoints; conditional
-  burn prevents token replay). E-mail delivery goes through the `EmailSenderPort` with an AWS SES
-  adapter (`SesEmailSenderAdapter`, SES v1 API emulated by LocalStack Community); swapping
-  providers means adding another adapter.
+- **Account lifecycle** — password recovery and e-mail verification through single-use,
+  TTL-backed tokens (`AccountTokens` table stores only SHA-256 hashes; enumeration-safe
+  endpoints; conditional burn prevents token replay). Verification is informational in this
+  release (exposed as `emailVerified` on the profile; no login gate). E-mail delivery goes
+  through the `EmailSenderPort` with an AWS SES adapter (`SesEmailSenderAdapter`, SES v1 API
+  emulated by LocalStack Community); swapping providers means adding another adapter.
 - **Runtime & Deployment (epic complete)** — production runs **on-premises bare metal**
   (ADR-0002): Docker Compose blue/green fleets behind an NGINX weighted load balancer, with
   LocalStack emulating DynamoDB/S3/SES and Redis alongside.

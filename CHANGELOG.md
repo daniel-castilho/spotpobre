@@ -7,6 +7,8 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-23
+
 ### Added
 
 - **E-mail verification** (completes the account-lifecycle roadmap item; binding product
