@@ -13,11 +13,22 @@ public class Artist {
     }
 
     public static Artist create(final String name) {
+        return create(ArtistId.generate(), name);
+    }
+
+    /**
+     * Creates an artist under a preassigned stable identifier, so a durable idempotency claim
+     * can reserve the ID before the write and retries recover the same artist.
+     */
+    public static Artist create(final ArtistId artistId, final String name) {
+        if (artistId == null) {
+            throw new IllegalArgumentException("Artist id cannot be null.");
+        }
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Artist name cannot be blank.");
         }
         return new Builder()
-                .id(ArtistId.generate())
+                .id(artistId)
                 .name(name)
                 .build();
     }

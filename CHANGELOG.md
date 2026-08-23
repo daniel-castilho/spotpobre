@@ -9,6 +9,19 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **Idempotent endpoints: registration and artist creation (spec §4.3, step 6A–6B).**
+  `POST /api/v1/auth/register` and admin-only `POST /api/v1/artists` now run behind the durable
+  claim-and-lease protocol via new port-in use cases (`RegisterUserIdempotentlyUseCase`,
+  `CreateArtistIdempotentlyUseCase`). `Idempotency-Key` is required (400 when missing/invalid,
+  validated before any persistence); successful responses carry `Idempotency-Replayed: true|false`
+  and replays preserve the original status code. Same key + same canonical request returns the
+  stored outcome without re-executing; same key + different request → 409 key-reuse conflict;
+  concurrent duplicate requests → exactly one resource, losers get 409 + capped positive
+  `Retry-After`. Registration replays return a **freshly minted JWT** (tokens are never stored);
+  artist creation reserves a stable `ArtistId` before the atomic Artist + OWNER write, so a
+  crash between claim and completion recovers the same artist on retry (takeover). Deterministic
+  pre-claim validation failures (unknown/non-artist owner) never consume the key. The
+  authenticated principal scopes claims on protected routes.
 - **Durable idempotency foundation (spec §5, steps S7–S8).** New pure domain core under
   `domain/idempotency` (`IdempotencyScope`, `CanonicalRequestHash` v1, `LeaseToken`,
   `ResultSnapshot`, `FailureDescriptor`, `IdempotencyRecord`) and a claim-and-lease protocol
@@ -51,6 +64,17 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 - **Tests** — unit tests for the domain model, grant/revoke/access services and updated
   use-case tests; `DynamoDbArtistAccountRepositoryAdapterIT` covers atomic owner creation,
   round-trip and isolation against Testcontainers LocalStack.
+
+### Fixed
+
+- **Test infra: rate-limit test override was silently shadowed.** The `rate-limit.limit=100000`
+  escape hatch added to the shared `AbstractIntegrationTest` `@DynamicPropertySource` in step 6A
+  outranks subclass `@TestPropertySource` values in Spring's property precedence, so
+  `RateLimitFlowIT`'s tight `limit=3` never applied and its 429 assertions failed. Flow ITs now
+  extend a dedicated `AbstractFlowIT` base that neutralises rate limiting, while
+  `AbstractIntegrationTest` no longer touches `rate-limit.*` — rate-limit-specific ITs control
+  their own properties again. `RateLimitFlowIT` also uses a 1 h window: the limiter's windows are
+  wall-clock aligned, so a 1 m window can roll over mid-test and reset the counter.
 
 ### Changed
 

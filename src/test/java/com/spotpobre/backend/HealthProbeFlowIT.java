@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         properties = {"aws.s3.bucket-name=spotpobre-missing-bucket-it"}
 )
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class HealthProbeFlowIT extends AbstractIntegrationTest {
+class HealthProbeFlowIT extends AbstractFlowIT {
 
     private static final String MISSING_BUCKET = "spotpobre-missing-bucket-it";
 

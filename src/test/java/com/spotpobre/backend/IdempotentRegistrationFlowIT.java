@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * E2E protocol matrix for the idempotency-protected registration endpoint (step 6A).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class IdempotentRegistrationFlowIT extends AbstractIntegrationTest {
+class IdempotentRegistrationFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;

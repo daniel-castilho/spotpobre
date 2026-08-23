@@ -16,7 +16,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class LikeFlowIT extends AbstractIntegrationTest {
+class LikeFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;

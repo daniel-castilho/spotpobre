@@ -14,7 +14,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AuthenticationFlowIT extends AbstractIntegrationTest {
+class AuthenticationFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;

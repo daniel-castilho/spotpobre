@@ -18,7 +18,10 @@ import static org.hamcrest.Matchers.equalTo;
 @TestPropertySource(properties = {
         "rate-limit.enabled=true",
         "rate-limit.limit=3",
-        "rate-limit.window=1m"
+        // Wall-clock-aligned fixed window: a 1m window rolls over mid-test when the suite's
+        // timing shifts, resetting the counter (4th request → 401 instead of 429). A 1h window
+        // cannot roll over during a single test method.
+        "rate-limit.window=1h"
 })
 class RateLimitFlowIT extends AbstractIntegrationTest {
 

@@ -3,11 +3,13 @@ package com.spotpobre.backend.infrastructure.config;
 import com.spotpobre.backend.application.album.port.in.CreateAlbumUseCase;
 import com.spotpobre.backend.application.album.service.CreateAlbumService;
 import com.spotpobre.backend.application.artist.port.in.CreateArtistUseCase;
+import com.spotpobre.backend.application.artist.port.in.CreateArtistIdempotentlyUseCase;
 import com.spotpobre.backend.application.artist.port.in.GrantArtistAccountUseCase;
 import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.application.artist.port.in.RevokeArtistAccountUseCase;
 import com.spotpobre.backend.application.artist.port.in.SearchArtistsUseCase;
 import com.spotpobre.backend.application.artist.service.ArtistAccessService;
+import com.spotpobre.backend.application.artist.service.CreateArtistIdempotentService;
 import com.spotpobre.backend.application.artist.service.CreateArtistService;
 import com.spotpobre.backend.application.artist.service.GrantArtistAccountService;
 import com.spotpobre.backend.application.artist.service.RevokeArtistAccountService;
@@ -272,5 +274,15 @@ public class ApplicationBeanConfig {
             Clock clock
     ) {
         return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository, passwordHasher, clock);
+    }
+
+    @Bean
+    public CreateArtistIdempotentlyUseCase createArtistIdempotentlyUseCase(
+            IdempotencyCoordinator idempotencyCoordinator,
+            ArtistRepository artistRepository,
+            UserRepository userRepository,
+            Clock clock
+    ) {
+        return new CreateArtistIdempotentService(idempotencyCoordinator, artistRepository, userRepository, clock);
     }
 }

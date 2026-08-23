@@ -292,10 +292,10 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 
 | Entity | Method | Endpoint | Description |
 | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/api/v1/auth/register` | Register a new user. |
+| **Auth** | `POST` | `/api/v1/auth/register` | Register a new user. Requires `Idempotency-Key`; replays return a fresh token with `Idempotency-Replayed: true`. |
 | | `POST` | `/api/v1/auth/authenticate` | Authenticate a user and return a JWT. |
 | **Users** | `GET` | `/api/v1/users/me` | Return the authenticated user's profile. |
-| **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`; body carries `ownerUserId` — the target user must exist and hold `ROLE_ARTIST`; Artist + OWNER membership are created atomically). |
+| **Artists** | `POST` | `/api/v1/artists` | Create a new artist (requires `ROLE_ADMIN`; requires `Idempotency-Key` — replays return the same artist with `Idempotency-Replayed: true`, key reuse with a different request → 409; body carries `ownerUserId` — the target user must exist and hold `ROLE_ARTIST`; Artist + OWNER membership are created atomically). |
 | | `POST` | `/api/v1/artists/{artistId}/accounts` | Grant an artist membership (`OWNER`/`MANAGER`) to a user; admin-only. |
 | | `DELETE` | `/api/v1/artists/{artistId}/accounts/{userId}` | Revoke an artist membership; admin-only. |
 | | `GET` | `/api/v1/artists/search?query={q}&limit={n}&cursor={token}` | Search artists by name (case-insensitive, cursor-paginated; `limit` max 50). |
@@ -356,10 +356,14 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   upload/confirm require a membership on the owning artist (admins bypass; non-members get
   403). Existing environments: create the `ArtistAccounts` table and run
   `scripts/backfill-artist-accounts.sh <owner-user-id> --apply`.
-- **Durable idempotency foundation** — claim-and-lease protocol core for safe retries of
-  mutating operations, fully proven at the domain/application/adapter layers but **not yet
-  exposed on any endpoint** (endpoint wiring is the next step of the api-design-excellence-p0
-  epic). The new `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
+- **Durable idempotency (spec §4.3 / §5)** — claim-and-lease protocol core plus the first two
+  wired endpoints: `POST /api/v1/auth/register` and admin-only `POST /api/v1/artists` now require
+  an `Idempotency-Key` header (400 when missing/invalid), return `Idempotency-Replayed` headers,
+  replay completed outcomes without re-execution, answer 409 (+ capped positive `Retry-After`)
+  for concurrent duplicates and key reuse with a different request, and recover the **same
+  resource** after a crash between claim and completion (stable preassigned ID + lease takeover).
+  Registration replays mint a fresh JWT; artist creation reserves a stable artist ID before the
+  atomic Artist + OWNER write. The `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
   `expiresAtEpochSeconds`, 24 h retention) stores only SHA-256 digests and validated safe
   snapshots — never raw keys, e-mails, IPs, JWTs or signed URLs. Existing environments: create
   the table and enable TTL (commands in the LocalStack setup above; already part of

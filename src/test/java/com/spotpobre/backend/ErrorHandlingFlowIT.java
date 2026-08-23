@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class ErrorHandlingFlowIT extends AbstractIntegrationTest {
+class ErrorHandlingFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;

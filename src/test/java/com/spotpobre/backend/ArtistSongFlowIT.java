@@ -32,7 +32,7 @@ import java.net.http.HttpResponse;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ArtistSongFlowIT extends AbstractIntegrationTest {
+class ArtistSongFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;
@@ -95,6 +95,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
         CreateArtistRequest createArtistRequest = new CreateArtistRequest("The Integration Testers", artistUserId);
         String artistId = given()
                 .header("Authorization", "Bearer " + adminToken)
+                .header("Idempotency-Key", "it-artist-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(createArtistRequest)
                 .when()
@@ -192,6 +193,7 @@ class ArtistSongFlowIT extends AbstractIntegrationTest {
         CreateArtistRequest createArtistRequest = new CreateArtistRequest("Stream Testers", artistUserId);
         String artistId = given()
                 .header("Authorization", "Bearer " + adminToken)
+                .header("Idempotency-Key", "it-artist-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(createArtistRequest)
                 .when()

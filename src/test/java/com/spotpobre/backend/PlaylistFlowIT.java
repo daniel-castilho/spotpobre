@@ -20,7 +20,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class PlaylistFlowIT extends AbstractIntegrationTest {
+class PlaylistFlowIT extends AbstractFlowIT {
 
     @LocalServerPort
     private int port;
