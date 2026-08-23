@@ -25,6 +25,7 @@ import com.spotpobre.backend.application.like.service.LikeStrategyFactory;
 import com.spotpobre.backend.application.like.service.PutLikeService;
 import com.spotpobre.backend.application.like.service.DeleteLikeService;
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistIdempotentlyUseCase;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.DeletePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
@@ -32,6 +33,7 @@ import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUse
 import com.spotpobre.backend.application.playlist.port.in.RemoveSongFromPlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.UpdatePlaylistDetailsUseCase;
 import com.spotpobre.backend.application.playlist.service.AddSongToPlaylistService;
+import com.spotpobre.backend.application.playlist.service.CreatePlaylistIdempotentService;
 import com.spotpobre.backend.application.playlist.service.CreatePlaylistService;
 import com.spotpobre.backend.application.playlist.service.DeletePlaylistService;
 import com.spotpobre.backend.application.playlist.service.GetPlaylistDetailsService;
@@ -87,6 +89,17 @@ public class ApplicationBeanConfig {
             final PlaylistRepository playlistRepository
     ) {
         return new CreatePlaylistService(userRepository, playlistRepository);
+    }
+
+    @Bean
+    public CreatePlaylistIdempotentlyUseCase createPlaylistIdempotentlyUseCase(
+            IdempotencyCoordinator idempotencyCoordinator,
+            UserRepository userRepository,
+            PlaylistRepository playlistRepository,
+            Clock clock
+    ) {
+        return new CreatePlaylistIdempotentService(idempotencyCoordinator, userRepository,
+                playlistRepository, clock);
     }
 
     @Bean

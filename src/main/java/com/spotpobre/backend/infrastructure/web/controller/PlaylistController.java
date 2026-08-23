@@ -1,7 +1,7 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.playlist.port.in.AddSongToPlaylistUseCase;
-import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
+import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistIdempotentlyUseCase;
 import com.spotpobre.backend.application.playlist.port.in.DeletePlaylistUseCase;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistDetailsUseCase;
 import com.spotpobre.backend.application.playlist.port.in.GetPlaylistsByOwnerUseCase;
@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,7 +42,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1")
 public class PlaylistController {
 
-    private final CreatePlaylistUseCase createPlaylistUseCase;
+    private final CreatePlaylistIdempotentlyUseCase createPlaylistIdempotentlyUseCase;
     private final GetPlaylistDetailsUseCase getPlaylistDetailsUseCase;
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
     private final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase;
@@ -52,7 +53,7 @@ public class PlaylistController {
     private final PlaylistApiMapper mapper;
 
     public PlaylistController(
-            final CreatePlaylistUseCase createPlaylistUseCase,
+            final CreatePlaylistIdempotentlyUseCase createPlaylistIdempotentlyUseCase,
             final GetPlaylistDetailsUseCase getPlaylistDetailsUseCase,
             final AddSongToPlaylistUseCase addSongToPlaylistUseCase,
             final GetPlaylistsByOwnerUseCase getPlaylistsByOwnerUseCase,
@@ -62,7 +63,7 @@ public class PlaylistController {
             final GetCurrentUserUseCase getCurrentUserUseCase,
             final PlaylistApiMapper mapper
     ) {
-        this.createPlaylistUseCase = createPlaylistUseCase;
+        this.createPlaylistIdempotentlyUseCase = createPlaylistIdempotentlyUseCase;
         this.getPlaylistDetailsUseCase = getPlaylistDetailsUseCase;
         this.addSongToPlaylistUseCase = addSongToPlaylistUseCase;
         this.getPlaylistsByOwnerUseCase = getPlaylistsByOwnerUseCase;
@@ -73,17 +74,25 @@ public class PlaylistController {
         this.mapper = mapper;
     }
 
+    /**
+     * Playlist creation requires a durable {@code Idempotency-Key} (spec §4.3). The authenticated
+     * user is both the claim scope and the playlist owner.
+     */
     @PostMapping("/playlists")
     public ResponseEntity<PlaylistResponse> createPlaylist(
+            @RequestHeader(value = "Idempotency-Key", required = false) final String idempotencyKey,
             @RequestBody @Valid final CreatePlaylistRequest request,
             final Principal principal
     ) {
         final UserId ownerId = getCurrentUserUseCase.getCurrentUserId(principal.getName());
 
-        final var command = mapper.toCommand(request, ownerId);
-        final Playlist playlist = createPlaylistUseCase.createPlaylist(command);
-        final PlaylistResponse response = mapper.toResponse(playlist);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        final var outcome = createPlaylistIdempotentlyUseCase.createPlaylistIdempotently(
+                idempotencyKey, ownerId.value(), request.name());
+
+        // Original success status is preserved on replay (creation responds 201).
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Idempotency-Replayed", String.valueOf(outcome.replayed()))
+                .body(mapper.toResponse(outcome.playlist()));
     }
 
     @PatchMapping("/playlists/{playlistId}")

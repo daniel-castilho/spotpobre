@@ -304,7 +304,7 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
 | **Songs** | `GET` | `/api/v1/songs/{songId}` | Return a song's metadata and streaming URL. |
 | | `GET` | `/api/v1/songs/search?query={q}&limit={n}&cursor={token}` | Search songs by title (case-insensitive, cursor-paginated; `limit` max 50). |
-| **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. |
+| **Playlists** | `POST` | `/api/v1/playlists` | Create a new playlist. Requires `Idempotency-Key` — replays return the same playlist with `Idempotency-Replayed: true`, key reuse with a different request → 409; the authenticated user is the owner and claim scope. |
 | | `GET` | `/api/v1/me/playlists` | List the authenticated user's playlists (paginated). |
 | | `GET` | `/api/v1/playlists/{playlistId}` | Return a playlist's details. |
 | | `PATCH` | `/api/v1/playlists/{playlistId}` | Rename a playlist. |
@@ -357,8 +357,8 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   403). Existing environments: create the `ArtistAccounts` table and run
   `scripts/backfill-artist-accounts.sh <owner-user-id> --apply`.
 - **Durable idempotency (spec §4.3 / §5)** — claim-and-lease protocol core plus the first wired
-  endpoints: `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists` and
-  `POST /api/v1/albums` now require
+  endpoints: `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists`,
+  `POST /api/v1/albums` and `POST /api/v1/playlists` now require
   an `Idempotency-Key` header (400 when missing/invalid), return `Idempotency-Replayed` headers,
   replay completed outcomes without re-execution, answer 409 (+ capped positive `Retry-After`)
   for concurrent duplicates and key reuse with a different request, and recover the **same

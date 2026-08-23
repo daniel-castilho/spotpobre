@@ -40,6 +40,7 @@ class PlaylistFlowIT extends AbstractFlowIT {
 
         given()
                 .header("Authorization", "Bearer " + userToken)
+                .header("Idempotency-Key", "it-playlist-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(createPlaylistRequest)
                 .when()
@@ -74,6 +75,7 @@ class PlaylistFlowIT extends AbstractFlowIT {
         String ownerToken = registerAndLoginUser("playlist.owner@example.com");
         String playlistId = given()
                 .header("Authorization", "Bearer " + ownerToken)
+                .header("Idempotency-Key", "it-playlist-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(new CreatePlaylistRequest("My Secure Playlist"))
                 .when()

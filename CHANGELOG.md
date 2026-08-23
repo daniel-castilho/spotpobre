@@ -9,9 +9,10 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
-- **Idempotent endpoints: registration, artist and album creation (spec §4.3, step 6A–6C).**
-  `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists` and
-  `POST /api/v1/albums` now run behind the durable
+- **Idempotent endpoints: registration, artist, album and playlist creation (spec §4.3, step
+  6A–6D).**
+  `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists`,
+  `POST /api/v1/albums` and `POST /api/v1/playlists` now run behind the durable
   claim-and-lease protocol via new port-in use cases (`RegisterUserIdempotentlyUseCase`,
   `CreateArtistIdempotentlyUseCase`, `CreateAlbumIdempotentlyUseCase`). `Idempotency-Key` is
   required (400 when missing/invalid, validated before any persistence); successful responses
@@ -19,11 +20,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   and replays preserve the original status code. Same key + same canonical request returns the
   stored outcome without re-executing; same key + different request → 409 key-reuse conflict;
   concurrent duplicate requests → exactly one resource, losers get 409 + capped positive
-  `Retry-After`. Registration replays return a **freshly minted JWT** (tokens are never stored);
+  `Retry-After`.   Registration replays return a **freshly minted JWT** (tokens are never stored);
   artist creation reserves a stable `ArtistId` before the atomic Artist + OWNER write; album
   creation reserves a stable `AlbumId` and re-checks artist-membership authorization before the
   claim on every call — deterministic failures (unknown artist, non-member) never consume the key
-  and replays cannot bypass the policy. A crash between claim and completion recovers the same
+  and replays cannot bypass the policy. Playlist creation reserves a stable `PlaylistId`; the
+  per-user playlist limit is enforced at execution time and exceeding it records a replayable
+  FAILED_FINAL 409 (the key stays bound to that outcome). A crash between claim and completion
+  recovers the same
   resource on retry (lease takeover). The authenticated principal scopes claims on protected
   routes.
 - **Durable idempotency foundation (spec §5, steps S7–S8).** New pure domain core under

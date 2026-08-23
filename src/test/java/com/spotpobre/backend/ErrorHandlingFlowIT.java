@@ -86,6 +86,7 @@ class ErrorHandlingFlowIT extends AbstractFlowIT {
         String ownerToken = registerAndLoginUser("errors.owner@example.com");
         String playlistId = given()
                 .header("Authorization", "Bearer " + ownerToken)
+                .header("Idempotency-Key", "it-playlist-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(new CreatePlaylistRequest("Owner Playlist"))
                 .when()

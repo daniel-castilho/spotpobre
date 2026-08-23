@@ -27,6 +27,17 @@ public class Playlist {
     }
 
     public static Playlist create(final String name, final UserId ownerId) {
+        return create(PlaylistId.generate(), name, ownerId);
+    }
+
+    /**
+     * Creates a playlist under a preassigned stable identifier, so a durable idempotency claim
+     * can reserve the ID before the write and retries recover the same playlist.
+     */
+    public static Playlist create(final PlaylistId playlistId, final String name, final UserId ownerId) {
+        if (playlistId == null) {
+            throw new IllegalArgumentException("Playlist ID cannot be null.");
+        }
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Playlist name cannot be blank.");
         }
@@ -34,7 +45,7 @@ public class Playlist {
             throw new IllegalArgumentException("Owner ID cannot be null.");
         }
         return new Builder()
-                .id(PlaylistId.generate())
+                .id(playlistId)
                 .name(name)
                 .ownerId(ownerId)
                 .songs(new ArrayList<>())
