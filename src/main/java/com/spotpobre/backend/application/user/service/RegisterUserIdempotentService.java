@@ -24,6 +24,7 @@ import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -140,6 +141,9 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
                         "The registered account for this Idempotency-Key no longer exists."));
     }
 
+    // Thread-safe and shared: SpotBugs flags per-call instances (DMI_RANDOM_USED_ONLY_ONCE).
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     /**
      * Best-effort delivery: registration must succeed even when the e-mail provider is
      * unreachable. The token is persisted BEFORE the send attempt, so a crash after the save but
@@ -161,7 +165,7 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
 
     private static String newRawToken() {
         final byte[] bytes = new byte[32];
-        new java.security.SecureRandom().nextBytes(bytes);
+        SECURE_RANDOM.nextBytes(bytes);
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
