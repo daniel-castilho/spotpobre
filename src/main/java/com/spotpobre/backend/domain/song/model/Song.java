@@ -19,6 +19,18 @@ public class Song {
     }
 
     public static Song create(final String title, final AlbumId albumId, final String storageId) {
+        return create(SongId.generate(), title, albumId, storageId);
+    }
+
+    /**
+     * Creates a song under a preassigned stable identifier, so a durable idempotency claim can
+     * reserve the ID before the metadata write and retries recover the same song.
+     */
+    public static Song create(final SongId songId, final String title, final AlbumId albumId,
+                              final String storageId) {
+        if (songId == null) {
+            throw new IllegalArgumentException("Song ID cannot be null.");
+        }
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Song title cannot be blank.");
         }
@@ -29,7 +41,7 @@ public class Song {
             throw new IllegalArgumentException("Storage ID cannot be blank.");
         }
         return new Builder()
-                .id(SongId.generate())
+                .id(songId)
                 .albumId(albumId)
                 .title(title)
                 .storageId(storageId)

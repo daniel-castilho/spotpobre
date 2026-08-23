@@ -136,6 +136,7 @@ class ArtistSongFlowIT extends AbstractFlowIT {
         );
         var initiate = given()
                 .header("Authorization", "Bearer " + artistToken)
+.header("Idempotency-Key", "it-upload-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(initiateBody)
                 .when()
@@ -229,6 +230,7 @@ class ArtistSongFlowIT extends AbstractFlowIT {
         );
         var initiate = given()
                 .header("Authorization", "Bearer " + artistToken)
+.header("Idempotency-Key", "it-upload-" + java.util.UUID.randomUUID())
                 .contentType(ContentType.JSON)
                 .body(initiateBody)
                 .when()

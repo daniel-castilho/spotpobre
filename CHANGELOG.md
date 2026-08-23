@@ -9,10 +9,11 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
-- **Idempotent endpoints: registration, artist, album and playlist creation (spec §4.3, step
-  6A–6D).**
+- **Idempotent endpoints: registration, artist, album, playlist creation and song upload
+  initiation (spec §4.3, step 6A–6E).**
   `POST /api/v1/auth/register`, admin-only `POST /api/v1/artists`,
-  `POST /api/v1/albums` and `POST /api/v1/playlists` now run behind the durable
+  `POST /api/v1/albums`, `POST /api/v1/playlists` and
+  `POST /api/v1/albums/{albumId}/songs` now run behind the durable
   claim-and-lease protocol via new port-in use cases (`RegisterUserIdempotentlyUseCase`,
   `CreateArtistIdempotentlyUseCase`, `CreateAlbumIdempotentlyUseCase`). `Idempotency-Key` is
   required (400 when missing/invalid, validated before any persistence); successful responses
@@ -26,10 +27,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   claim on every call — deterministic failures (unknown artist, non-member) never consume the key
   and replays cannot bypass the policy. Playlist creation reserves a stable `PlaylistId`; the
   per-user playlist limit is enforced at execution time and exceeding it records a replayable
-  FAILED_FINAL 409 (the key stays bound to that outcome). A crash between claim and completion
-  recovers the same
-  resource on retry (lease takeover). The authenticated principal scopes claims on protected
-  routes.
+  FAILED_FINAL 409 (the key stays bound to that outcome). Song upload initiation uses the long
+  120 s upload lease, scopes claims by album (`pathIdentity`), and — on both replay and crash
+  recovery — re-presigns a fresh URL for the storage key already bound to the reserved song
+  (`SongStoragePort.regenerateUploadUrl`), so clients resume against the exact object; a metadata
+  save failure after multipart creation still aborts the orphan upload. A crash between claim and
+  completion
+  recovers the same resource on retry (lease takeover). The authenticated principal scopes claims
+  on protected routes.
 - **Durable idempotency foundation (spec §5, steps S7–S8).** New pure domain core under
   `domain/idempotency` (`IdempotencyScope`, `CanonicalRequestHash` v1, `LeaseToken`,
   `ResultSnapshot`, `FailureDescriptor`, `IdempotencyRecord`) and a claim-and-lease protocol

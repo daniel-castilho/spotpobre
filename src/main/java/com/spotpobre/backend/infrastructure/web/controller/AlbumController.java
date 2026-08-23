@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.web.controller;
 import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase;
 import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase.CreateAlbumOutcome;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
+import com.spotpobre.backend.application.song.port.in.InitiateSongUploadIdempotentlyUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
@@ -44,7 +45,7 @@ import java.util.UUID;
 public class AlbumController {
 
     private final CreateAlbumIdempotentlyUseCase createAlbumIdempotentlyUseCase;
-    private final InitiateSongUploadUseCase initiateSongUploadUseCase;
+    private final InitiateSongUploadIdempotentlyUseCase initiateSongUploadIdempotentlyUseCase;
     private final ConfirmSongUploadUseCase confirmSongUploadUseCase;
     private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final AlbumApiMapper albumApiMapper;
@@ -90,11 +91,12 @@ public class AlbumController {
                     """
     )
     public ResponseEntity<InitiateSongUploadResponse> initiateSongUpload(
+            @RequestHeader(value = "Idempotency-Key", required = false) final String idempotencyKey,
             @PathVariable final UUID albumId,
             @RequestBody @Valid final InitiateSongUploadRequest request,
             final Authentication authentication
     ) {
-        final var command = new InitiateSongUploadUseCase.InitiateSongUploadCommand(
+        final var command = new InitiateSongUploadIdempotentlyUseCase.InitiateSongUploadCommand(
                 request.title(),
                 new AlbumId(albumId),
                 request.contentType(),
@@ -102,8 +104,16 @@ public class AlbumController {
                 currentUserId(authentication),
                 isAdmin(authentication)
         );
-        final var result = initiateSongUploadUseCase.initiateUpload(command);
-        return ResponseEntity.status(HttpStatus.CREATED).body(songApiMapper.toInitiateResponse(result));
+        final var result =
+                initiateSongUploadIdempotentlyUseCase.initiateUploadIdempotently(idempotencyKey, command);
+
+        // Original success status is preserved on replay (initiation responds 201); the presigned
+        // URL is always freshly signed and targets the storage key bound to this song.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Idempotency-Replayed", String.valueOf(result.replayed()))
+                .body(songApiMapper.toInitiateResponse(
+                        new InitiateSongUploadUseCase.InitiateSongUploadResult(
+                                result.song(), result.upload())));
     }
 
     @PostMapping("/{albumId}/songs/{songId}/confirm")

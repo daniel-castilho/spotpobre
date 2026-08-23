@@ -54,7 +54,18 @@ public class S3SongStorageAdapter implements SongStoragePort {
 
     @Override
     public PresignedUploadResult generateUploadUrl(final SongUploadCommand command) {
-        final String storageKey = UUID.randomUUID().toString();
+        return presignUpload(UUID.randomUUID().toString(), command);
+    }
+
+    @Override
+    public PresignedUploadResult regenerateUploadUrl(final String storageKey, final SongUploadCommand command) {
+        if (storageKey == null || storageKey.isBlank()) {
+            throw new IllegalArgumentException("storageKey is required");
+        }
+        return presignUpload(storageKey, command);
+    }
+
+    private PresignedUploadResult presignUpload(final String storageKey, final SongUploadCommand command) {
         final Instant expiresAt = Instant.now().plus(PRESIGNED_URL_TTL);
 
         if (command.requiresMultipart()) {
