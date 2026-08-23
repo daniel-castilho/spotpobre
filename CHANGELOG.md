@@ -80,6 +80,12 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **Silenced the MapStruct unmapped-property warning on `ArtistApiMapper`.** The mapper omitted
+  `ArtistResponse.songs` intentionally (artists are never returned with their song list), but only
+  a stale comment documented it, so every compile logged an "Unmapped target property" warning.
+  It now carries an explicit `@Mapping(target = "songs", ignore = true)` with the rationale
+  inline; the item is cleared from AGENTS.md Known Technical Debt.
+
 - **CI red on two supply-chain gates** (fixed per the portable recipe in
   `flowtxt-parent/docs/ci-vulnerability-gates.md`):
   - The Trivy image scan failed on fixable MEDIUM CVEs although the policy is HIGH/CRITICAL —

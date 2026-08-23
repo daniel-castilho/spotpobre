@@ -167,11 +167,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **MapStruct unmapped-property warning.** `ArtistApiMapper` produces a compiler warning for the
-  unmapped `songs` target property on `ArtistResponse` (the `songs` field is intentionally omitted —
-  artists are not returned with their song list at this endpoint). This is a pre-existing benign
-  warning, not a SpotBugs finding; a `@Mapping(target = "songs", ignore = true)` or a deliberate
-  comment would silence it.
 - **Playlist-limit check is count-then-insert.** `CreatePlaylistService` enforces
   `MAX_PLAYLISTS_PER_USER` with `countByOwnerId` before insert; two strictly simultaneous creates
   could both pass the count and exceed 10. Documented as accepted for P1 in

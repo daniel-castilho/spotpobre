@@ -18,7 +18,9 @@ public interface ArtistApiMapper {
     CreateArtistCommand toCommand(final CreateArtistRequest request);
 
     @Mapping(source = "id", target = "id", qualifiedByName = "artistIdToUuid")
-    // Removed @Mapping(source = "songs", target = "songs")
+    // Artists are never returned with their song list at this endpoint; the
+    // target property stays null and must not fall back to SongApiMapper.
+    @Mapping(target = "songs", ignore = true)
     ArtistResponse toResponse(final Artist artist);
 
     default PageResponse<ArtistResponse> toPageResponse(final PageResult<Artist> page) {
