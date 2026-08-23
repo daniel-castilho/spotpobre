@@ -1,13 +1,17 @@
 package com.spotpobre.backend.infrastructure.web.controller;
 
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
+import com.spotpobre.backend.application.user.port.in.ConfirmEmailVerificationUseCase;
+import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase.RegistrationOutcome;
+import com.spotpobre.backend.application.user.port.in.RequestEmailVerificationResendUseCase;
 import com.spotpobre.backend.application.user.port.in.RequestPasswordRecoveryUseCase;
 import com.spotpobre.backend.application.user.port.in.ResetPasswordUseCase;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.infrastructure.security.service.JwtService;
 import com.spotpobre.backend.infrastructure.web.dto.request.AuthenticationRequest;
+import com.spotpobre.backend.infrastructure.web.dto.request.ConfirmEmailVerificationRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RegisterRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RequestPasswordRecoveryRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.ResetPasswordRequest;
@@ -24,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -35,6 +40,9 @@ public class AuthenticationController {
     private final AuthenticateUserUseCase authenticateUserUseCase;
     private final RequestPasswordRecoveryUseCase requestPasswordRecoveryUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
+    private final RequestEmailVerificationResendUseCase requestEmailVerificationResendUseCase;
+    private final ConfirmEmailVerificationUseCase confirmEmailVerificationUseCase;
+    private final GetCurrentUserUseCase getCurrentUserUseCase;
     private final JwtService jwtService;
     private final AuthApiMapper mapper;
 
@@ -98,6 +106,28 @@ public class AuthenticationController {
             @RequestBody @Valid final ResetPasswordRequest request) {
         resetPasswordUseCase.resetPassword(
                 new ResetPasswordUseCase.ResetPasswordCommand(request.token(), request.newPassword()));
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Authenticated resend of the verification e-mail. Always 202: an already-verified address
+     * skips the send silently, a per-user cooldown answers 429, and no extra verification state
+     * is revealed beyond {@code emailVerified} on the profile response.
+     */
+    @PostMapping("/email/verification/resend")
+    public ResponseEntity<Void> resendEmailVerification(final java.security.Principal principal) {
+        final var userId = getCurrentUserUseCase.getCurrentUserId(principal.getName());
+        requestEmailVerificationResendUseCase.requestResend(
+                new RequestEmailVerificationResendUseCase.RequestEmailVerificationResendCommand(userId));
+        return ResponseEntity.accepted().build();
+    }
+
+    /** Redeems a single-use verification token (anonymous — the token is the proof). */
+    @PostMapping("/email/verification/confirm")
+    public ResponseEntity<Void> confirmEmailVerification(
+            @RequestBody @Valid final ConfirmEmailVerificationRequest request) {
+        confirmEmailVerificationUseCase.confirm(
+                new ConfirmEmailVerificationUseCase.ConfirmEmailVerificationCommand(request.token()));
         return ResponseEntity.noContent().build();
     }
 }

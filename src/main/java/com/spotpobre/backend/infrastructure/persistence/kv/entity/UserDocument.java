@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.persistence.kv.entity;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 
@@ -12,6 +13,7 @@ public class UserDocument {
     private UserProfileDocument profile;
     private String password;
     private Set<String> roles;
+    private Instant emailVerifiedAt;
 
     public UserDocument() {
     }
@@ -21,6 +23,7 @@ public class UserDocument {
         this.profile = builder.profile;
         this.password = builder.password;
         this.roles = builder.roles;
+        this.emailVerifiedAt = builder.emailVerifiedAt;
     }
 
     @DynamoDbPartitionKey
@@ -54,6 +57,15 @@ public class UserDocument {
 
     public void setRoles(Set<String> roles) {
         this.roles = roles;
+    }
+
+    /** Null (or absent on legacy rows) means the e-mail is not verified. */
+    public Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public void setEmailVerifiedAt(Instant emailVerifiedAt) {
+        this.emailVerifiedAt = emailVerifiedAt;
     }
 
     @Override
@@ -91,6 +103,7 @@ public class UserDocument {
         private UserProfileDocument profile;
         private String password;
         private Set<String> roles;
+        private Instant emailVerifiedAt;
 
         private Builder() {
         }
@@ -112,6 +125,11 @@ public class UserDocument {
 
         public Builder roles(Set<String> roles) {
             this.roles = roles;
+            return this;
+        }
+
+        public Builder emailVerifiedAt(Instant emailVerifiedAt) {
+            this.emailVerifiedAt = emailVerifiedAt;
             return this;
         }
 

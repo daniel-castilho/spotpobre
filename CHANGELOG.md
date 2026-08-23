@@ -9,6 +9,31 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+- **E-mail verification** (completes the account-lifecycle roadmap item; binding product
+  decisions for this release). Registration sends a verification e-mail automatically on the
+  FIRST successful attempt (idempotent replays never resend; delivery failures are logged and
+  never fail the registration; a crash between claim and delivery may result in zero e-mails —
+  the authenticated resend is the documented recovery path). `POST
+  /api/v1/auth/email/verification/resend` (authenticated; matcher ordered before the auth
+  wildcard) always answers 202: already-verified accounts skip silently, a 60 s per-user cooldown
+  answers 429 via the new `TooManyRequestsException` (in-memory, same drift class as the fixed
+  window limiter), and IP-level throttling comes from the shared `rate-limit.paths`. `POST
+  /api/v1/auth/email/verification/confirm` (anonymous) redeems the single-use token burn-first,
+  then stamps `emailVerifiedAt`: deliberately NOT one DynamoDB transaction across both tables —
+  every intermediate state is safe, and replays of a redeemed token answer 404 exactly like
+  unknown/expired ones (malformed bodies answer 400). Verification TTL is separately configurable
+  (`email.verification-ttl`, default 24 h). The e-mail carries the copyable token plus the
+  canonical POST contract — no links to routes that do not exist.
+
+### Changed
+
+- **Informational verification state**: `User.emailVerifiedAt` (nullable Instant; legacy rows
+  without the attribute read as unverified and are never silently marked). Exposed as
+  `emailVerified` on `GET /api/v1/users/me`; nothing added to JWT claims; login and every
+  existing endpoint remain ungated in this release.
+
+### Added
+
 - **Password recovery via AWS SES** (roadmap: email verification and password recovery —
   recovery ships now; email verification reuses the same foundation next).
   `POST /api/v1/auth/password/recover` always answers 202 without revealing whether the address

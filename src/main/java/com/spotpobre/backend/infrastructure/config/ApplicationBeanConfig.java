@@ -56,6 +56,9 @@ import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
+import com.spotpobre.backend.domain.user.port.AccountTokenRepository;
+import com.spotpobre.backend.domain.user.port.EmailSenderPort;
+import com.spotpobre.backend.infrastructure.config.properties.EmailProperties;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
 import com.spotpobre.backend.application.user.service.AuthenticationService;
 import com.spotpobre.backend.application.user.service.GetCurrentUserService;
@@ -301,9 +304,13 @@ public class ApplicationBeanConfig {
             IdempotencyCoordinator idempotencyCoordinator,
             UserRepository userRepository,
             PasswordHasher passwordHasher,
-            Clock clock
+            Clock clock,
+            AccountTokenRepository accountTokenRepository,
+            EmailSenderPort emailSenderPort,
+            EmailProperties emailProperties
     ) {
-        return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository, passwordHasher, clock);
+        return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository,
+                passwordHasher, clock, accountTokenRepository, emailSenderPort, emailProperties);
     }
 
     @Bean

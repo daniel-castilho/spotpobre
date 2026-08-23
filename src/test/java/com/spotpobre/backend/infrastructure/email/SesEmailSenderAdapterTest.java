@@ -18,7 +18,7 @@ class SesEmailSenderAdapterTest {
 
     private final SesClient sesClient = mock(SesClient.class);
     private final EmailProperties emailProperties =
-            new EmailProperties("no-reply@spotpobre.local", "http://localhost:4566");
+            new EmailProperties("no-reply@spotpobre.local", "http://localhost:4566", java.time.Duration.ofHours(24));
     private final AppProperties appProperties = new AppProperties("https://app.example.com");
     private final SesEmailSenderAdapter adapter =
             new SesEmailSenderAdapter(sesClient, emailProperties, appProperties);

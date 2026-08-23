@@ -17,6 +17,8 @@ import com.spotpobre.backend.domain.idempotency.model.ResultSnapshot;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.model.UserProfile;
+import com.spotpobre.backend.domain.user.port.AccountTokenRepository;
+import com.spotpobre.backend.domain.user.port.EmailSenderPort;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,9 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
     private final Clock clock;
+    private final AccountTokenRepository accountTokenRepository;
+    private final EmailSenderPort emailSenderPort;
+    private final com.spotpobre.backend.infrastructure.config.properties.EmailProperties emailProperties;
 
     @Override
     @Transactional
@@ -91,6 +96,10 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
             coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"userId\":\"" + claim.resourceId() + "\"}"),
                     clock.instant());
+            // Binding decision v0.12.0: first successful attempt (fresh insert or crash
+            // recovery) sends the verification e-mail at-least-once; idempotent REPLAYS
+            // never resend. Delivery failures are logged, never surfaced to the caller.
+            sendVerificationEmailBestEffort(user);
             return new RegistrationOutcome(user, false);
         } catch (ConflictException e) {
             coordinator.failClaim(claim,
@@ -129,6 +138,31 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
         return userRepository.findById(UserId.from(userId))
                 .orElseThrow(() -> new IdempotencyConflictException(
                         "The registered account for this Idempotency-Key no longer exists."));
+    }
+
+    /**
+     * Best-effort delivery: registration must succeed even when the e-mail provider is
+     * unreachable. The token is persisted BEFORE the send attempt, so a crash after the save but
+     * before delivery leaves a valid (unused) token with no e-mail in flight — recovery is the
+     * authenticated resend endpoint.
+     */
+    private void sendVerificationEmailBestEffort(final User user) {
+        try {
+            final String rawToken = newRawToken();
+            accountTokenRepository.save(com.spotpobre.backend.domain.user.model.AccountToken.issue(
+                    user.getId(), com.spotpobre.backend.domain.user.model.AccountTokenPurpose.EMAIL_VERIFICATION,
+                    rawToken, emailProperties.verificationTtl(), clock.instant()));
+            emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(RegisterUserIdempotentService.class)
+                    .error("Failed to deliver verification e-mail to {}", user.getProfile().email(), e);
+        }
+    }
+
+    private static String newRawToken() {
+        final byte[] bytes = new byte[32];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private RuntimeException failureToException(final FailureDescriptor failure) {

@@ -188,6 +188,7 @@ public class DynamoDbConfig {
                 .addAttribute(String.class, a -> a.name("password").getter(UserDocument::getPassword).setter(UserDocument::setPassword))
                 .addAttribute(EnhancedType.setOf(String.class), a -> a.name("roles").getter(UserDocument::getRoles).setter(UserDocument::setRoles))
                 .addAttribute(String.class, a -> a.name("profile.email").getter(userDoc -> userDoc.getProfile() != null ? userDoc.getProfile().getEmail() : null).setter((userDoc, email) -> { if (userDoc.getProfile() != null) { userDoc.getProfile().setEmail(email); } }).tags(StaticAttributeTags.secondaryPartitionKey("email-index")))
+                .addAttribute(Instant.class, a -> a.name("emailVerifiedAt").getter(UserDocument::getEmailVerifiedAt).setter(UserDocument::setEmailVerifiedAt))
                 .build();
     }
 

@@ -136,6 +136,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", ex.getMessage(), request, null);
     }
 
+    @ExceptionHandler(com.spotpobre.backend.domain.common.TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(
+            com.spotpobre.backend.domain.common.TooManyRequestsException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), request, null);
+    }
+
     @ExceptionHandler(UploadIntegrityException.class)
     public ResponseEntity<ErrorResponse> handleUploadIntegrity(UploadIntegrityException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.CONFLICT, "Upload Integrity Failure", ex.getMessage(), request, null);

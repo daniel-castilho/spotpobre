@@ -10,4 +10,7 @@ public interface EmailSenderPort {
 
     /** E-mails a single-use password-recovery link embedding {@code rawToken}. */
     void sendPasswordRecoveryEmail(final String to, final String rawToken);
+
+    /** E-mails a single-use e-mail-verification token plus its POST confirmation contract. */
+    void sendEmailVerificationEmail(final String to, final String rawToken);
 }

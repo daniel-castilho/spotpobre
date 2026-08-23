@@ -43,6 +43,29 @@ public class SesEmailSenderAdapter implements EmailSenderPort {
                         + "<p><a href=\"" + resetLink + "\">Reset my password</a></p>");
     }
 
+    @Override
+    public void sendEmailVerificationEmail(final String to, final String rawToken) {
+        final long hours = emailProperties.verificationTtl().toHours();
+        // Decision (v0.12.0): no links to routes that do not exist. The e-mail carries the
+        // copyable token plus the canonical POST contract; a frontend may build its own link
+        // and call the API on the user's behalf.
+        final String contract =
+                "Confirm your e-mail address by calling:\n"
+                + "POST " + appProperties.baseUrl() + "/api/v1/auth/email/verification/confirm\n"
+                + "with body: {\"token\":\"" + rawToken + "\"}\n\n"
+                + "Copyable token: " + rawToken;
+        final String htmlContract =
+                "<p>Confirm your e-mail address by calling</p>"
+                + "<pre>POST " + appProperties.baseUrl()
+                + "/api/v1/auth/email/verification/confirm\n"
+                + "{\"token\":\"" + rawToken + "\"}</pre>"
+                + "<p>Token: <code>" + rawToken + "</code> (expires in "
+                + hours + " hours)</p>";
+        send(to, "Spotpobre — verify your e-mail",
+                "Your verification token expires in " + hours + " hours.\n\n" + contract,
+                htmlContract);
+    }
+
     private void send(final String to, final String subject, final String textBody, final String htmlBody) {
         final Message content = Message.builder()
                 .subject(Content.builder().data(subject).charset("UTF-8").build())

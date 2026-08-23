@@ -31,6 +31,7 @@ public class UserPersistenceMapper {
                         .map(Role::name)
                         .collect(Collectors.toSet()) :
                     Collections.emptySet())
+                .emailVerifiedAt(user.getEmailVerifiedAt())
                 .build();
     }
 
@@ -48,6 +49,7 @@ public class UserPersistenceMapper {
                             .map(Role::valueOf)
                             .collect(Collectors.toCollection(() -> EnumSet.noneOf(Role.class))) :
                     EnumSet.noneOf(Role.class))
+                .emailVerifiedAt(document.getEmailVerifiedAt())
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package com.spotpobre.backend.domain.user.model;
 
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
@@ -12,12 +13,14 @@ public class User {
     private UserProfile profile;
     private String password; // Can be null for OAuth2 users
     private Set<Role> roles;
+    private Instant emailVerifiedAt; // Null (or absent on legacy rows) = not verified
 
     private User(final Builder builder) {
         this.id = builder.id;
         this.profile = builder.profile;
         this.password = builder.password;
         this.roles = builder.roles;
+        this.emailVerifiedAt = builder.emailVerifiedAt;
     }
 
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
@@ -27,6 +30,7 @@ public class User {
     /**
      * Creates a local-registration user under a preassigned stable identifier, so a durable
      * idempotency claim can reserve the ID before the write and retries recover the same user.
+     * New local accounts start with {@code emailVerifiedAt == null}.
      */
     public static User createWithLocalPassword(final UserId userId, final UserProfile profile,
                                                final String password) {
@@ -81,6 +85,15 @@ public class User {
         return roles;
     }
 
+    /** Null means the address is not verified (legacy rows without the attribute included). */
+    public Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
     public void updateProfile(final UserProfile newProfile) {
         this.profile = newProfile;
     }
@@ -94,6 +107,19 @@ public class User {
             throw new IllegalArgumentException("Encoded password cannot be blank");
         }
         this.password = encodedPassword;
+    }
+
+    /**
+     * Marks the e-mail as verified at the given instant. First verification wins: calling it
+     * again on an already-verified account keeps the original timestamp.
+     */
+    public void markEmailVerified(final Instant verifiedAt) {
+        if (verifiedAt == null) {
+            throw new IllegalArgumentException("verifiedAt cannot be null");
+        }
+        if (this.emailVerifiedAt == null) {
+            this.emailVerifiedAt = verifiedAt;
+        }
     }
 
     public void grantRole(final Role role) {
@@ -130,6 +156,7 @@ public class User {
                 + ", profile=" + profile
                 + ", password=" + (password != null ? "[PROTECTED]" : "null")
                 + ", roles=" + roles
+                + ", emailVerifiedAt=" + (emailVerifiedAt != null ? emailVerifiedAt : "null")
                 + '}';
     }
 
@@ -138,6 +165,7 @@ public class User {
         private UserProfile profile;
         private String password;
         private Set<Role> roles;
+        private Instant emailVerifiedAt;
 
         private Builder() {
         }
@@ -159,6 +187,11 @@ public class User {
 
         public Builder roles(final Set<Role> roles) {
             this.roles = roles;
+            return this;
+        }
+
+        public Builder emailVerifiedAt(final Instant emailVerifiedAt) {
+            this.emailVerifiedAt = emailVerifiedAt;
             return this;
         }
 

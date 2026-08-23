@@ -41,6 +41,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
+                        // Ordering matters: the authenticated resend matcher MUST precede the
+                        // broad /api/v1/auth/** wildcard below.
+                       .requestMatchers(HttpMethod.POST, "/api/v1/auth/email/verification/resend").authenticated()
+                       .requestMatchers(HttpMethod.POST, "/api/v1/auth/email/verification/confirm").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/password/recover").permitAll()
                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/password/reset").permitAll()

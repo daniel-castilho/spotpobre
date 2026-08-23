@@ -53,6 +53,9 @@ class RegisterUserIdempotentServiceTest {
     private IdempotencyCoordinator coordinator;
     private UserRepository userRepository;
     private PasswordHasher passwordHasher;
+    private com.spotpobre.backend.domain.user.port.AccountTokenRepository accountTokenRepository;
+    private com.spotpobre.backend.domain.user.port.EmailSenderPort emailSenderPort;
+    private com.spotpobre.backend.infrastructure.config.properties.EmailProperties emailProperties;
     private RegisterUserIdempotentService service;
 
     @BeforeEach
@@ -62,7 +65,12 @@ class RegisterUserIdempotentServiceTest {
         coordinator = new IdempotencyCoordinator(idempotencyStore, clock, NoopMetrics.INSTANCE);
         userRepository = mock(UserRepository.class);
         passwordHasher = mock(PasswordHasher.class);
-        service = new RegisterUserIdempotentService(coordinator, userRepository, passwordHasher, clock);
+        accountTokenRepository = mock(com.spotpobre.backend.domain.user.port.AccountTokenRepository.class);
+        emailSenderPort = mock(com.spotpobre.backend.domain.user.port.EmailSenderPort.class);
+        emailProperties = new com.spotpobre.backend.infrastructure.config.properties.EmailProperties(
+                "no-reply@spotpobre.local", "http://localhost:4566",
+                com.spotpobre.backend.domain.user.model.AccountToken.DEFAULT_TTL);
+        service = new RegisterUserIdempotentService(coordinator, userRepository, passwordHasher, clock, accountTokenRepository, emailSenderPort, emailProperties);
     }
 
     @Test
