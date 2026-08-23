@@ -120,13 +120,10 @@ public class CreatePlaylistIdempotentService implements CreatePlaylistIdempotent
             return recovered.get();
         }
 
-        if (playlistRepository.countByOwnerId(ownerId) >= User.MAX_PLAYLISTS_PER_USER) {
-            throw new ConflictException(
-                    "User cannot have more than " + User.MAX_PLAYLISTS_PER_USER + " playlists.");
-        }
-
         final Playlist playlist = Playlist.create(reservedId, name, ownerId);
-        playlistRepository.create(playlist);
+        // Atomic at the storage layer: exceeding the per-owner limit aborts the whole
+        // transaction and surfaces as a replayable FAILED_FINAL 409 via the catch above.
+        playlistRepository.createWithinOwnerLimit(playlist, User.MAX_PLAYLISTS_PER_USER);
         return playlist;
     }
 

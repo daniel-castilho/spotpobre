@@ -431,7 +431,8 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 - **Data consistency & modelling** — every relationship has a single source of truth:
   playlists live only in the `Playlists` table (`ownerId-index`), album songs only in the `Songs`
   table (`albumId-index`); the `Users` / `Albums` aggregates no longer embed collections.
-  `MAX_PLAYLISTS_PER_USER = 10` is enforced against persistent state, user registration is
+  `MAX_PLAYLISTS_PER_USER = 10` is enforced atomically via a transactional per-owner counter
+  (race-free under concurrent creations), user registration is
   atomic against duplicate emails (`TransactWriteItems` + `UserEmails` uniqueness table), playlist
   mutations use optimistic locking (`version` + conditional writes), and a failed metadata save
   after a multipart S3 upload aborts the orphan upload. Decisions are recorded in

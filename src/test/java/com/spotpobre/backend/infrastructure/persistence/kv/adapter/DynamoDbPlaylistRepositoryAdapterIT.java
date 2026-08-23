@@ -46,7 +46,7 @@ class DynamoDbPlaylistRepositoryAdapterIT extends AbstractIntegrationTest {
         Playlist playlist = Playlist.create("My Test Playlist", ownerId);
 
         // When
-        playlistRepository.create(playlist);
+        playlistRepository.createWithinOwnerLimit(playlist, 10);
         Playlist foundPlaylist = playlistRepository.findById(playlist.getId()).orElse(null);
 
         // Then

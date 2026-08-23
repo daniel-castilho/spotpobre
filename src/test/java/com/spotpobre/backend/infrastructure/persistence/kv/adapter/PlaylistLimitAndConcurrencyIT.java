@@ -3,6 +3,7 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 import com.spotpobre.backend.AbstractIntegrationTest;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.domain.album.model.AlbumId;
+import com.spotpobre.backend.domain.common.pagination.PageRequest;
 import com.spotpobre.backend.domain.playlist.model.PlaylistConcurrentModificationException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.common.ConflictException;
@@ -16,7 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -50,7 +58,52 @@ class PlaylistLimitAndConcurrencyIT extends AbstractIntegrationTest {
                         new CreatePlaylistUseCase.CreatePlaylistCommand("Eleventh", ownerId)));
 
         assertEquals("User cannot have more than 10 playlists.", exception.getMessage());
-        assertEquals(10, playlistRepository.countByOwnerId(ownerId));
+        assertEquals(10, playlistRepository.findByOwnerId(ownerId, PageRequest.of(0, 50), null).content().size());
+    }
+
+    @Test
+    void shouldSerializeConcurrentCreationsUnderOwnerLimit() throws Exception {
+        User owner = seedUser();
+        UserId ownerId = owner.getId();
+        final int racers = 14;
+
+        // Every racer fires a strictly simultaneous create for the same owner. Count-then-insert
+        // let all of them observe the same count and overshoot; the transactional counter must
+        // serialize them so exactly MAX_PLAYLISTS_PER_USER land and the rest are rejected.
+        ExecutorService pool = Executors.newFixedThreadPool(racers);
+        CyclicBarrier startLine = new CyclicBarrier(racers);
+        List<Callable<Boolean>> racers_ = new ArrayList<>();
+        for (int i = 0; i < racers; i++) {
+            final String name = "Racer " + i;
+            racers_.add(() -> {
+                startLine.await();
+                try {
+                    createPlaylistUseCase.createPlaylist(
+                            new CreatePlaylistUseCase.CreatePlaylistCommand(name, ownerId));
+                    return true;
+                } catch (ConflictException e) {
+                    return false;
+                }
+            });
+        }
+
+        long accepted = 0;
+        long rejected = 0;
+        for (Future<Boolean> future : pool.invokeAll(racers_)) {
+            if (future.get()) {
+                accepted++;
+            } else {
+                rejected++;
+            }
+        }
+        pool.shutdownNow();
+
+        assertEquals(User.MAX_PLAYLISTS_PER_USER, accepted,
+                "the limit must bind even under strictly concurrent creation");
+        assertEquals(racers - User.MAX_PLAYLISTS_PER_USER, rejected);
+        assertEquals(User.MAX_PLAYLISTS_PER_USER,
+                playlistRepository.findByOwnerId(ownerId, PageRequest.of(0, 50), null).content().size(),
+                "no phantom playlist may survive past the limit");
     }
 
     @Test

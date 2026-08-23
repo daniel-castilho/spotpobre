@@ -26,13 +26,11 @@ public class CreatePlaylistService implements CreatePlaylistUseCase {
         final User user = userRepository.findById(command.ownerId())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        if (playlistRepository.countByOwnerId(command.ownerId()) >= User.MAX_PLAYLISTS_PER_USER) {
-            throw new ConflictException("User cannot have more than " + User.MAX_PLAYLISTS_PER_USER + " playlists.");
-        }
-
         final Playlist playlist = Playlist.create(command.name(), user.getId());
 
-        playlistRepository.create(playlist);
+        // Atomic at the storage layer: the per-owner limit is enforced by the same transaction
+        // that writes the playlist, so concurrent creations cannot both slip past it.
+        playlistRepository.createWithinOwnerLimit(playlist, User.MAX_PLAYLISTS_PER_USER);
 
         return playlist;
     }

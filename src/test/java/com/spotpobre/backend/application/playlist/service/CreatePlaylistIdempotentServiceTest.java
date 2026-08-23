@@ -37,7 +37,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -73,7 +76,6 @@ class CreatePlaylistIdempotentServiceTest {
                         .profile(new UserProfile("Owner", "owner@example.com", "BR"))
                         .roles(EnumSet.of(com.spotpobre.backend.domain.user.model.Role.USER))
                         .build()));
-        when(playlistRepository.countByOwnerId(any())).thenReturn(0L);
     }
 
     @Test
@@ -84,12 +86,12 @@ class CreatePlaylistIdempotentServiceTest {
         doAnswer(inv -> {
             saved.set(inv.getArgument(0));
             return null;
-        }).when(playlistRepository).create(any());
+        }).when(playlistRepository).createWithinOwnerLimit(any(), anyInt());
 
         var outcome = service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip");
 
         assertFalse(outcome.replayed());
-        verify(playlistRepository).create(any());
+        verify(playlistRepository).createWithinOwnerLimit(any(), anyInt());
 
         var stored = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
         assertEquals(IdempotencyState.COMPLETED, stored.state());
@@ -107,7 +109,7 @@ class CreatePlaylistIdempotentServiceTest {
 
         assertTrue(idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).isEmpty(),
                 "deterministic pre-claim validation failures must not consume the key");
-        verify(playlistRepository, never()).create(any());
+        verify(playlistRepository, never()).createWithinOwnerLimit(any(), anyInt());
     }
 
     @Test
@@ -123,7 +125,7 @@ class CreatePlaylistIdempotentServiceTest {
         doAnswer(inv -> {
             saved.set(inv.getArgument(0));
             return null;
-        }).when(playlistRepository).create(any());
+        }).when(playlistRepository).createWithinOwnerLimit(any(), anyInt());
 
         var first = service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip");
         var second = service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip");
@@ -131,14 +133,14 @@ class CreatePlaylistIdempotentServiceTest {
         assertFalse(first.replayed());
         assertTrue(second.replayed());
         assertEquals(first.playlist().getId(), second.playlist().getId());
-        verify(playlistRepository, times(1)).create(any());
+        verify(playlistRepository, times(1)).createWithinOwnerLimit(any(), anyInt());
     }
 
     @Test
     void createPlaylistIdempotently_sameKeyDifferentRequest_returnsKeyReuseConflict() {
         String key = validKey();
         when(playlistRepository.findById(any())).thenReturn(Optional.empty());
-        doAnswer(inv -> null).when(playlistRepository).create(any());
+        doAnswer(inv -> null).when(playlistRepository).createWithinOwnerLimit(any(), anyInt());
 
         service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip");
 
@@ -163,8 +165,9 @@ class CreatePlaylistIdempotentServiceTest {
     void createPlaylistIdempotently_limitReachedAtExecution_failsClaimFinalWith409() {
         String key = validKey();
         when(playlistRepository.findById(any())).thenReturn(Optional.empty());
-        when(playlistRepository.countByOwnerId(any())).thenReturn(MAX_PLAYLISTS);
-        doAnswer(inv -> null).when(playlistRepository).create(any());
+        // The storage-level transaction refuses the write when the limit would be exceeded
+        doThrow(new ConflictException("User cannot have more than " + MAX_PLAYLISTS + " playlists."))
+                .when(playlistRepository).createWithinOwnerLimit(any(), anyInt());
 
         assertThrows(ConflictException.class,
                 () -> service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip"));
@@ -172,10 +175,11 @@ class CreatePlaylistIdempotentServiceTest {
         assertEquals(IdempotencyState.FAILED_FINAL,
                 idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow().state());
 
-        // Retry replays the deterministic 409 instead of re-executing.
+        // Retry replays the deterministic 409 instead of re-executing: the storage-level write
+        // was attempted exactly once (first attempt, rejected) and never on replay.
         assertThrows(ConflictException.class,
                 () -> service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip"));
-        verify(playlistRepository, never()).create(any());
+        verify(playlistRepository, times(1)).createWithinOwnerLimit(any(), anyInt());
     }
 
     @Test
@@ -194,7 +198,7 @@ class CreatePlaylistIdempotentServiceTest {
 
         assertFalse(outcome.replayed(), "recovery executes once more to reach completion");
         assertSame(writtenBeforeCrash, outcome.playlist());
-        verify(playlistRepository, never()).create(any());
+        verify(playlistRepository, never()).createWithinOwnerLimit(any(), anyInt());
         assertEquals(IdempotencyState.COMPLETED,
                 idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow().state());
     }

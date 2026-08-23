@@ -30,21 +30,6 @@ public class DynamoDbPlaylistRepositoryImpl implements DynamoDbPlaylistRepositor
     private final DynamoDbCursorHelper cursorHelper;
 
     @Override
-    public boolean create(final PlaylistDocument playlistDocument) {
-        try {
-            playlistTable.putItem(PutItemEnhancedRequest.builder(PlaylistDocument.class)
-                    .item(playlistDocument)
-                    .conditionExpression(Expression.builder()
-                            .expression("attribute_not_exists(id)")
-                            .build())
-                    .build());
-            return true;
-        } catch (ConditionalCheckFailedException e) {
-            return false;
-        }
-    }
-
-    @Override
     public boolean update(final PlaylistDocument playlistDocument) {
         final long expectedVersion = playlistDocument.getVersion();
         playlistDocument.setVersion(expectedVersion + 1);

@@ -8,12 +8,16 @@ epic (P1). Keep this file in sync whenever the data model changes.
 - **Source of truth:** the `Playlists` table, queried via the `ownerId-index` GSI.
 - The `Users` table no longer embeds a `playlists` collection. The `User` aggregate does not hold
   playlists (the collection was removed from the domain model and the DynamoDB document).
-- `MAX_PLAYLISTS_PER_USER = 10` is enforced by `CreatePlaylistService` against a persistent count
-  (`PlaylistRepository.countByOwnerId`) before persisting.
-- Concurrency note: the limit uses a count-then-insert pattern. For a user, two truly concurrent
-  create requests could in principle both observe 9 and insert — a residual race we accept for P1.
-  A strictly serializable counter (conditional increment on the User item) is the follow-up if the
-  race becomes a concern.
+- `MAX_PLAYLISTS_PER_USER = 10` is enforced atomically at the storage layer: creating a playlist
+  commits the playlist row and the advance of a per-owner counter item (`OWNER_COUNT#<ownerId>`,
+  same table, no `ownerId` attribute so it never surfaces on the `ownerId-index`) in one
+  `TransactWriteItems` call whose condition refuses a count that would exceed the limit.
+- Concurrency note (P1 race closed): count-then-insert let two strictly concurrent creates both
+  observe room and overshoot; creation and deletion now advance the counter inside the same
+  transaction that writes or removes the row, so the storage condition serializes them. Owners
+  whose playlists predate the counter have it absent — their first create initializes it at 1,
+  an undercount (the limit may bind late, never early; safe side).
+  `scripts/backfill-playlist-counters.sh` recomputes counters from real rows (`--apply` to write).
 
 ## Album ↔ Songs
 

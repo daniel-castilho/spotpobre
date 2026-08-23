@@ -18,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,7 +46,6 @@ class CreatePlaylistServiceTest {
 
         // 3. Mock the repository to return this specific user when searched by its ID
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
-        when(playlistRepository.countByOwnerId(ownerId)).thenReturn(0L);
 
         // When
         Playlist createdPlaylist = createPlaylistService.createPlaylist(command);
@@ -54,9 +55,9 @@ class CreatePlaylistServiceTest {
         assertEquals("My New Playlist", createdPlaylist.getName());
         // The assertion will now pass because the ownerId from the command matches the ID of the user who created the playlist
         assertEquals(ownerId, createdPlaylist.getOwnerId());
-        
-        // Verify that the save method was called on the repository
-        verify(playlistRepository, times(1)).create(any(Playlist.class));
+
+        // The limit-enforcing transactional write carries the domain policy constant
+        verify(playlistRepository, times(1)).createWithinOwnerLimit(any(Playlist.class), eq(User.MAX_PLAYLISTS_PER_USER));
     }
 
     @Test
@@ -67,7 +68,9 @@ class CreatePlaylistServiceTest {
         CreatePlaylistUseCase.CreatePlaylistCommand command = new CreatePlaylistUseCase.CreatePlaylistCommand("Eleventh Playlist", ownerId);
 
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
-        when(playlistRepository.countByOwnerId(ownerId)).thenReturn(10L);
+        // The storage-level condition rejects the whole transaction when the limit would be exceeded
+        doThrow(new ConflictException("User cannot have more than 10 playlists."))
+                .when(playlistRepository).createWithinOwnerLimit(any(Playlist.class), eq(User.MAX_PLAYLISTS_PER_USER));
 
         // When & Then
         ConflictException exception = assertThrows(ConflictException.class, () -> {
@@ -75,7 +78,6 @@ class CreatePlaylistServiceTest {
         });
 
         assertEquals("User cannot have more than 10 playlists.", exception.getMessage());
-        verify(playlistRepository, never()).create(any());
     }
 
     @Test
@@ -92,9 +94,8 @@ class CreatePlaylistServiceTest {
         });
 
         assertEquals("User not found", exception.getMessage());
-        
-        // Verify that save was never called
-        verify(playlistRepository, never()).create(any());
-        verify(playlistRepository, never()).countByOwnerId(any());
+
+        // Verify that the limit-enforcing write was never reached
+        verify(playlistRepository, never()).createWithinOwnerLimit(any(), anyInt());
     }
 }

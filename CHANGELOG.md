@@ -80,6 +80,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **Closed the playlist-limit creation race** (AGENTS debt: count-then-insert). Creating a
+  playlist now commits the row and the owner's counter advance in one DynamoDB transaction whose
+  condition rejects anything that would exceed `MAX_PLAYLISTS_PER_USER = 10` — two strictly
+  concurrent creations can no longer both observe room and overshoot. Deletion decrements the
+  counter inside the same transaction as the removal. Owners with pre-counter playlists get a
+  lazy, safe-side undercount until `scripts/backfill-playlist-counters.sh` recomputes counters
+  from real rows. Proven by a new Testcontainers race test (14 simultaneous creates → exactly 10
+  accepted) and covered end-to-end by the playlist flow ITs.
 - **The runtime shutdown smoke never passed in CI — and nothing noticed because it was
   non-blocking.** The `runtime-smoke` job launched the production jar with the runner's default
   JDK (17), which cannot load the Java 21 jar, so readiness never came UP and every run failed

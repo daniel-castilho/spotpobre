@@ -167,11 +167,6 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **Playlist-limit check is count-then-insert.** `CreatePlaylistService` enforces
-  `MAX_PLAYLISTS_PER_USER` with `countByOwnerId` before insert; two strictly simultaneous creates
-  could both pass the count and exceed 10. Documented as accepted for P1 in
-  `docs/data-model-decisions.md` — closing it needs a conditional/transactional insert or a
-  dedicated counter.
 - **Auth cache has no Redis-outage fallback.** `UserDetailsServiceImpl.loadUserByUsername` is
   `@Cacheable(USER_CACHE)` with no `unless`/fallback, so a Redis outage makes every authenticated
   request fail (JWT filter → cache miss → `RedisConnectionFailureException`) even though the

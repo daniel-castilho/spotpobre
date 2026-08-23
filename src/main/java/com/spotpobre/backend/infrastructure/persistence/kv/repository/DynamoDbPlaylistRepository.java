@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DynamoDbPlaylistRepository {
-    boolean create(final PlaylistDocument playlistDocument);
     boolean update(final PlaylistDocument playlistDocument);
     Optional<PlaylistDocument> findById(final UUID id);
     void deleteById(final UUID id);
