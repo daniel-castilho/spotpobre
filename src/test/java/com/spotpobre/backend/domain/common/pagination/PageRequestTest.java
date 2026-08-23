@@ -25,6 +25,7 @@ class PageRequestTest {
         assertNull(request.sort());
     }
 
+
     @Test
     void offset_isPageNumberTimesPageSize() {
         assertEquals(0L, PageRequest.of(0, 10).offset());

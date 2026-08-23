@@ -12,6 +12,7 @@ import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +49,32 @@ public class DynamoDbArtistRepositoryImpl implements DynamoDbArtistRepository {
         }
 
         Optional<Page<ArtistDocument>> page = index.query(requestBuilder.build()).stream().findFirst();
+        List<ArtistDocument> documents = page.map(Page::items).orElse(List.of());
+        String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
+        boolean hasNext = nextToken != null;
+
+        return new PageResult<>(
+                documents,
+                documents.size(),
+                1,
+                pageRequest.pageNumber(),
+                pageRequest.pageSize(),
+                hasNext,
+                pageRequest.pageNumber() > 0,
+                nextToken
+        );
+    }
+
+    @Override
+    public PageResult<ArtistDocument> findAll(final PageRequest pageRequest, final String exclusiveStartKey) {
+        ScanEnhancedRequest.Builder requestBuilder = ScanEnhancedRequest.builder()
+                .limit(pageRequest.pageSize());
+
+        if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
+            requestBuilder.exclusiveStartKey(cursorHelper.decodeCursor(exclusiveStartKey));
+        }
+
+        Optional<Page<ArtistDocument>> page = artistTable.scan(requestBuilder.build()).stream().findFirst();
         List<ArtistDocument> documents = page.map(Page::items).orElse(List.of());
         String nextToken = page.map(p -> cursorHelper.encodeCursor(p.lastEvaluatedKey())).orElse(null);
         boolean hasNext = nextToken != null;

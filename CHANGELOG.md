@@ -7,6 +7,16 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Added
+
+- **Cursor-paginated catalog listings** (roadmap: pagination on artists/albums).
+  `GET /api/v1/artists` lists the artist catalog through storage-native scan pages
+  (`limit` capped at 50, opaque `nextPageToken` cursor); `GET /api/v1/artists/{artistId}/albums`
+  lists one artist's albums via the `artistId-index` GSI with the same contract, answering 404 for
+  an unknown artist and an empty page for a known artist without albums. Both require
+  authentication like every other read route. Proven by `CatalogPaginationIT` (no lost rows,
+  no repeated rows across cursored pages) plus service unit tests.
+
 ## [0.10.0] - 2026-08-23
 
 ### Added

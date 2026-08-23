@@ -48,6 +48,12 @@ public class DynamoDbArtistRepositoryAdapter implements ArtistRepository {
     }
 
     @Override
+    public PageResult<Artist> findAll(final PageRequest pageRequest, final String exclusiveStartKey) {
+        return dynamoDbArtistRepository.findAll(pageRequest, exclusiveStartKey)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public void createWithOwner(final Artist artist, final ArtistAccount ownerAccount) {
         enhancedClient.transactWriteItems(TransactWriteItemsEnhancedRequest.builder()
                 .addPutItem(artistsTable, TransactPutItemEnhancedRequest.builder(ArtistDocument.class)

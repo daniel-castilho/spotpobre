@@ -300,6 +300,8 @@ Browse every endpoint and DTO and try them out directly, including JWT authentic
 | | `POST` | `/api/v1/artists/{artistId}/accounts` | Grant an artist membership (`OWNER`/`MANAGER`) to a user; admin-only. |
 | | `DELETE` | `/api/v1/artists/{artistId}/accounts/{userId}` | Revoke an artist membership; admin-only. |
 | | `GET` | `/api/v1/artists/search?query={q}&limit={n}&cursor={token}` | Search artists by name (case-insensitive, cursor-paginated; `limit` max 50). |
+| | `GET` | `/api/v1/artists?limit={n}&cursor={token}` | List the artist catalog (cursor-paginated; `limit` max 50). |
+| | `GET` | `/api/v1/artists/{artistId}/albums?limit={n}&cursor={token}` | List an artist's albums (cursor-paginated; unknown artist → 404, known without albums → empty page). |
 | **Albums** | `POST` | `/api/v1/albums` | Create a new album for an artist. Requires `Idempotency-Key` — replays return the same album with `Idempotency-Replayed: true`, key reuse with a different request → 409; membership on the owning artist (or admin) is re-checked before the claim on every call. |
 | | `POST` | `/api/v1/albums/{albumId}/songs` | Initiate a song upload (`ROLE_ARTIST`, requires `Idempotency-Key`): validates type/size and returns short-lived presigned PUT URL(s); replays/recoveries return the same song with a freshly signed URL for its storage key. Files over 100 MB get S3 multipart part URLs. The API never accepts file bytes. |
 | | `POST` | `/api/v1/albums/{albumId}/songs/{songId}/confirm` | Confirm a completed direct-to-S3 upload (`ROLE_ARTIST`); completes multipart when needed. |
@@ -382,7 +384,9 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
 - **Search** — songs by title and artists by name via DynamoDB GSIs, case-insensitive (write-time
   normalized `searchTitle`/`searchName` sort keys) and cursor-paginated (`ExclusiveStartKey` +
-  `nextPageToken`/`hasNext`; `limit` capped at 50).
+  `nextPageToken`/`hasNext`; `limit` capped at 50). The catalog is also listable: all artists
+  (scan-paginated) and per-artist albums (`artistId-index`, cursor-paginated) with the same
+  cursor contract.
 - **Storage & streaming** — S3-backed `SongStoragePort` with a CDN storage adapter and Redis-backed
   caching.
 - **Hardening** — global exception handling with structured validation errors, correct DynamoDB
@@ -445,7 +449,6 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 
 Deliberately not implemented yet (candidate backlog):
 
-- Pagination on more list endpoints (artists, albums)
 - Per-user quotas (beyond the basic endpoint rate limiting already shipped)
 - Email verification and password recovery
 - **Migrate to a real AWS account** — the versioned ECS/CodeDeploy manifests (ADR-0001 backup,

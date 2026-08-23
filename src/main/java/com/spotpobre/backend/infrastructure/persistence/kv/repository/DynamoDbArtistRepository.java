@@ -11,4 +11,5 @@ public interface DynamoDbArtistRepository {
     ArtistDocument save(final ArtistDocument artistDocument);
     Optional<ArtistDocument> findById(final UUID id);
     PageResult<ArtistDocument> searchByName(final String nameQuery, final PageRequest pageRequest, final String exclusiveStartKey);
+    PageResult<ArtistDocument> findAll(final PageRequest pageRequest, final String exclusiveStartKey);
 }

@@ -14,6 +14,12 @@ public interface ArtistRepository {
     PageResult<Artist> searchByName(final String nameQuery, final PageRequest pageRequest, final String exclusiveStartKey);
 
     /**
+     * Cursor-paginated catalog listing of all artists (storage-native scan with exclusive
+     * start key; no sort order guaranteed beyond storage stability).
+     */
+    PageResult<Artist> findAll(final PageRequest pageRequest, final String exclusiveStartKey);
+
+    /**
      * Persists the artist and its OWNER membership atomically: either both are stored
      * or neither is. Prevents artists without any owner account.
      */
