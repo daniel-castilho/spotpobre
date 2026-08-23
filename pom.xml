@@ -34,7 +34,7 @@
 		     com.fasterxml line unmanaged — jjwt-jackson and our cursor/error JSON
 		     helpers still require it at runtime. -->
 		<jackson2-databind.version>2.22.2</jackson2-databind.version>
-		<mapstruct.version>1.5.5.Final</mapstruct.version>
+		<mapstruct.version>1.6.3</mapstruct.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<springdoc.version>3.1.0</springdoc.version>
