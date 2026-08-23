@@ -7,6 +7,8 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-23
+
 ### Added
 
 - **Cursor-paginated catalog listings** (roadmap: pagination on artists/albums).
