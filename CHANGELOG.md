@@ -80,6 +80,20 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Fixed
 
+- **CI red on two supply-chain gates** (fixed per the portable recipe in
+  `flowtxt-parent/docs/ci-vulnerability-gates.md`):
+  - The Trivy image scan failed on fixable MEDIUM CVEs although the policy is HIGH/CRITICAL —
+    with `format: sarif`, trivy-action ignores the `severity` filter for both the report and
+    the exit code
+    ([aquasecurity/trivy-action#309](https://github.com/aquasecurity/trivy-action/issues/309)).
+    The pipeline now runs a non-blocking full-SARIF pass (Security-tab advisory trail,
+    unchanged) plus a separate table-format gate whose exit code only fires on fixable
+    HIGH/CRITICAL findings.
+  - The OWASP Dependency Check build gate broke whenever the NVD API answered 429/503
+    (ongoing instability since its June 2026 schema migration), aborting mid-update. The POM
+    now sets `failOnError=false` so an unreachable NVD degrades to scanning against the cached
+    mirror instead of failing CI; vulnerability reporting stays fail-soft by design
+    (`failBuildOnCVSS=11`) and the image remains gated hard by Trivy.
 - **Test infra: rate-limit test override was silently shadowed.** The `rate-limit.limit=100000`
   escape hatch added to the shared `AbstractIntegrationTest` `@DynamicPropertySource` in step 6A
   outranks subclass `@TestPropertySource` values in Spring's property precedence, so
@@ -91,6 +105,15 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **CI actions moved to supported Node 24 runtimes.** `actions/cache` v4 → v6,
+  `actions/upload-artifact` v4 → v7, `actions/download-artifact` v4 → v7,
+  `actions/checkout` v5 → v7 and `actions/dependency-review-action` v4 → v5 (the former all
+  declared `node20`, which runners force-upgrade to Node 24 while flagging deprecation
+  warnings). Trivy DBs are now cached by our own daily-keyed `actions/cache@v6` step over
+  `.cache/trivy` with `cache: false` on each trivy invocation — trivy-action's built-in caching
+  pins an old node20-pinned `actions/cache` internally. `actions/setup-java@v5`,
+  `github/codeql-action@v4` and the SHA-pinned trivy-action were verified to already declare
+  `node24`.
 - **NVD API key wired into OWASP Dependency Check.** The plugin now reads `NVD_API_KEY` from the
   environment (GitHub Actions repository secret; local dev via shell env) and persists its mirror
   in the shared `~/.m2/dependency-check-data` directory, so runs apply NVD deltas instead of

@@ -400,8 +400,12 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
     migration path to real AWS.
   - **Container** — multi-stage `Dockerfile` (Maven build → Temurin 21 JRE), non-root user
     (UID/GID 10001), exec-form entrypoint, hardened `.dockerignore`.
-  - **Supply chain** — CI `image` job: build, UID-0 check, Trivy HIGH/CRITICAL scan (SARIF →
-    GitHub Security), CycloneDX SBOM + immutable image-ID artifacts.
+  - **Supply chain** — CI `image` job: build, UID-0 check, Trivy full-SARIF advisory report
+    (→ GitHub Security) plus a separate HIGH/CRITICAL gate pass in table format (SARIF output
+    ignores the severity filter for both report and exit code — trivy-action#309),
+    CycloneDX SBOM + immutable image-ID artifacts. OWASP Dependency Check is report-only
+    (`failBuildOnCVSS=11`, `failOnError=false`): an unreachable NVD degrades to scanning against
+    the cached mirror instead of failing CI.
   - **Prod config contract (fail-fast)** — `ProdConfigValidator` requires an explicit
     `aws.credentials.source` (`static` for LocalStack with keys, `workload-identity` for real-AWS
     task roles) and aborts startup on any missing required value; `AwsCredentialsProviderResolver`

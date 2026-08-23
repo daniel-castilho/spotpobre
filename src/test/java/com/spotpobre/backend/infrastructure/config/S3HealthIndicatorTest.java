@@ -2,8 +2,8 @@ package com.spotpobre.backend.infrastructure.config;
 
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 

@@ -1,13 +1,10 @@
 package com.spotpobre.backend.infrastructure.persistence.kv.model;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -37,12 +34,8 @@ public class DynamoDbCursorHelper {
         }
         Map<String, String> scalarKeys = new LinkedHashMap<>();
         lastEvaluatedKey.forEach((key, value) -> scalarKeys.put(key, attributeValueToScalar(value)));
-        try {
-            return Base64.getUrlEncoder().encodeToString(
-                    objectMapper.writeValueAsString(scalarKeys).getBytes(StandardCharsets.UTF_8));
-        } catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to serialize pagination cursor", e);
-        }
+        return Base64.getUrlEncoder().encodeToString(
+                objectMapper.writeValueAsBytes(scalarKeys));
     }
 
     public Map<String, AttributeValue> decodeCursor(String encodedCursor) {
@@ -56,7 +49,7 @@ public class DynamoDbCursorHelper {
             Map<String, AttributeValue> result = new LinkedHashMap<>();
             scalarKeys.forEach((key, value) -> result.put(key, scalarToAttributeValue(value)));
             return result;
-        } catch (IOException | RuntimeException e) {
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid or malformed pagination cursor", e);
         }
     }

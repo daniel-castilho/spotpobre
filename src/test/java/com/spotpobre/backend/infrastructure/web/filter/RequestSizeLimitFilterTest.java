@@ -1,6 +1,6 @@
 package com.spotpobre.backend.infrastructure.web.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.spotpobre.backend.infrastructure.web.exception.RestErrorResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,8 +28,7 @@ class RequestSizeLimitFilterTest {
 
     @BeforeEach
     void setUp() {
-        final ObjectMapper objectMapper = new ObjectMapper()
-                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        final JsonMapper objectMapper = JsonMapper.builder().build();
         errorResponseWriter = new RestErrorResponseWriter(objectMapper);
         filter = new RequestSizeLimitFilter(errorResponseWriter);
         chain = new MockFilterChain();
