@@ -91,6 +91,10 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Changed
 
+- **NVD API key wired into OWASP Dependency Check.** The plugin now reads `NVD_API_KEY` from the
+  environment (GitHub Actions repository secret; local dev via shell env) and persists its mirror
+  in the shared `~/.m2/dependency-check-data` directory, so runs apply NVD deltas instead of
+  hours-long throttled full downloads. CI caches the mirror between runs.
 - **`./mvnw verify` is now the single full gate.** The `maven-failsafe-plugin` runs the slice
   integration and E2E `*IT` classes during `integration-test`, so one command covers unit tests,
   integration/E2E tests, SpotBugs, JaCoCo check, OWASP Dependency Check and the production jar
