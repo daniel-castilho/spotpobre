@@ -44,7 +44,7 @@
              BOM until the next Boot release manages >= 4.2.16.Final natively. -->
         <netty.version>4.2.16.Final</netty.version>
         <bouncycastle.version>1.84</bouncycastle.version>
-		<testcontainers.version>1.21.4</testcontainers.version>
+		<testcontainers.version>2.0.5</testcontainers.version>
 		<rest-assured.version>6.0.1</rest-assured.version>
 	</properties>
 
