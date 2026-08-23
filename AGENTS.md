@@ -153,6 +153,8 @@ src/main/java/com/spotpobre/backend/
 
 ## Releases
 
+- Pick the next version from the **highest existing tag** (`git ls-remote --tags origin`, mirrored
+  by the CHANGELOG headings) — do not infer from this note. Release history: `v0.1.0` … `v0.9.0`.
 - The first annotated tag (`v0.1.0`) was created on commit `f0716a7` covering playlist ownership
   (IDOR fix), presigned S3 upload, and test hardening. Tag only when a milestone meets its
   Definition of Done and the human asks for it.

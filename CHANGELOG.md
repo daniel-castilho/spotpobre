@@ -7,7 +7,7 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-08-23
+## [0.10.0] - 2026-08-23
 
 ### Added
 
