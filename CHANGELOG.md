@@ -15,8 +15,10 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
   `UserProfileDocument`, `ArtistDocument`: equals/hashCode/toString/null-tolerance), null-safe
   conversion coverage for every `UuidMapper` direction, `UserPersistenceMapper`
   round-trips (including legacy rows without `emailVerifiedAt`) and `User`
-  equals/hashCode/toString plus verification-stamp semantics. Measured before raising:
-  85.7% line / 55.6% branch → after: 87.4% / 64.0%.
+  equals/hashCode/toString plus verification-stamp semantics. Measured on a clean workspace over
+  the combined unit + slice/E2E run (the CI gate now checks AFTER the IT step): before raising —
+  54% line / 50% branch unit-only, 87.4% line / 63.9% branch combined → gate passes at
+  60/60 with real headroom.
 
 ## [0.12.0] - 2026-08-23
 

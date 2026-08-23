@@ -25,10 +25,6 @@ jobs:
       - name: Unit tests
         run: ./mvnw test
 
-      - name: JaCoCo coverage check
-        if: success()
-        run: ./mvnw jacoco:check
-
       - name: SpotBugs static analysis
         if: success()
         run: ./mvnw spotbugs:check
@@ -57,6 +53,13 @@ jobs:
       - name: Slice + E2E tests (Docker / Testcontainers)
         if: success()
         run: ./mvnw test -Dtest='*IT' -DfailIfNoTests=false
+
+      # Coverage gate runs AFTER the IT step so the exec file holds combined
+      # unit + slice/E2E data on a clean runner (unit-only measures ~54%/50%,
+      # which misrepresents what the suite actually exercises).
+      - name: JaCoCo coverage check (unit + IT combined)
+        if: success()
+        run: ./mvnw jacoco:check
 
       - name: Production build
         if: success()
