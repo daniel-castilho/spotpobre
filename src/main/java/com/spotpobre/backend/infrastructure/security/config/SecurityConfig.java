@@ -3,7 +3,8 @@ package com.spotpobre.backend.infrastructure.security.config;
 import com.spotpobre.backend.domain.user.model.Role;
 import com.spotpobre.backend.infrastructure.security.adapter.UserDetailsServiceImpl;
 import com.spotpobre.backend.infrastructure.security.filter.JwtAuthenticationFilter;
-import com.spotpobre.backend.infrastructure.security.filter.RateLimitFilter;
+import com.spotpobre.backend.infrastructure.security.filter.AnonymousRateLimitFilter;
+import com.spotpobre.backend.infrastructure.security.filter.AuthenticatedRateLimitFilter;
 import com.spotpobre.backend.infrastructure.security.handler.RestAccessDeniedHandler;
 import com.spotpobre.backend.infrastructure.security.handler.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +32,8 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final RateLimitFilter rateLimitFilter;
+    private final AnonymousRateLimitFilter anonymousRateLimitFilter;
+    private final AuthenticatedRateLimitFilter authenticatedRateLimitFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
@@ -94,7 +96,11 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
+                // Anonymous buckets (register/authenticate) run before any token or Argon2
+                // work; authenticated buckets (upload/search) run after the principal exists
+                // but before business side effects (spec section 8.1).
+                .addFilterBefore(anonymousRateLimitFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(authenticatedRateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

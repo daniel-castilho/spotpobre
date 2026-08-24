@@ -40,14 +40,28 @@ jwt:
   expiration: 1h
 
 rate-limit:
-  # Basic per-client throttling on sensitive endpoints (default: auth). Dev defaults;
-  # production overrides via RATE_LIMIT_* environment variables (see application-prod.yaml).
+  # Redis token-bucket authority (spec section 8). Dev-only key secret; production MUST
+  # override via RATE_LIMIT_KEY_SECRET (validated by ProdConfigValidator).
   enabled: true
-  limit: 20
-  window: 1m
-  paths:
+  key-secret: ${RATE_LIMIT_KEY_SECRET:dev-only-rate-limit-secret-not-for-production}
+  register-ip-capacity: 20
+  register-email-capacity: 5
+  authenticate-ip-capacity: 100
+  authenticate-email-capacity: 10
+  upload-initiate-user-capacity: 20
+  upload-initiate-album-capacity: 40
+  upload-confirm-user-capacity: 60
+  upload-confirm-album-capacity: 120
+  search-capacity: 120
+  resend-cooldown-capacity: 1
+  resend-cooldown-window: 2m
+  anonymous-policies-paths:
     - /api/v1/auth/register
     - /api/v1/auth/authenticate
+  search-path: /api/v1/songs/search
+  trusted-proxy-cidrs:
+    - 127.0.0.0/8
+    - ::1/128
   client-ip-header: X-Forwarded-For
 
 email:
