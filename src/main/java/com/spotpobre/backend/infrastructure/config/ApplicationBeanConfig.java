@@ -45,12 +45,14 @@ import com.spotpobre.backend.application.song.port.in.GetSongMetadataUseCase;
 import com.spotpobre.backend.application.song.port.in.GetSongStreamUrlUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadIdempotentlyUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
+import com.spotpobre.backend.application.song.port.in.ReconcileExpiredUploadsUseCase;
 import com.spotpobre.backend.application.song.port.in.SearchSongsUseCase;
 import com.spotpobre.backend.application.song.service.ConfirmSongUploadService;
 import com.spotpobre.backend.application.song.service.GetSongMetadataService;
 import com.spotpobre.backend.application.song.service.GetSongStreamUrlService;
 import com.spotpobre.backend.application.song.service.InitiateSongUploadIdempotentService;
 import com.spotpobre.backend.application.song.service.InitiateSongUploadService;
+import com.spotpobre.backend.application.song.service.ReconcileExpiredUploadsService;
 import com.spotpobre.backend.application.song.service.SearchSongsService;
 import com.spotpobre.backend.application.user.EmailVerificationSettings;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
@@ -350,5 +352,14 @@ public class ApplicationBeanConfig {
             Clock clock
     ) {
         return new CreateArtistIdempotentService(idempotencyCoordinator, artistRepository, userRepository, clock);
+    }
+
+    @Bean
+    public ReconcileExpiredUploadsUseCase reconcileExpiredUploadsUseCase(
+            SongUploadRepository songUploadRepository,
+            SongStoragePort songStoragePort,
+            Clock clock
+    ) {
+        return new ReconcileExpiredUploadsService(songUploadRepository, songStoragePort, clock);
     }
 }

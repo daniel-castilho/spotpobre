@@ -24,6 +24,12 @@ aws:
     endpoint: http://localhost:4566
     bucket-name: spotpobre-songs
 
+spotpobre:
+  uploads:
+    reconciliation-enabled: true
+    reconciliation-interval-ms: 3600000 # hourly bounded cleanup pass
+    reconciliation-initial-delay-ms: 120000
+
 jwt:
   # WARNING: use a strong, long secret in production, managed via environment variables.
   # This value is only an example — generate your own.

@@ -140,6 +140,27 @@ run_aws dynamodb update-time-to-live \
   --table-name SongUploads \
   --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
 
+# S3 storage defence (spec S16): abort orphaned multipart uploads after 1 day and expire
+# staging objects (pending/) after 2 days. The final songs/ prefix is never expired.
+run_aws s3api put-bucket-lifecycle-configuration \
+  --bucket "$BUCKET" \
+  --lifecycle-configuration '{
+    "Rules": [
+      {
+        "ID": "abort-incomplete-multipart-uploads",
+        "Filter": {},
+        "Status": "Enabled",
+        "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 }
+      },
+      {
+        "ID": "expire-staging-uploads",
+        "Filter": { "Prefix": "pending/" },
+        "Status": "Enabled",
+        "Expiration": { "Days": 2 }
+      }
+    ]
+  }' >/dev/null || echo "[seed][warn] bucket lifecycle configuration rejected by emulator; operator fallback required (see docs/runbooks)"
+
 create_table AccountTokens \
   --attribute-definitions AttributeName=tokenHash,AttributeType=S \
   --key-schema AttributeName=tokenHash,KeyType=HASH \
