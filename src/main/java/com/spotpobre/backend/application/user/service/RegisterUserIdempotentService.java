@@ -17,6 +17,8 @@ import com.spotpobre.backend.domain.idempotency.model.FailureDescriptor;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyResourceType;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
 import com.spotpobre.backend.domain.idempotency.model.ResultSnapshot;
+import com.spotpobre.backend.domain.user.model.AccountToken;
+import com.spotpobre.backend.domain.user.model.AccountTokenPurpose;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.model.UserProfile;
@@ -26,6 +28,8 @@ import com.spotpobre.backend.domain.user.port.EmailSenderPort;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.spotpobre.backend.infrastructure.common.Redaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -44,6 +48,7 @@ import java.util.Optional;
  * are marked FAILED_FINAL and replayed; unexpected failures retain the IN_PROGRESS record so a
  * retry recovers through lease takeover instead of duplicating the user.</p>
  */
+@Slf4j
 @RequiredArgsConstructor
 public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUseCase {
 
@@ -175,14 +180,13 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
     private void sendVerificationEmailBestEffort(final User user) {
         try {
             final String rawToken = newRawToken();
-            accountTokenRepository.save(com.spotpobre.backend.domain.user.model.AccountToken.issue(
-                    user.getId(), com.spotpobre.backend.domain.user.model.AccountTokenPurpose.EMAIL_VERIFICATION,
+            accountTokenRepository.save(AccountToken.issue(
+                    user.getId(), AccountTokenPurpose.EMAIL_VERIFICATION,
                     rawToken, emailSettings.verificationTtl(), clock.instant()));
             emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);
         } catch (RuntimeException e) {
-            org.slf4j.LoggerFactory.getLogger(RegisterUserIdempotentService.class)
-                    .error("Failed to deliver verification e-mail to {}",
-                            com.spotpobre.backend.infrastructure.common.Redaction.maskEmail(user.getProfile().email()), e);
+            log.error("Failed to deliver verification e-mail to {}",
+                    Redaction.maskEmail(user.getProfile().email()), e);
         }
     }
 
