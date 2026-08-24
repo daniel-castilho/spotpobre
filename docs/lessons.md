@@ -14,6 +14,11 @@ whenever a non-obvious failure or design decision cost real debugging time.
   first (missing annotation, wrong import, stale stub) to shrink noise, then re-run to surface
   what is actually deep. Always build a full error inventory (`grep` the compiler/test output,
   `sort -u`) before touching code; fix one root cause per edit.
+- **Tomcat closes keep-alive connections abruptly when graceful shutdown starts** — a request
+  already sent on such a connection is torn down mid-parse and answered by the container as
+  **400** (Stack Overflow #74326613). During drain, expect 200 (in-flight OK), 503/000
+  (post-drain rejections) AND 400 (keep-alive teardown); anything else is a real defect.
+  The shutdown smoke's rejection bucket includes all three.
 
 ## Testcontainers / Docker
 
