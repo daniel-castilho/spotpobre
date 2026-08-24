@@ -361,7 +361,7 @@
     <plugin>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-maven</artifactId>
-        <version>12.2.2</version>
+        <version>13.0.0</version>
         <configuration>
             <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
             <!-- Free key from https://nvd.nist.gov/developers/request-an-api-key
