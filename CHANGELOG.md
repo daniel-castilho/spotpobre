@@ -17,6 +17,29 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ### Added
 
+### Added (API Design Excellence P0 — as-built)
+
+- **Durable idempotency hardening** — lease-loss booleans honored at all creation call sites
+  (`IdempotencyLeaseLostException` → 503 + same-key retry), register e-mail sent only by the
+  publish winner, persisted `hashVersion`, takeover preserving resource IDs, concurrency and
+  fault-injection test matrix.
+- **SongUpload lifecycle** — new pure state machine + `SongUploads` table with
+  `state-expiry-index` GSI; staging-only initiation (pending uploads invisible to the catalog),
+  server-authoritative confirmation with COMPLETING lease, integrity verification,
+  staging→final promotion, transactional Song creation, bounded cleanup reconciliation and S3
+  lifecycle defence.
+- **Redis token-bucket rate limiting** — single Lua authority (Redis TIME), policy buckets per
+  spec §8.3, HMAC subject keys under a dedicated required `RATE_LIMIT_KEY_SECRET`, trusted-proxy
+  CIDR resolution, canonical RateLimit-* headers, fail-closed/fail-open split, race-safe resend
+  cooldown port. In-memory fixed-window limiter removed.
+- **Password reset invalidation** — sibling token burning via conditional GSI writes, cached
+  credential eviction, JWT rejection for tokens issued before the password change.
+- **Production exposure lockdown** — management on internal-only 9090 (health-only, no details),
+  springdoc disabled in prod; only 8080 published; SES enabled in the production-shaped stack;
+  TLS/HSTS/perimeter trust documented in deploy/README §1.7.
+- **Protocol error matrix E2E** — 400/405(Allow)/413/415/429/503 rows on the single canonical
+  envelope (`ErrorHandlingFlowIT`); PII redaction helper applied to delivery/cache/storage logs.
+
 - **Performance baseline (foundation, consultative).** Three k6 read-path scenarios
   (`perf/scenarios/`: users-me, song-search, artists-list) with budgets-as-code thresholds,
   orchestrated by `scripts/performance-baseline.sh` via the pinned `grafana/k6:2.2.0`

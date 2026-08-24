@@ -409,9 +409,16 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   pagination (cursor-based, no silent data leaks), and now enforced architectural boundaries.
   `PlaylistController` and `LikeController` depend only on application inbound ports (`*UseCase`),
   with direct `UserRepository` calls replaced by the `GetCurrentUserUseCase` application service.
-  Basic per-client rate limiting (`RateLimitFilter` + `FixedWindowRateLimiter`, fixed window,
-  in-memory) throttles `/api/v1/auth/register` and `/api/v1/auth/authenticate` with
-  `429 Too Many Requests`; limits are externalized via `rate-limit.*` (env-overridable in prod).
+  **Redis token-bucket rate limiting (spec section 8)** — a single atomic Lua authority
+  (`RedisTokenBucketLimiter`, Redis TIME-driven refill) behind two filters: anonymous buckets
+  (IP-wide and IP+normalized-e-mail for register/authenticate, evaluated before Argon2 or any
+  idempotency work via a re-readable body wrapper) and authenticated buckets (upload
+  initiate/confirm user and user+album, search user/trusted-IP fallback). Subject keys are
+  HMAC'd with the dedicated `RATE_LIMIT_KEY_SECRET` — raw e-mails/IPs never reach Redis.
+  Forwarded headers are trusted only from configured CIDRs (`ClientAddressResolver`, IPv4/IPv6).
+  Success carries `RateLimit-Limit/Remaining/Reset`; blocks carry canonical 429 + Retry-After;
+  abuse-sensitive flows fail closed with 503 while search fails open. The verification-resend
+  cooldown is race-safe through the shared limiter.
 - **Account lifecycle** — password recovery and e-mail verification through single-use,
   TTL-backed tokens (`AccountTokens` table stores only SHA-256 hashes; enumeration-safe
   endpoints; conditional burn prevents token replay). Verification is informational in this
@@ -466,6 +473,21 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   mutations use optimistic locking (`version` + conditional writes), and a failed metadata save
   after a multipart S3 upload aborts the orphan upload. Decisions are recorded in
   `docs/data-model-decisions.md`.
+
+- **API Design Excellence P0 (as-built)** — durable idempotency hardened end-to-end: lease-loss
+  booleans are honored at every creation call site (503 + same-key retry instead of stale
+  success), register sends its verification e-mail only after a successful publish, request
+  hashes carry a persisted `hashVersion`, expired-lease takeover preserves resource IDs, and
+  16-way concurrent claim races elect exactly one winner. The song upload lifecycle is now a
+  staging-first state machine (`SongUploads` table + `state-expiry-index` GSI): initiation
+  reserves the identity without creating a visible Song row (pending uploads are invisible to
+  detail/search/stream/like), confirmation is server-authoritative (exclusive COMPLETING lease,
+  size/type integrity gate, staging→final promotion, transactional Song creation), integrity
+  failures quarantine bytes with no Song created, and an hourly bounded reconciliation pass
+  aborts expired uploads backed by S3 lifecycle rules. Password reset now burns sibling
+  recovery links, evicts cached credentials and rejects JWTs issued before the change.
+  Production exposure is locked down (management on internal 9090 health-only, only 8080
+  published, SES in the prod stack). Full traceability: `tasks/p0-acceptance-matrix.md`.
 
 ## Roadmap
 

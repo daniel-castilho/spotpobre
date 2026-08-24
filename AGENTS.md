@@ -170,9 +170,22 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- None. The previous entry (AWS-native deploy path unexercised) was closed on 2026-08-23 when the
-  real-AWS migration was formally abandoned: on-premises bare metal with LocalStack is the
-  permanent production substrate (ADR-0002 update note).
+- None of the entries below are architecture-boundary violations; they are declared P0
+  deferrals (traceability in `tasks/p0-acceptance-matrix.md`):
+  1. Upload checksum verification is not implemented end-to-end (size + content-type verified
+     at confirmation; client-computed checksums were the planned LocalStack-parity fallback).
+     Owner: human decision for P1.
+  2. Metric families `ratelimit`, `song_upload`, `artist_access` from spec §12 are not yet
+     added (the pre-existing idempotency family remains the only one). Owner: P1 follow-up.
+  3. Delivery-integrity CI items (SBOM-on-failure, digest-pinned images, provenance/signing)
+     require GitHub-side actions and stay pending until pushes resume. Owner: human.
+  4. Production data durability needs the human's A/B/C decision
+     (`docs/data-model-decisions.md`; Option A drafted). Blocks only the durability claim,
+     not code.
+
+The previous entry (AWS-native deploy path unexercised) was closed on 2026-08-23 when the
+real-AWS migration was formally abandoned: on-premises bare metal with LocalStack is the
+permanent production substrate (ADR-0002 update note).
 
 ## Notes
 
