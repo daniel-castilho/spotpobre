@@ -5,6 +5,7 @@ import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.domain.artist.model.ArtistAccount;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.user.model.Role;
@@ -34,7 +35,7 @@ public class CreateArtistService implements CreateArtistUseCase {
                     "Owner user must have ROLE_ARTIST: " + command.ownerUserId());
         }
 
-        final Artist artist = Artist.create(command.name());
+        final Artist artist = Artist.create(Normalization.trim(command.name()));
         final ArtistAccount ownerAccount = ArtistAccount.owner(
                 artist.getId(), command.ownerUserId(), java.time.Instant.now());
         artistRepository.createWithOwner(artist, ownerAccount);

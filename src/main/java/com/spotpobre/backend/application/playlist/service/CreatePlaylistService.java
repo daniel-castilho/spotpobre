@@ -2,6 +2,7 @@ package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistUseCase;
 import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -26,7 +27,7 @@ public class CreatePlaylistService implements CreatePlaylistUseCase {
         final User user = userRepository.findById(command.ownerId())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        final Playlist playlist = Playlist.create(command.name(), user.getId());
+        final Playlist playlist = Playlist.create(Normalization.trim(command.name()), user.getId());
 
         // Atomic at the storage layer: the per-owner limit is enforced by the same transaction
         // that writes the playlist, so concurrent creations cannot both slip past it.

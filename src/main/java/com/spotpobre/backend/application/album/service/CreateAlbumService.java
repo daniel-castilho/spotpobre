@@ -5,6 +5,7 @@ import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCa
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +32,7 @@ public class CreateAlbumService implements CreateAlbumUseCase {
         // A more complex implementation would create Song entities here.
         Album album = Album.builder()
                 .id(com.spotpobre.backend.domain.album.model.AlbumId.generate())
-                .name(command.name())
+                .name(Normalization.trim(command.name()))
                 .artistId(command.artistId())
                 .coverArtUrl(command.coverArtUrl())
                 .build();

@@ -11,6 +11,7 @@ import com.spotpobre.backend.domain.artist.model.ArtistAccount;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
@@ -71,8 +72,9 @@ public class CreateArtistIdempotentService implements CreateArtistIdempotentlyUs
 
         final IdempotencyScope scope = new IdempotencyScope(
                 API_VERSION, "user:" + actorUserId.value(), "POST", ROUTE_TEMPLATE, "", key);
+        final String name = Normalization.trim(command.name());
         final CanonicalRequestHash requestHash = CanonicalRequestHash.current(List.of(
-                command.name(), String.valueOf(command.ownerUserId())));
+                name, String.valueOf(command.ownerUserId())));
 
         final ClaimOutcome outcome = coordinator.claim(scope, requestHash, "CreateArtist",
                 IdempotencyResourceType.ARTIST, IdempotencyCoordinator.DEFAULT_CREATION_LEASE);
@@ -97,7 +99,7 @@ public class CreateArtistIdempotentService implements CreateArtistIdempotentlyUs
 
         final Claim claim = outcome.claimed().orElseThrow();
         try {
-            final Artist artist = executeCreation(claim.resourceId(), command);
+            final Artist artist = executeCreation(claim.resourceId(), command, name);
             coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"artistId\":\"" + claim.resourceId() + "\"}"),
                     clock.instant());
@@ -112,14 +114,15 @@ public class CreateArtistIdempotentService implements CreateArtistIdempotentlyUs
     }
 
     /** Crash recovery mirrors registration: a reserved artist that already exists wins. */
-    private Artist executeCreation(final String reservedResourceId, final CreateArtistCommand command) {
+    private Artist executeCreation(final String reservedResourceId, final CreateArtistCommand command,
+                                   final String name) {
         final ArtistId reservedId = ArtistId.from(reservedResourceId);
         final Optional<Artist> recovered = artistRepository.findById(reservedId);
         if (recovered.isPresent()) {
             return recovered.get();
         }
 
-        final Artist artist = Artist.create(reservedId, command.name());
+        final Artist artist = Artist.create(reservedId, name);
         final ArtistAccount ownerAccount =
                 ArtistAccount.owner(artist.getId(), command.ownerUserId(), clock.instant());
         artistRepository.createWithOwner(artist, ownerAccount);

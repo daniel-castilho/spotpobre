@@ -4,6 +4,7 @@ import com.spotpobre.backend.application.idempotency.Claim;
 import com.spotpobre.backend.application.idempotency.IdempotencyCoordinator;
 import com.spotpobre.backend.application.playlist.port.in.CreatePlaylistIdempotentlyUseCase;
 import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
@@ -55,7 +56,8 @@ public class CreatePlaylistIdempotentService implements CreatePlaylistIdempotent
         if (actorUserId == null) {
             throw new IllegalArgumentException("Authenticated actor is required.");
         }
-        if (name == null || name.isBlank()) {
+        final String trimmedName = Normalization.trim(name);
+        if (trimmedName == null || trimmedName.isBlank()) {
             throw new IllegalArgumentException("Playlist name cannot be blank");
         }
         final IdempotencyKey key = IdempotencyKey.of(rawIdempotencyKey);
@@ -68,7 +70,7 @@ public class CreatePlaylistIdempotentService implements CreatePlaylistIdempotent
 
         final IdempotencyScope scope = new IdempotencyScope(
                 API_VERSION, "user:" + actorUserId, "POST", ROUTE_TEMPLATE, "", key);
-        final CanonicalRequestHash requestHash = CanonicalRequestHash.current(List.of(name));
+        final CanonicalRequestHash requestHash = CanonicalRequestHash.current(List.of(trimmedName));
 
         final var outcome = coordinator.claim(scope, requestHash, "CreatePlaylist",
                 IdempotencyResourceType.PLAYLIST, IdempotencyCoordinator.DEFAULT_CREATION_LEASE);
@@ -96,7 +98,7 @@ public class CreatePlaylistIdempotentService implements CreatePlaylistIdempotent
 
         final Claim claim = outcome.claimed().orElseThrow();
         try {
-            final Playlist playlist = executeCreation(claim.resourceId(), ownerId, name);
+            final Playlist playlist = executeCreation(claim.resourceId(), ownerId, trimmedName);
             coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"playlistId\":\"" + claim.resourceId() + "\"}"),
                     clock.instant());

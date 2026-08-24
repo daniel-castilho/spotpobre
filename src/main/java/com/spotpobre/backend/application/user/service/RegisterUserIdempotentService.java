@@ -7,6 +7,7 @@ import com.spotpobre.backend.application.idempotency.IdempotencyCoordinator;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase.RegisterUserCommand;
 import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
@@ -68,10 +69,18 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
         // Domain validation of the raw header value; IllegalArgumentException maps to 400.
         final IdempotencyKey key = IdempotencyKey.of(rawIdempotencyKey);
 
+        // Normalized at the application boundary (spec §10): the canonical request hash and
+        // every downstream write must see deterministic values. Password is never trimmed.
+        final RegisterUserCommand normalized = new RegisterUserCommand(
+                Normalization.trim(command.name()),
+                Normalization.lowercase(command.email()),
+                command.password(),
+                Normalization.uppercase(command.country()));
+
         final IdempotencyScope scope = IdempotencyScope.anonymousRegistration(
                 API_VERSION, "POST", ROUTE_TEMPLATE, key);
         final CanonicalRequestHash requestHash = CanonicalRequestHash.current(List.of(
-                command.name(), command.email(), command.password(), command.country()));
+                normalized.name(), normalized.email(), normalized.password(), normalized.country()));
 
         final ClaimOutcome outcome = coordinator.claim(scope, requestHash, "RegisterUser",
                 IdempotencyResourceType.USER, IdempotencyCoordinator.DEFAULT_CREATION_LEASE);
@@ -98,7 +107,7 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
 
         final Claim claim = outcome.claimed().orElseThrow();
         try {
-            final User user = executeRegistration(claim.resourceId(), command);
+            final User user = executeRegistration(claim.resourceId(), normalized);
             coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"userId\":\"" + claim.resourceId() + "\"}"),
                     clock.instant());

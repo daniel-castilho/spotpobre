@@ -101,6 +101,43 @@ class RegisterUserIdempotentServiceTest {
     }
 
     @Test
+    void registerIdempotently_unnormalizedInputs_normalizesBeforeHashAndWrite() {
+        String key = validKey();
+        // Faithful storage simulation so the retry can recover the reserved account.
+        java.util.concurrent.atomic.AtomicReference<User> saved = new java.util.concurrent.atomic.AtomicReference<>();
+        when(userRepository.findById(any(UserId.class))).thenAnswer(inv -> {
+            UserId asked = inv.getArgument(0);
+            User storedUser = saved.get();
+            return storedUser != null && storedUser.getId().equals(asked)
+                    ? Optional.of(storedUser) : Optional.empty();
+        });
+        when(userRepository.createIfEmailNotExists(any(User.class))).thenAnswer(inv -> {
+            saved.set(inv.getArgument(0));
+            return true;
+        });
+        when(passwordHasher.encode(COMMAND.password())).thenReturn("$argon2-hash$");
+
+        RegisterUserCommand messy = new RegisterUserCommand(
+                "  Ada Lovelace  ", "  Ada@Example.COM ", COMMAND.password(), "br");
+        RegistrationOutcome outcome = service.registerIdempotently(key, messy);
+        User user = outcome.user();
+
+        // Normalized values reach the domain write (spec §10).
+        assertEquals("Ada Lovelace", user.getProfile().name());
+        assertEquals("ada@example.com", user.getProfile().email());
+        assertEquals("BR", user.getProfile().country());
+
+        // The canonical hash is computed over NORMALIZED values: an already-normalized retry
+        // with the same key resolves to the same record — a replay, never a key-reuse conflict.
+        RegisterUserCommand clean = new RegisterUserCommand(
+                "Ada Lovelace", "ada@example.com", COMMAND.password(), "BR");
+        RegistrationOutcome retry = service.registerIdempotently(key, clean);
+
+        assertTrue(retry.replayed());
+        assertEquals(user.getId(), retry.user().getId());
+    }
+
+    @Test
     void registerIdempotently_sameKeySameRequest_replaysSameUserWithoutSecondInsert() {
         String key = validKey();
         // Faithful storage simulation: the user becomes findable only after the insert lands,

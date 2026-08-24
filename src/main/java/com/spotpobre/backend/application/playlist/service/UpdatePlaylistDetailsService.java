@@ -2,6 +2,7 @@ package com.spotpobre.backend.application.playlist.service;
 
 import com.spotpobre.backend.application.playlist.PlaylistOwnershipGuard;
 import com.spotpobre.backend.application.playlist.port.in.UpdatePlaylistDetailsUseCase;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.playlist.model.Playlist;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
@@ -21,7 +22,7 @@ public class UpdatePlaylistDetailsService implements UpdatePlaylistDetailsUseCas
 
         PlaylistOwnershipGuard.requireOwner(playlist, command.currentUserId());
 
-        playlist.updateDetails(command.newName());
+        playlist.updateDetails(Normalization.trim(command.newName()));
         playlistRepository.update(playlist);
         return playlist;
     }

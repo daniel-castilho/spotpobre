@@ -3,6 +3,7 @@ package com.spotpobre.backend.application.song.service;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.application.artist.port.in.RequireArtistAccessUseCase;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.Song;
@@ -47,7 +48,7 @@ public class InitiateSongUploadService implements InitiateSongUploadUseCase {
         );
         final PresignedUploadResult upload = songStoragePort.generateUploadUrl(uploadCommand);
 
-        final Song song = Song.create(command.title(), command.albumId(), upload.storageKey());
+        final Song song = Song.create(Normalization.trim(command.title()), command.albumId(), upload.storageKey());
 
         try {
             songMetadataRepository.save(song);

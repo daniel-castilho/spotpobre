@@ -10,6 +10,7 @@ import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.common.ConflictException;
+import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
@@ -71,10 +72,12 @@ public class CreateAlbumIdempotentService implements CreateAlbumIdempotentlyUseC
 
         final IdempotencyScope scope = new IdempotencyScope(
                 API_VERSION, "user:" + command.actorUserId(), "POST", ROUTE_TEMPLATE, "", key);
+        final String name = Normalization.trim(command.name());
+        final String coverArtUrl = Normalization.trim(command.coverArtUrl());
         final CanonicalRequestHash requestHash = CanonicalRequestHash.current(List.of(
-                command.name(),
+                name,
                 command.artistId().value().toString(),
-                command.coverArtUrl() == null ? "" : command.coverArtUrl()));
+                coverArtUrl == null ? "" : coverArtUrl));
 
         final var outcome = coordinator.claim(scope, requestHash, "CreateAlbum",
                 IdempotencyResourceType.ALBUM, IdempotencyCoordinator.DEFAULT_CREATION_LEASE);
@@ -99,7 +102,7 @@ public class CreateAlbumIdempotentService implements CreateAlbumIdempotentlyUseC
 
         final Claim claim = outcome.claimed().orElseThrow();
         try {
-            final Album album = executeCreation(claim.resourceId(), command);
+            final Album album = executeCreation(claim.resourceId(), command, name, coverArtUrl);
             coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"albumId\":\"" + claim.resourceId() + "\"}"),
                     clock.instant());
@@ -114,7 +117,8 @@ public class CreateAlbumIdempotentService implements CreateAlbumIdempotentlyUseC
     }
 
     /** Crash recovery mirrors artist creation: a reserved album that already exists wins. */
-    private Album executeCreation(final String reservedResourceId, final CreateAlbumCommand command) {
+    private Album executeCreation(final String reservedResourceId, final CreateAlbumCommand command,
+                final String name, final String coverArtUrl) {
         final AlbumId reservedId = AlbumId.from(reservedResourceId);
         final Optional<Album> recovered = albumRepository.findById(reservedId);
         if (recovered.isPresent()) {
@@ -123,9 +127,9 @@ public class CreateAlbumIdempotentService implements CreateAlbumIdempotentlyUseC
 
         final Album album = Album.builder()
                 .id(reservedId)
-                .name(command.name())
+                .name(name)
                 .artistId(command.artistId())
-                .coverArtUrl(command.coverArtUrl())
+                .coverArtUrl(coverArtUrl)
                 .build();
         albumRepository.save(album);
         return album;
