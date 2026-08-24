@@ -170,6 +170,50 @@ to emulated services is ephemeral by design — durability is an operational res
 | Host reboot recovery | Containers use `restart: unless-stopped`; verify with `$DC ps` after boot |
 | Free disk | `docker system df`; prune build cache with care (`docker builder prune`) |
 
+## 7. Data durability (LocalStack, Option A)
+
+Decision record: `docs/data-model-decisions.md` (Option A chosen 2026-08-24).
+RPO: snapshot interval (**15 min** default). LocalStack Community has no native persistence;
+durability is delivered by scheduled full-state snapshots + verified restore.
+
+### 7.1 Scheduled snapshots
+
+```bash
+sudo cp deploy/systemd/spotpobre-localstack-snapshot.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now spotpobre-localstack-snapshot.timer
+systemctl list-timers | grep spotpobre   # confirm next run
+```
+
+- Snapshots land in `LOCALSTACK_SNAPSHOT_DIR` (default `./.localstack-snapshots/`);
+  **point it at an external durable volume** and back that directory up with the host.
+- Rotation keeps the last 8 snapshots (`KEEP_SNAPSHOTS`).
+- Run one snapshot manually right after `seed-localstack.sh` on a fresh environment.
+
+### 7.2 Restore drill (run quarterly and after any LocalStack image bump)
+
+```bash
+./scripts/localstack-snapshot.sh                     # baseline
+# ... mutate/delete data (or wait for the drill window) ...
+./scripts/localstack-restore.sh                      # interactive confirm; --yes to skip
+# Exit code 0 + "[restore] OK" => state rebuilt AND verified against the manifest
+# (table set + per-table item counts). Any mismatch exits 3 - do NOT serve traffic.
+```
+
+The restore drops every existing table (the snapshot defines the truth), re-provisions the
+schema through `scripts/seed-localstack.sh`, reloads all rows, syncs S3 objects and verifies
+counts before returning. Keep the verification gate wired into any boot-after-loss procedure:
+traffic may only return after `[restore] OK`.
+
+### 7.3 Operator duties
+
+- Back up the snapshot directory with the same tier as other host backups.
+- After upgrading the `localstack/localstack` image: take a fresh snapshot BEFORE the upgrade,
+  then run a full restore drill AFTER it (snapshot compatibility is not guaranteed across
+  emulator versions).
+- If the host is lost entirely: provision a new host, restore the snapshot directory backup,
+  install the stack from this repo and run the restore drill before starting the fleets.
+
 ## Appendix — legacy AWS/ECS path (historical record only)
 
 The versioned manifests in `deploy/` (`stack.yaml`, `codedeploy.yaml`, `appspec.yaml`,

@@ -1,0 +1,13 @@
+# Snapshot every 15 minutes (RPO <= 15 min per docs/data-model-decisions.md Option A).
+# Persistent=true catches up a missed run after host downtime.
+
+[Unit]
+Description=Schedule Spotpobre LocalStack snapshots every 15 minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/15:00
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

@@ -179,9 +179,9 @@ new violations — flag them to the human instead.
      added (the pre-existing idempotency family remains the only one). Owner: P1 follow-up.
   3. Delivery-integrity CI items (SBOM-on-failure, digest-pinned images, provenance/signing)
      require GitHub-side actions and stay pending until pushes resume. Owner: human.
-  4. Production data durability needs the human's A/B/C decision
-     (`docs/data-model-decisions.md`; Option A drafted). Blocks only the durability claim,
-     not code.
+  4. CLOSED 2026-08-24: production durability decided - Option A (scheduled file snapshots +
+     verified restore; scripts/localstack-snapshot.sh, scripts/localstack-restore.sh,
+     deploy/systemd/*). Operator duties live in docs/release-runbook.md.
 
 The previous entry (AWS-native deploy path unexercised) was closed on 2026-08-23 when the
 real-AWS migration was formally abandoned: on-premises bare metal with LocalStack is the

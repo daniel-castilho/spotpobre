@@ -1,0 +1,17 @@
+# LocalStack durability Option A (docs/data-model-decisions.md).
+# One-shot snapshot runner. Install as:
+#   sudo cp deploy/systemd/spotpobre-localstack-snapshot.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now spotpobre-localstack-snapshot.timer
+# Adjust WorkingDirectory/ExecStart to the deployment checkout path.
+
+[Unit]
+Description=Spotpobre LocalStack state snapshot (pod save)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/spotpobre
+ExecStart=/opt/spotpobre/scripts/localstack-snapshot.sh
+# Keep snapshots on the same durability tier as host volume backups (operator duty,
+# see docs/release-runbook.md - durability section).

@@ -180,9 +180,12 @@ save/load to plain files: `localstack pod save file://…` / `localstack pod loa
 | B | LocalStack Pro licence + `PERSISTENCE=1` | seconds (scheduled flush) | Strongest emulator durability; licensing cost/decision |
 | C | Replace the data plane (non-emulator datastore) | continuous | Out of P0 scope; migration impact assessment required; cannot be introduced unilaterally |
 
-**Decision requested from the human:** pick A, B or C. Execution proceeds provisionally under A
-(runbook + restore drill written against it). The epic's final DoD does **not** claim production
-durability until this choice is recorded here.
+**DECISION RECORDED (2026-08-24): Option A chosen by the human.** Snapshot/restore tooling is
+implemented (`scripts/localstack-snapshot.sh`, `scripts/localstack-restore.sh`,
+`deploy/systemd/spotpobre-localstack-snapshot.{service,timer}`); the restore drill was executed
+end-to-end with a positive path (state rebuilt and verified) and a negative path (drifted state
+fails the verification gate). RPO = snapshot interval (15 min default). The production-durability
+claim is now backed by this mechanism + operator duties in docs/release-runbook.md.
 
 Operational notes for option A: pin `localstack/localstack:3.2`; snapshot after seed/bootstrap and
 on a schedule; verify restore by table-count + smoke script before traffic is served; keep snapshots

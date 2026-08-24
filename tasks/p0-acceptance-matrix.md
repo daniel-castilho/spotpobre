@@ -74,7 +74,7 @@ Legend: ✅ done · ⚠️ partial (declared deviation) · ⏸ deferred with own
 | Requirement | Status |
 | :--- | :--- |
 | Full `./mvnw clean verify` green at phase ends D/F/H | ✅ (unit 392+, ITs 90+, JaCoCo 60/60, SpotBugs 0) |
-| Durability option A/B/C human decision | ⏸ OPEN — dossier in `docs/data-model-decisions.md`; Option A drafted; **blocks the production-durability claim only** |
+| Durability decision | ✅ **Option A chosen by the human (2026-08-24)** and implemented: `scripts/localstack-snapshot.sh` + `localstack-restore.sh` (manifest-verified, drift-rejecting), `deploy/systemd/*` 15-min timer; restore drill executed end-to-end (positive + drift-rejection paths). Operator duties in `docs/release-runbook.md` §7. RPO = 15 min |
 | README/CHANGELOG/AGENTS as-built sync | ✅ this change set |
 | SBOM-on-failure CI tweak; digest-pinned images; provenance signing | ⏸ deferred honestly — CI settings are outside local authority (no push/settings changes allowed by authorization); documented for the human |
 

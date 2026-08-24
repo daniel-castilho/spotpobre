@@ -1,0 +1,45 @@
+{
+  "AccountTokens": {
+    "items": 0,
+    "status": "ok"
+  },
+  "Albums": {
+    "items": 0,
+    "status": "ok"
+  },
+  "ArtistAccounts": {
+    "items": 0,
+    "status": "ok"
+  },
+  "Artists": {
+    "items": 0,
+    "status": "ok"
+  },
+  "IdempotencyRecords": {
+    "items": 0,
+    "status": "ok"
+  },
+  "Likes": {
+    "items": 0,
+    "status": "ok"
+  },
+  "Playlists": {
+    "items": 0,
+    "status": "ok"
+  },
+  "SongUploads": {
+    "status": "missing"
+  },
+  "Songs": {
+    "items": 0,
+    "status": "ok"
+  },
+  "UserEmails": {
+    "items": 0,
+    "status": "ok"
+  },
+  "Users": {
+    "items": 1,
+    "status": "ok"
+  }
+}
