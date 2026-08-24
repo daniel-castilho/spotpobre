@@ -1,7 +1,8 @@
 # API Design Excellence P0 — Technical Specification
 ## Safety, Idempotency & Abuse Protection
 
-**Status:** Ready for implementation after Step 0 baseline verification  
+**Status:** Execution started 2026-08-23 from baseline `04f42f4` — live status is tracked in
+`p0-action-plan.md` and the as-built report; story checkboxes in the backlog are updated per phase.
 **Priority:** P0  
 **Companions:** `api-design-excellence-p0-backlog.md` · `api-design-excellence-p0-implementation-sequence.md`
 
@@ -752,6 +753,8 @@ Dev/test retain Swagger. Add a prod-profile test that verifies public Swagger/AP
 Production safe default:
 
 - separate management port, default `8081`, configurable by `MANAGEMENT_SERVER_PORT`;
+  > **Locked deviation (2026-08-23):** the authorization document fixes the production management
+  > port at **`9090` (internal-only)**. Where this spec says `8081`, read `9090`.
 - expose `health` only;
 - enable liveness/readiness probes;
 - `show-details: never`;

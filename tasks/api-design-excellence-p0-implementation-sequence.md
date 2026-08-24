@@ -42,6 +42,10 @@ Expected: no matches.
 ---
 
 ## Step 0 — Baseline, design lock and dependency gate
+
+> **As-built (2026-08-23):** complete. Evidence in `p0-baseline-inventory.md`; durability dossier
+> in `docs/data-model-decisions.md`; locked decisions and deviations recorded there.
+
 ### Stories: S0
 
 ### Actions

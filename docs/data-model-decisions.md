@@ -162,3 +162,29 @@ domain data.
   all answer 404 — indistinguishable, because tokens are secrets.
 - Purposes (`PASSWORD_RESET`, `EMAIL_VERIFICATION`) are namespaced on the row so a token issued
   for one flow can never redeem another.
+
+## LocalStack production durability (GO/NO-GO dossier, 2026-08-23)
+
+Platform context: on-premises bare metal with LocalStack is the permanent production substrate
+(ADR-0002 update note). The P0 authorization requires a documented durability decision before the
+epic may claim production readiness.
+
+**Research result.** LocalStack is ephemeral by default. Snapshot persistence (`PERSISTENCE=1`,
+`SNAPSHOT_SAVE_STRATEGY`, state under `/var/lib/localstack/state`) is a **Pro** feature; Community
+lost its legacy persistence in 0.13.x. What Community *does* ship (CLI ≥ 1.3) is manual Cloud Pod
+save/load to plain files: `localstack pod save file://…` / `localstack pod load file://…`.
+
+| Option | Mechanism | RPO | Assessment |
+| :--- | :--- | :--- | :--- |
+| **A — recommended** | Scheduled file-Pod snapshots (systemd timer/cron) to an external durable volume + tested restore-on-boot + host backups of the snapshot directory | snapshot interval (e.g. 5–15 min); bounded, not zero | Zero licence cost; official Community CLI functionality; image-version compatibility rules must be pinned and restore must be drilled |
+| B | LocalStack Pro licence + `PERSISTENCE=1` | seconds (scheduled flush) | Strongest emulator durability; licensing cost/decision |
+| C | Replace the data plane (non-emulator datastore) | continuous | Out of P0 scope; migration impact assessment required; cannot be introduced unilaterally |
+
+**Decision requested from the human:** pick A, B or C. Execution proceeds provisionally under A
+(runbook + restore drill written against it). The epic's final DoD does **not** claim production
+durability until this choice is recorded here.
+
+Operational notes for option A: pin `localstack/localstack:3.2`; snapshot after seed/bootstrap and
+on a schedule; verify restore by table-count + smoke script before traffic is served; keep snapshots
+on the same durability tier as host volume backups (both are operator responsibility per the
+release runbook).

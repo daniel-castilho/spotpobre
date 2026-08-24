@@ -5,6 +5,9 @@
 **All stories:** Must  
 **Companions:** `api-design-excellence-p0-spec.md` · `api-design-excellence-p0-implementation-sequence.md`
 
+**Execution status:** started 2026-08-23 from baseline `04f42f4`; Phase A (Step 0) complete —
+see `p0-action-plan.md` and `p0-baseline-inventory.md`. Story checkboxes below are updated per phase.
+
 ---
 
 ## Epic outcome
