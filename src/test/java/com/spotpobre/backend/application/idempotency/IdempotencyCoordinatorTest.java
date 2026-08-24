@@ -15,8 +15,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -65,6 +71,37 @@ class IdempotencyCoordinatorTest {
         assertTrue(stored.isPresent());
         assertEquals(claim.resourceId(), stored.get().resourceId());
         assertEquals(T0.plus(LEASE), stored.get().leaseUntil());
+    }
+
+    @Test
+    void claim_concurrentRacingCallers_exactlyOneWinsAndOthersSeeActiveLease() throws Exception {
+        final int callers = 16;
+        final ExecutorService pool = Executors.newFixedThreadPool(callers);
+        final CountDownLatch start = new CountDownLatch(1);
+        final List<Future<ClaimOutcome>> futures = new ArrayList<>();
+        for (int i = 0; i < callers; i++) {
+            futures.add(pool.submit(() -> {
+                start.await();
+                return coordinator.claim(scope(), requestHash(), "CreatePlaylist",
+                        IdempotencyResourceType.PLAYLIST, LEASE);
+            }));
+        }
+        start.countDown();
+        int claimed = 0;
+        int activeLease = 0;
+        for (Future<ClaimOutcome> future : futures) {
+            ClaimOutcome outcome = future.get(10, TimeUnit.SECONDS);
+            if (outcome.claimed().isPresent()) {
+                claimed++;
+            } else if (outcome.activeLease().isPresent()) {
+                activeLease++;
+            }
+        }
+        pool.shutdown();
+        assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS));
+
+        assertEquals(1, claimed, "exactly one caller must win the fresh claim");
+        assertEquals(callers - 1, activeLease, "all other callers must observe an active lease");
     }
 
     @Test
