@@ -43,7 +43,7 @@
              CVE-2026-56819 (Trivy HIGH gate): overrides the Boot-managed Netty
              BOM until the next Boot release manages >= 4.2.16.Final natively. -->
         <netty.version>4.2.16.Final</netty.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.85.2</bouncycastle.version>
         <!-- CVE-2026-54399 / CVE-2026-54428 (Trivy HIGH gate): Boot 4.1.0
              manages the httpcore5 family at 5.4.2, which spring-cloud-aws
              4.1.0 pulls into the application jar; 5.4.3 is the fixed line. -->
