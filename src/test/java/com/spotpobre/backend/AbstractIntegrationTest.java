@@ -107,6 +107,34 @@ public abstract class AbstractIntegrationTest {
         enableTimeToLive(dynamoDb, "IdempotencyRecords");
         createTableIfMissing(dynamoDb, "AccountTokens", "tokenHash", null);
         enableTimeToLive(dynamoDb, "AccountTokens");
+        createSongUploadsTableIfMissing(dynamoDb);
+    }
+
+    /**
+     * SongUploads uses a NUMERIC GSI range key (expiresAtEpochSeconds), so it cannot go
+     * through the all-strings {@link #createTableIfMissing} helper.
+     */
+    private static void createSongUploadsTableIfMissing(DynamoDbClient dynamoDb) {
+        if (dynamoDb.listTables().tableNames().contains("SongUploads")) {
+            return;
+        }
+        dynamoDb.createTable(CreateTableRequest.builder()
+                .tableName("SongUploads")
+                .keySchema(KeySchemaElement.builder().attributeName("songId").keyType(KeyType.HASH).build())
+                .attributeDefinitions(
+                        AttributeDefinition.builder().attributeName("songId").attributeType("S").build(),
+                        AttributeDefinition.builder().attributeName("state").attributeType("S").build(),
+                        AttributeDefinition.builder().attributeName("expiresAtEpochSeconds").attributeType("N").build())
+                .globalSecondaryIndexes(GlobalSecondaryIndex.builder()
+                        .indexName("state-expiry-index")
+                        .keySchema(
+                                KeySchemaElement.builder().attributeName("state").keyType(KeyType.HASH).build(),
+                                KeySchemaElement.builder().attributeName("expiresAtEpochSeconds").keyType(KeyType.RANGE).build())
+                        .projection(Projection.builder().projectionType(ProjectionType.ALL).build())
+                        .build())
+                .billingMode("PAY_PER_REQUEST")
+                .build());
+        enableTimeToLive(dynamoDb, "SongUploads");
     }
 
     private static void enableTimeToLive(DynamoDbClient dynamoDb, String tableName) {

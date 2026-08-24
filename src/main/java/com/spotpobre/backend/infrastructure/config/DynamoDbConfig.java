@@ -8,6 +8,7 @@ import com.spotpobre.backend.infrastructure.persistence.kv.entity.IdempotencyRec
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.LikeDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.PlaylistDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongUploadDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserEmailDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.UserProfileDocument;
@@ -228,5 +229,31 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<AccountTokenDocument> accountTokenTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<AccountTokenDocument> accountTokenTableSchema) {
         return enhancedClient.table("AccountTokens", accountTokenTableSchema);
+    }
+
+    @Bean
+    public TableSchema<SongUploadDocument> songUploadTableSchema() {
+        return TableSchema.builder(SongUploadDocument.class)
+                .newItemSupplier(SongUploadDocument::new)
+                .addAttribute(String.class, a -> a.name("songId").getter(SongUploadDocument::getSongId).setter(SongUploadDocument::setSongId).tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("albumId").getter(SongUploadDocument::getAlbumId).setter(SongUploadDocument::setAlbumId))
+                .addAttribute(String.class, a -> a.name("artistId").getter(SongUploadDocument::getArtistId).setter(SongUploadDocument::setArtistId))
+                .addAttribute(String.class, a -> a.name("actorUserId").getter(SongUploadDocument::getActorUserId).setter(SongUploadDocument::setActorUserId))
+                .addAttribute(String.class, a -> a.name("contentType").getter(SongUploadDocument::getContentType).setter(SongUploadDocument::setContentType))
+                .addAttribute(Long.class, a -> a.name("contentLengthBytes").getter(SongUploadDocument::getContentLengthBytes).setter(SongUploadDocument::setContentLengthBytes))
+                .addAttribute(String.class, a -> a.name("stagingKey").getter(SongUploadDocument::getStagingKey).setter(SongUploadDocument::setStagingKey))
+                .addAttribute(String.class, a -> a.name("finalKey").getter(SongUploadDocument::getFinalKey).setter(SongUploadDocument::setFinalKey))
+                .addAttribute(String.class, a -> a.name("multipartUploadId").getter(SongUploadDocument::getMultipartUploadId).setter(SongUploadDocument::setMultipartUploadId))
+                .addAttribute(String.class, a -> a.name("state").getter(SongUploadDocument::getState).setter(SongUploadDocument::setState).tags(StaticAttributeTags.secondaryPartitionKey("state-expiry-index")))
+                .addAttribute(Instant.class, a -> a.name("completingLeaseUntil").getter(SongUploadDocument::getCompletingLeaseUntil).setter(SongUploadDocument::setCompletingLeaseUntil))
+                .addAttribute(Instant.class, a -> a.name("createdAt").getter(SongUploadDocument::getCreatedAt).setter(SongUploadDocument::setCreatedAt))
+                .addAttribute(Instant.class, a -> a.name("updatedAt").getter(SongUploadDocument::getUpdatedAt).setter(SongUploadDocument::setUpdatedAt))
+                .addAttribute(Long.class, a -> a.name("expiresAtEpochSeconds").getter(SongUploadDocument::getExpiresAtEpochSeconds).setter(SongUploadDocument::setExpiresAtEpochSeconds).tags(StaticAttributeTags.secondarySortKey("state-expiry-index")))
+                .build();
+    }
+
+    @Bean
+    public DynamoDbTable<SongUploadDocument> songUploadTable(final DynamoDbEnhancedClient enhancedClient, final TableSchema<SongUploadDocument> songUploadTableSchema) {
+        return enhancedClient.table("SongUploads", songUploadTableSchema);
     }
 }

@@ -128,6 +128,18 @@ run_aws dynamodb update-time-to-live \
   --table-name IdempotencyRecords \
   --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
 
+create_table SongUploads \
+  --attribute-definitions AttributeName=songId,AttributeType=S AttributeName=state,AttributeType=S AttributeName=expiresAtEpochSeconds,AttributeType=N \
+  --key-schema AttributeName=songId,KeyType=HASH \
+  --global-secondary-indexes "IndexName=state-expiry-index,KeySchema=[{AttributeName=state,KeyType=HASH},{AttributeName=expiresAtEpochSeconds,KeyType=RANGE}],Projection={ProjectionType=ALL}" \
+  --billing-mode PAY_PER_REQUEST
+
+# Durable upload lifecycle: expiresAtEpochSeconds is both the logical cleanup deadline
+# (state-expiry-index) and the DynamoDB TTL attribute for physical deletion.
+run_aws dynamodb update-time-to-live \
+  --table-name SongUploads \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
+
 create_table AccountTokens \
   --attribute-definitions AttributeName=tokenHash,AttributeType=S \
   --key-schema AttributeName=tokenHash,KeyType=HASH \
