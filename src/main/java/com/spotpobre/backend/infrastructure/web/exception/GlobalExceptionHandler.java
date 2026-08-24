@@ -86,6 +86,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large", ex.getMessage(), request, null);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex,
+            HttpServletRequest request) {
+        // Unmatched paths (including disabled Swagger assets) are client 404s, never 500.
+        return buildResponse(HttpStatus.NOT_FOUND, "Not Found",
+                "Resource not found.", request, null);
+    }
+
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotSupported(
             org.springframework.web.HttpRequestMethodNotSupportedException ex,

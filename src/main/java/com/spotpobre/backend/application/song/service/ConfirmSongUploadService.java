@@ -85,6 +85,7 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
         }
 
         // Exclusive lease: concurrent confirmations elect exactly one completer.
+        validateCompletedParts(command.completedParts(), upload);
         final Instant now = clock.instant();
         final Instant leaseUntil = now.plus(COMPLETION_LEASE);
         if (!songUploadRepository.acquireCompletingLease(upload.getSongId(), leaseUntil, now)) {
@@ -120,6 +121,34 @@ public class ConfirmSongUploadService implements ConfirmSongUploadUseCase {
         } catch (UploadIntegrityException e) {
             quarantine(upload);
             throw e;
+        }
+    }
+
+    /**
+     * Client-supplied multipart evidence must be structurally sane before any storage or
+     * lease work (spec S15): positive unique part numbers in ascending order, non-blank ETags.
+     */
+    private void validateCompletedParts(final List<CompletedUploadPart> parts,
+                                        final SongUpload upload) {
+        if (!upload.isMultipart()) {
+            return; // Single-part confirmations carry no part list.
+        }
+        if (parts == null || parts.isEmpty()) {
+            throw new ConflictException("Multipart confirmation requires completed parts.");
+        }
+        int previous = 0;
+        for (CompletedUploadPart part : parts) {
+            if (part == null || part.partNumber() < 1) {
+                throw new ConflictException("Completed parts must use part numbers starting at 1.");
+            }
+            if (part.partNumber() <= previous) {
+                throw new ConflictException(
+                        "Completed parts must have unique part numbers in ascending order.");
+            }
+            if (part.eTag() == null || part.eTag().isBlank()) {
+                throw new ConflictException("Every completed part requires its ETag.");
+            }
+            previous = part.partNumber();
         }
     }
 

@@ -93,14 +93,16 @@ Legend: ✅ done · ⚠️ partial (declared deviation) · ⏸ deferred with own
    same optimistic-concurrency role on every transition.
 7. Confirm response does not return a `requiredHeaders` list; presigned URLs embed all signed
    headers (Content-Type/Content-Length for single PUT), so clients need no extra contract.
-8. Multipart part validation sorts by part number but does not yet reject duplicate numbers or
-   blank ETags explicitly (S3 rejects malformed completes; explicit guards are a P1 nicety).
-9. No request-correlation MDC filter yet; correlation digests exist and are used by the
-   idempotency scope/logs. P1 follow-up.
-10. No prod-profile exposure IT asserting Swagger is unavailable in that profile (lockdown is
-    config-enforced and reviewed; E2E proof pending).
-11. "Boot fails if prod profile not active" is enforced by the deployment contract
-    (.env sets SPRING_PROFILES_ACTIVE=prod), not by application code.
+8. RESOLVED: multipart part validation now rejects duplicate/out-of-order numbers and blank
+   ETags before any lease or storage work (service guard + value-object boundary).
+9. RESOLVED: RequestCorrelationFilter puts a per-request requestId into the MDC, rendered by
+   the console pattern and emitted as a JSON field; incoming X-Request-Id is validated and
+   echoed.
+10. RESOLVED: ProductionExposureFlowIT boots the prod profile against Testcontainers and proves
+    Swagger/api-docs unavailable, actuator absent from the business listener, health-only
+    management port with show-details never, and metrics/env private (401/404).
+11. "Boot fails if prod profile not active" remains enforced by the deployment contract
+    (.env sets SPRING_PROFILES_ACTIVE=prod), not by application code - declared control split.
 
 ## Stop-condition disclosures
 

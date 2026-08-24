@@ -141,6 +141,11 @@ public final class SongUpload {
                 && now.isBefore(completingLeaseUntil);
     }
 
+    /** True when the initiation reserved an S3 multipart upload (vs a single PUT). */
+    public boolean isMultipart() {
+        return multipartUploadId != null && !multipartUploadId.isBlank();
+    }
+
     private void transitionTo(final SongUploadState target) {
         if (!state.canTransitionTo(target)) {
             throw new IllegalStateException("Illegal upload transition " + state + " -> " + target);

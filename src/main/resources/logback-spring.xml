@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Twelve-Factor factor 11 — logs as event streams to stdout.
-  Default: Spring Boot's plain console pattern (dev-friendly).
-  Profile `json`: structured JSON lines via LogstashEncoder for log aggregation in prod.
+  Default: plain console pattern including the per-request correlation id
+  (RequestCorrelationFilter puts it into the MDC as "requestId").
+  Profile `json`: structured JSON lines via LogstashEncoder (MDC fields, including
+  requestId, are emitted automatically) for log aggregation in prod.
   Never log passwords, JWT secrets or token payloads (see coding-standards).
 -->
 <configuration>
+    <!-- Injected into Boot's CONSOLE appender pattern before the includes are parsed. -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [${PID:- }/%X{requestId:-}] --- [%t] %-40.40logger{39} : %m%n"/>
+
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 

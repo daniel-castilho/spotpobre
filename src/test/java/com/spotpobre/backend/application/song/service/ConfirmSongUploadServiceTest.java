@@ -201,6 +201,28 @@ class ConfirmSongUploadServiceTest {
     }
 
     @Test
+    void confirmUpload_duplicateOrUnorderedParts_rejectedBeforeLeaseWork() {
+        SongUpload upload = SongUpload.start(new SongId(UUID.randomUUID()), "Track",
+                albumId, artistId, actorId, "audio/mpeg", 1_000_000L, "mpu-1",
+                NOW.minusSeconds(600), NOW.plus(java.time.Duration.ofHours(24)));
+        when(songUploadRepository.findBySongId(upload.getSongId()))
+                .thenReturn(Optional.of(upload));
+
+        var duplicateParts = new ConfirmSongUploadUseCase.ConfirmSongUploadCommand(
+                upload.getSongId(), upload.getAlbumId(), upload.getStagingKey(), "mpu-1",
+                java.util.List.of(new CompletedUploadPart(2, "\"e2\""),
+                        new CompletedUploadPart(2, "\"e1\"")),
+                actorId, false);
+        assertThrows(ConflictException.class, () -> service.confirmUpload(duplicateParts));
+
+        // Blank ETags are rejected earlier, at the CompletedUploadPart value object boundary.
+        assertThrows(IllegalArgumentException.class,
+                () -> new CompletedUploadPart(1, "  "));
+
+        verify(songUploadRepository, never()).acquireCompletingLease(any(), any(), any());
+    }
+
+    @Test
     void confirmUpload_wrongMultipartIdRejected() {
         SongUpload multipartUpload = SongUpload.start(new SongId(UUID.randomUUID()), "Track",
                 albumId, artistId, actorId, "audio/mpeg", 1_000_000L, "bound-mpu",
