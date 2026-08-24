@@ -49,3 +49,6 @@ build/
 
 # Performance baseline artifacts
 perf/results/
+
+# LocalStack durability snapshots (environment data, operator-managed)
+.localstack-snapshots/
