@@ -63,6 +63,7 @@ task.
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
+| Run performance baseline (k6, needs Docker + services up) | `scripts/performance-baseline.sh` |
 | Interactive API docs | http://localhost:8080/swagger-ui.html |
 
 > Prefer the fast unit-test loop (`./mvnw test`); it needs **no Docker**. The slice integration and

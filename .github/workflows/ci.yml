@@ -215,3 +215,68 @@ jobs:
       - name: Stop external services
         if: always()
         run: docker compose down
+
+  # Performance baseline (playbook gap 8, foundation phase): k6 read-path
+  # scenarios with budgets-as-code. CONSULTATIVE for now — continue-on-error
+  # keeps the pipeline green while we collect 2-3 runs of data; promoting it to
+  # a hard gate is a deliberate follow-up decision once thresholds are tuned.
+  performance:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      # The baseline launches the production jar directly; the runner's default
+      # JDK cannot load the Java 21 jar.
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Start external services (LocalStack + Redis)
+        run: docker compose up -d
+
+      - name: Wait for LocalStack readiness (DynamoDB + S3)
+        run: |
+          for i in $(seq 1 30); do
+            if AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+                 aws --endpoint-url=http://localhost:4566 dynamodb list-tables >/dev/null 2>&1 \
+               && AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+                 aws --endpoint-url=http://localhost:4566 s3api list-buckets >/dev/null 2>&1; then
+              echo "LocalStack DynamoDB and S3 are ready"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose logs localstack
+          echo "LocalStack DynamoDB/S3 did not become ready"
+          exit 1
+
+      - name: Provision DynamoDB schema + S3 bucket
+        run: ./scripts/seed-localstack.sh
+
+      - name: Download production jar
+        uses: actions/download-artifact@v7
+        with:
+          name: spotpobre-api-jar
+          path: target/
+
+      - name: Run k6 performance baseline
+        run: |
+          JAR="$(ls target/spotpobre-*.jar | head -1)"
+          scripts/performance-baseline.sh "$JAR" 8080
+
+      - name: Upload performance summaries
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: performance-summaries
+          path: perf/results/
+          if-no-files-found: ignore
+
+      - name: Stop external services
+        if: always()
+        run: docker compose down

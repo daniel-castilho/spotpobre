@@ -272,6 +272,7 @@ The application will be available at `http://localhost:8080`.
 | Production build | `./mvnw clean package` |
 | Start external services (LocalStack + Redis) | `docker-compose up -d` |
 | Stop external services | `docker-compose down` |
+| Run performance baseline (k6, needs Docker + services up) | `scripts/performance-baseline.sh` |
 
 ## Testing
 

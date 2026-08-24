@@ -238,7 +238,15 @@ Keep this section honest. Move an item out only when an automated test/gate exis
    promoting it: the CI job ran `java -jar` with the runner's default JDK (17), which cannot load
    the Java 21 jar (explicit `setup-java` added), and registration predated the now-mandatory
    `Idempotency-Key` header; failures dump the application-log tail for diagnosability.
-8. **No performance/load baseline.** Latency, throughput, large playlists/search pages and rate limits have no automated budget.
+8. **No performance/load baseline — RESOLVED (foundation, consultative).** `perf/` holds three
+   k6 read-path scenarios (users-me, song-search, artists-list) with budgets-as-code
+   (thresholds inside each scenario), run by `scripts/performance-baseline.sh` via the pinned
+   `grafana/k6:2.2.0` container against the compose stack. CI runs it as a separate,
+   `continue-on-error` job (`performance`) that uploads JSON summaries as artifacts; promoting
+   it to a hard gate is deliberate follow-up once 2-3 runs have calibrated realistic floors.
+   Known scope limit: the foundation catalog is minimal (no ADMIN seeding over HTTP), so the
+   numbers are regression tripwires for infrastructure overhead, not capacity results.
+   Rate-limit budgets remain unexercised (scenario backlog).
 9. **JaCoCo thresholds raised to a real floor (60% line / 60% branch) — RESOLVED as a gate, ongoing as a target.** Both floors now sit at 0.60 (previously 0.35/0.15) and are enforced by `jacoco:check` locally and in CI. Coverage does not prove assertion quality; keep closing meaningful gaps when touched.
 10. **Dependency vulnerability policy — CHANGED.** OWASP Dependency Check stays report-only by
     design (`failBuildOnCVSS=11`, `failOnError=false`) so an unstable NVD can never break CI;

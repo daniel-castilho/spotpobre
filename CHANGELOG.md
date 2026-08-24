@@ -7,6 +7,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Added
+
+- **Performance baseline (foundation, consultative).** Three k6 read-path scenarios
+  (`perf/scenarios/`: users-me, song-search, artists-list) with budgets-as-code thresholds,
+  orchestrated by `scripts/performance-baseline.sh` via the pinned `grafana/k6:2.2.0`
+  container. CI gained a separate `performance` job (non-blocking for now) that publishes
+  JSON summaries as artifacts; promotion to a hard gate follows threshold calibration.
+
 ## [0.13.0] - 2026-08-23
 
 ### Changed
