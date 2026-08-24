@@ -25,13 +25,12 @@ aws:
     bucket-name: spotpobre-songs
 
 jwt:
-  # ATENÇÃO: Use uma chave secreta forte e longa em produção, gerenciada via variáveis de ambiente.
-  # Este é apenas um exemplo. Gere a sua própria chave.
+  # WARNING: use a strong, long secret in production, managed via environment variables.
+  # This value is only an example — generate your own.
   secret: "635266556A586E3272357538782F413F4428472B4B6250655368566D59713374"
 
-  # CORREÇÃO: A propriedade foi renomeada de 'expiration-ms' para 'expiration'
-  # para corresponder ao campo 'Duration expiration' na classe JwtProperties.
-  # O valor foi alterado para o formato de Duração padrão do Spring Boot ('1h' = 1 hora).
+  # Named 'expiration' (not 'expiration-ms') to match the 'Duration expiration' field on
+  # JwtProperties; the value uses Spring Boot's standard Duration format ('1h' = 1 hour).
   expiration: 1h
 
 rate-limit:

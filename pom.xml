@@ -364,7 +364,6 @@
         <version>12.2.2</version>
         <configuration>
             <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
-            <failBuildOnCiFriendly>false</failBuildOnCiFriendly>
             <!-- Free key from https://nvd.nist.gov/developers/request-an-api-key
                  (repository secret, injected via env). Without it the NVD
                  throttles updates into hours-long full-mirror downloads. -->

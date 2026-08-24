@@ -7,6 +7,8 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-23
+
 ### Changed
 
 - **JaCoCo floors raised 35%/15% → 60%/60% (line/branch)** — non-negotiable minimum per project
