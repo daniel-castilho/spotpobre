@@ -3,6 +3,7 @@ package com.spotpobre.backend;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -37,6 +38,18 @@ public abstract class AbstractIntegrationTest {
     // cached context would keep pointing at a dead port.
     private static final LocalStackContainer localstack = startLocalStack();
 
+    // Dedicated pinned Redis for the whole JVM (same lifecycle rationale as LocalStack):
+    // keeps the rate-limit authority and any Redis-backed behaviour deterministic and
+    // isolated from whatever happens to listen on localhost:6379 (e.g. a dev compose stack).
+    private static final GenericContainer<?> redis = new GenericContainer<>(
+            DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379)
+            .waitingFor(org.testcontainers.containers.wait.strategy.Wait.forListeningPort());
+
+    static {
+        redis.start();
+    }
+
     /** Static accessors so non-subclassing ITs (e.g. RateLimitFlowIT) reuse the singleton. */
     public static String localstackEndpoint() {
         return localstack.getEndpoint().toString();
@@ -64,10 +77,19 @@ public abstract class AbstractIntegrationTest {
         registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpoint().toString());
         // SES shares the LocalStack edge; the adapter must hit the mapped port, not 4566.
         registry.add("email.sesEndpoint", () -> localstack.getEndpoint().toString());
-        // Flow ITs are not about throttling (spec section 8.5): the limiter is disabled so
-        // shared Redis state cannot make unrelated suites nondeterministic. Dedicated
-        // RateLimit*ITs enable it with their own pinned Redis container.
-        registry.add("rate-limit.enabled", () -> "false");
+
+        // Rate-limit authority + Redis-backed behaviour point at the dedicated container so
+        // suites stay deterministic; the in-memory cache keeps @Cacheable lookups simple.
+        // Capacities are generous: every class in the JVM shares one identity (127.0.0.1),
+        // so the defaults would exhaust mid-suite and fail unrelated tests. The authority
+        // itself stays real (atomic Lua buckets); dedicated RateLimit*ITs assert ceilings.
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+        registry.add("rate-limit.key-secret", () -> "flow-it-rate-limit-secret");
+        registry.add("rate-limit.register-ip-capacity", () -> "200");
+        registry.add("rate-limit.register-email-capacity", () -> "50");
+        registry.add("rate-limit.authenticate-ip-capacity", () -> "500");
+        registry.add("rate-limit.authenticate-email-capacity", () -> "200");
 
         // AWS Credentials for LocalStack — used by DynamoDbConfig and S3Config which build
         // clients with StaticCredentialsProvider from AwsProperties.credentials().
