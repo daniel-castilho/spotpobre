@@ -4,6 +4,7 @@ import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.common.PayloadTooLargeException;
 import com.spotpobre.backend.domain.common.RateLimiterUnavailableException;
@@ -127,6 +128,21 @@ public class GlobalExceptionHandler {
                 request,
                 null,
                 Map.of("Retry-After", String.valueOf(Math.max(1, ex.getRetryAfterSeconds())))
+        );
+    }
+
+    @ExceptionHandler(IdempotencyLeaseLostException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyLeaseLost(
+            IdempotencyLeaseLostException ex, HttpServletRequest request) {
+        // The business write may exist but was not published by us. A short retry with the
+        // same Idempotency-Key replays whoever won the lease — never a duplicate resource.
+        return buildResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Retry With Same Idempotency Key",
+                ex.getMessage(),
+                request,
+                null,
+                Map.of("Retry-After", "1")
         );
     }
 

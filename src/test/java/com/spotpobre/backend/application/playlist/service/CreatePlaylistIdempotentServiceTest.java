@@ -8,6 +8,7 @@ import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
@@ -97,6 +98,21 @@ class CreatePlaylistIdempotentServiceTest {
         assertEquals(IdempotencyState.COMPLETED, stored.state());
         assertEquals(outcome.playlist().getId().value().toString(), stored.resourceId(),
                 "persisted playlist must carry the claim-reserved id");
+    }
+
+    @Test
+    void createPlaylistIdempotently_lostLeaseBeforePublish_throwsAndKeepsRecordInProgress() {
+        String key = validKey();
+        when(playlistRepository.findById(any())).thenReturn(Optional.empty());
+
+        idempotencyStore.failNextConditionalTransition.set(true);
+
+        assertThrows(IdempotencyLeaseLostException.class,
+                () -> service.createPlaylistIdempotently(key, ownerId.value(), "Road Trip"));
+
+        var stored = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
+        assertEquals(IdempotencyState.IN_PROGRESS, stored.state(),
+                "a lost lease must not publish a COMPLETED record");
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
 import com.spotpobre.backend.domain.idempotency.model.FailureDescriptor;
@@ -108,9 +109,16 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
         final Claim claim = outcome.claimed().orElseThrow();
         try {
             final User user = executeRegistration(claim.resourceId(), normalized);
-            coordinator.completeClaim(claim,
+            // Publish gate (spec §5.6): never publish success for a result we could not record.
+            // The e-mail below is sent only by the instance that successfully published, so a
+            // lost lease cannot produce a double send (the winner re-executes and sends once).
+            if (!coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"userId\":\"" + claim.resourceId() + "\"}"),
-                    clock.instant());
+                    clock.instant())) {
+                throw new IdempotencyLeaseLostException(
+                        "The idempotency lease was lost before the result could be recorded; "
+                                + "retry with the same Idempotency-Key.");
+            }
             // Binding decision v0.12.0: first successful attempt (fresh insert or crash
             // recovery) sends the verification e-mail at-least-once; idempotent REPLAYS
             // never resend. Delivery failures are logged, never surfaced to the caller.

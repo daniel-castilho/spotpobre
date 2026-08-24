@@ -11,6 +11,7 @@ import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyState;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -98,6 +100,22 @@ class RegisterUserIdempotentServiceTest {
         assertEquals(outcome.user().getId().value().toString(), stored.resourceId(),
                 "the persisted user must carry the id reserved by the claim");
         assertEquals("{\"userId\":\"" + outcome.user().getId().value() + "\"}", stored.resultSnapshot().body());
+    }
+
+    @Test
+    void registerIdempotently_lostLeaseBeforePublish_throwsWithoutEmailAndKeepsRecordInProgress() {
+        when(passwordHasher.encode(COMMAND.password())).thenReturn("$argon2-hash$");
+        when(userRepository.createIfEmailNotExists(any(User.class))).thenReturn(true);
+        String key = validKey();
+
+        idempotencyStore.failNextConditionalTransition.set(true);
+
+        assertThrows(IdempotencyLeaseLostException.class, () -> service.registerIdempotently(key, COMMAND));
+
+        verifyNoInteractions(emailSenderPort);
+        var stored = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
+        assertEquals(IdempotencyState.IN_PROGRESS, stored.state(),
+                "a lost lease must not publish a COMPLETED record");
     }
 
     @Test

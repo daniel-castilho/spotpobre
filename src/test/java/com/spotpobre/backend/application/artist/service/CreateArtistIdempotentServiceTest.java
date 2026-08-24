@@ -13,6 +13,7 @@ import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
@@ -105,6 +106,23 @@ class CreateArtistIdempotentServiceTest {
         assertEquals(IdempotencyState.COMPLETED, stored.state());
         assertEquals(outcome.artist().getId().value().toString(), stored.resourceId(),
                 "persisted artist must carry the claim-reserved id");
+    }
+
+    @Test
+    void createArtistIdempotently_lostLeaseBeforePublish_throwsAndKeepsRecordInProgress() {
+        UUID ownerId = UUID.randomUUID();
+        givenOwnerWithArtistRole(ownerId);
+        when(artistRepository.findById(any())).thenReturn(Optional.empty());
+
+        String key = validKey();
+        idempotencyStore.failNextConditionalTransition.set(true);
+
+        assertThrows(IdempotencyLeaseLostException.class,
+                () -> service.createArtistIdempotently(key, adminId, new CreateArtistCommand("Aurora", ownerId)));
+
+        var stored = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
+        assertEquals(IdempotencyState.IN_PROGRESS, stored.state(),
+                "a lost lease must not publish a COMPLETED record");
     }
 
     @Test

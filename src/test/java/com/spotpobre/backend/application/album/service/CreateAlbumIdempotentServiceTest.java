@@ -17,6 +17,7 @@ import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
@@ -102,6 +103,21 @@ class CreateAlbumIdempotentServiceTest {
         assertEquals(IdempotencyState.COMPLETED, stored.state());
         assertEquals(outcome.album().getId().value().toString(), stored.resourceId(),
                 "persisted album must carry the claim-reserved id");
+    }
+
+    @Test
+    void createAlbumIdempotently_lostLeaseBeforePublish_throwsAndKeepsRecordInProgress() {
+        when(albumRepository.findById(any())).thenReturn(Optional.empty());
+
+        String key = validKey();
+        idempotencyStore.failNextConditionalTransition.set(true);
+
+        assertThrows(IdempotencyLeaseLostException.class,
+                () -> service.createAlbumIdempotently(key, command("Nightfall")));
+
+        var lostLeaseRecord = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
+        assertEquals(IdempotencyState.IN_PROGRESS, lostLeaseRecord.state(),
+                "a lost lease must not publish a COMPLETED record");
     }
 
     @Test

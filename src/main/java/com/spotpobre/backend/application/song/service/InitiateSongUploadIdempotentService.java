@@ -10,6 +10,7 @@ import com.spotpobre.backend.domain.album.port.AlbumRepository;
 import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
@@ -147,9 +148,14 @@ public class InitiateSongUploadIdempotentService implements InitiateSongUploadId
                 }
             }
 
-            coordinator.completeClaim(claim,
+            // Publish gate (spec §5.6): never return success for a result we could not record.
+            if (!coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"songId\":\"" + claim.resourceId() + "\"}"),
-                    clock.instant());
+                    clock.instant())) {
+                throw new IdempotencyLeaseLostException(
+                        "The idempotency lease was lost before the result could be recorded; "
+                                + "retry with the same Idempotency-Key.");
+            }
             return new InitiateUploadIdempotentResult(song, upload, false);
         } catch (ConflictException e) {
             coordinator.failClaim(claim, FailureDescriptor.of(409, "SONG_CONFLICT", safe(e.getMessage())),

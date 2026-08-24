@@ -13,6 +13,7 @@ import com.spotpobre.backend.domain.common.ConflictException;
 import com.spotpobre.backend.domain.common.Normalization;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
 import com.spotpobre.backend.domain.common.IdempotencyInProgressException;
+import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.IdempotencyKey;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
@@ -103,9 +104,14 @@ public class CreateAlbumIdempotentService implements CreateAlbumIdempotentlyUseC
         final Claim claim = outcome.claimed().orElseThrow();
         try {
             final Album album = executeCreation(claim.resourceId(), command, name, coverArtUrl);
-            coordinator.completeClaim(claim,
+            // Publish gate (spec §5.6): never return success for a result we could not record.
+            if (!coordinator.completeClaim(claim,
                     ResultSnapshot.jsonBody("{\"albumId\":\"" + claim.resourceId() + "\"}"),
-                    clock.instant());
+                    clock.instant())) {
+                throw new IdempotencyLeaseLostException(
+                        "The idempotency lease was lost before the result could be recorded; "
+                                + "retry with the same Idempotency-Key.");
+            }
             return new CreateAlbumOutcome(album, false);
         } catch (ConflictException e) {
             coordinator.failClaim(claim, FailureDescriptor.of(409, "ALBUM_CONFLICT", safe(e.getMessage())),

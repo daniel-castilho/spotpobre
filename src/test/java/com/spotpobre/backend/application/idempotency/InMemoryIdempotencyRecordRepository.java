@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -70,10 +71,25 @@ public final class InMemoryIdempotencyRecordRepository implements IdempotencyRec
         return replaced.get();
     }
 
+    /**
+     * Fault-injection seam (spec S8/S23): when {@code true}, the next conditional transition
+     * ({@code markCompleted}/{@code markFailedFinal}/{@code releaseInProgress}) reports
+     * {@code false} — simulating a lost lease — without mutating state. Reset automatically
+     * after one suppressed call.
+     */
+    public final AtomicBoolean failNextConditionalTransition = new AtomicBoolean(false);
+
+    private boolean suppressNextIfArmed() {
+        return failNextConditionalTransition.compareAndSet(true, false);
+    }
+
     @Override
     public boolean markCompleted(final String scopeKey, final LeaseToken currentLease,
                                  final ResultSnapshot snapshot, final Instant completedAt,
                                  final Instant updatedAt) {
+        if (suppressNextIfArmed()) {
+            return false;
+        }
         AtomicReference<Boolean> done = new AtomicReference<>(false);
         store.computeIfPresent(scopeKey, (k, current) -> {
             if (!isLeasedTo(current, currentLease)) {
