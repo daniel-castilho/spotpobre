@@ -8,6 +8,9 @@ import com.spotpobre.backend.domain.artist.port.ArtistAccountRepository;
 import com.spotpobre.backend.domain.artist.port.ArtistRepository;
 import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.NotFoundException;
+import com.spotpobre.backend.domain.user.model.User;
+import com.spotpobre.backend.domain.user.model.UserProfile;
+import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -15,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,15 +36,29 @@ class GrantArtistAccountServiceTest {
     @Mock
     private ArtistAccountRepository artistAccountRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private Clock clock;
+
     @InjectMocks
     private GrantArtistAccountService grantArtistAccountService;
 
     private final ArtistId artistId = ArtistId.generate();
     private final UUID targetUserId = UUID.randomUUID();
 
+    private void targetUserExists() {
+        when(userRepository.findById(com.spotpobre.backend.domain.user.model.UserId.from(targetUserId.toString())))
+                .thenReturn(Optional.of(User.createWithLocalPassword(
+                        new UserProfile("Target", "target@example.com", "BR"), "hashed")));
+    }
+
     @Test
     void adminGrantsManagerMembership() {
         when(artistRepository.findById(artistId)).thenReturn(Optional.of(Artist.create("Artist")));
+        targetUserExists();
+        when(clock.instant()).thenReturn(java.time.Instant.parse("2026-08-23T00:00:00Z"));
 
         grantArtistAccountService.grant(new GrantArtistAccountUseCase.GrantArtistAccountCommand(
                 true, artistId, targetUserId, ArtistPermission.MANAGER));
@@ -67,5 +85,18 @@ class GrantArtistAccountServiceTest {
         assertThrows(NotFoundException.class, () -> grantArtistAccountService.grant(
                 new GrantArtistAccountUseCase.GrantArtistAccountCommand(
                         true, artistId, targetUserId, ArtistPermission.OWNER)));
+    }
+
+    @Test
+    void unknownTargetUserFailsClosed() {
+        when(artistRepository.findById(artistId)).thenReturn(Optional.of(Artist.create("Artist")));
+        when(userRepository.findById(com.spotpobre.backend.domain.user.model.UserId.from(targetUserId.toString())))
+                .thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> grantArtistAccountService.grant(
+                new GrantArtistAccountUseCase.GrantArtistAccountCommand(
+                        true, artistId, targetUserId, ArtistPermission.MANAGER)));
+        verify(artistAccountRepository, org.mockito.Mockito.never())
+                .save(org.mockito.ArgumentMatchers.any());
     }
 }

@@ -241,9 +241,11 @@ public class ApplicationBeanConfig {
     @Bean
     public GrantArtistAccountUseCase grantArtistAccountUseCase(
             final ArtistRepository artistRepository,
-            final ArtistAccountRepository artistAccountRepository
+            final ArtistAccountRepository artistAccountRepository,
+            final UserRepository userRepository,
+            final Clock clock
     ) {
-        return new GrantArtistAccountService(artistRepository, artistAccountRepository);
+        return new GrantArtistAccountService(artistRepository, artistAccountRepository, userRepository, clock);
     }
 
     @Bean
