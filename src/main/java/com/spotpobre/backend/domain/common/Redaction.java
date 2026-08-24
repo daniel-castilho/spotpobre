@@ -1,4 +1,4 @@
-package com.spotpobre.backend.infrastructure.common;
+package com.spotpobre.backend.domain.common;
 
 /**
  * Log-redaction helpers (spec section 12 / defect #15): raw e-mails, cache keys and storage

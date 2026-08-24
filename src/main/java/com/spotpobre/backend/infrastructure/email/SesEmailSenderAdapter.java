@@ -83,7 +83,7 @@ public class SesEmailSenderAdapter implements EmailSenderPort {
 
         final String messageId = sesClient.sendEmail(request).messageId();
         log.info("Email sent via SES to {} (messageId={})",
-                com.spotpobre.backend.infrastructure.common.Redaction.maskEmail(to), messageId);
+                com.spotpobre.backend.domain.common.Redaction.maskEmail(to), messageId);
     }
 
     private static Content htmlOrNull(final String htmlBody) {

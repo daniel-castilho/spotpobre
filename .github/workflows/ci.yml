@@ -25,6 +25,8 @@ jobs:
       - name: Unit tests
         run: ./mvnw test
 
+      - name: Architecture boundary check (domain/application free of infrastructure)
+        run: ./scripts/check-boundaries.sh
       - name: SpotBugs static analysis
         if: success()
         run: ./mvnw spotbugs:check

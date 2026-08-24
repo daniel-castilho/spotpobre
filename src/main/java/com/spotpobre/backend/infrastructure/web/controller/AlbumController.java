@@ -118,8 +118,11 @@ public class AlbumController {
     @Operation(
             summary = "Confirm a completed song upload",
             description = """
-                    Artist-only. Verifies the object exists in storage (or completes an S3 multipart \
-                    upload using the part ETags) and keeps the song metadata created at initiate time.
+                    Artist-only. Server-authoritative confirmation: acquires an exclusive
+                    COMPLETING lease, verifies declared size/content type against the stored
+                    object, promotes the staging object to the final playable key and creates
+                    the Song transactionally with marking the upload COMPLETED. Replays return
+                    the same Song.
                     """
     )
     public ResponseEntity<SongResponse> confirmSongUpload(

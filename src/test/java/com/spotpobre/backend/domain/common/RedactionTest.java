@@ -1,4 +1,4 @@
-package com.spotpobre.backend.infrastructure.common;
+package com.spotpobre.backend.domain.common;
 
 import org.junit.jupiter.api.Test;
 

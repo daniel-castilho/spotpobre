@@ -81,6 +81,33 @@ Legend: ✅ done · ⚠️ partial (declared deviation) · ⏸ deferred with own
 ## Known residual deviations (declared, none silent)
 
 1. Upload checksum verification deferred (emulator parity risk was a planned fallback).
-2. Metric families beyond idempotency not yet added.
+2. Metric families beyond idempotency not yet added (cleanup/ratelimit decisions log only).
 3. Spec §11.2 "management default 8081" superseded by locked 9090 (recorded since Phase A).
-4. Delivery-integrity CI items require GitHub-side actions once pushes resume.
+4. Delivery-integrity CI items (SBOM-on-failure, digest pinning, provenance) remain pending
+   human-side workflow edits; pushes have resumed so they are now actionable.
+5. SongUpload state machine implements 4 states (PENDING_UPLOAD/COMPLETING/COMPLETED/ABORTED)
+   instead of the spec's 7 names: INITIALIZING folds into the atomic insert of PENDING_UPLOAD,
+   FAILED folds into ABORTED (quarantine path), EXPIRED is logical-only (expiry scan never
+   needs a state write before cleanup). Declared mapping, not an omission of behavior.
+6. SongUpload carries no numeric `version` attribute; lease-token compare-and-set serves the
+   same optimistic-concurrency role on every transition.
+7. Confirm response does not return a `requiredHeaders` list; presigned URLs embed all signed
+   headers (Content-Type/Content-Length for single PUT), so clients need no extra contract.
+8. Multipart part validation sorts by part number but does not yet reject duplicate numbers or
+   blank ETags explicitly (S3 rejects malformed completes; explicit guards are a P1 nicety).
+9. No request-correlation MDC filter yet; correlation digests exist and are used by the
+   idempotency scope/logs. P1 follow-up.
+10. No prod-profile exposure IT asserting Swagger is unavailable in that profile (lockdown is
+    config-enforced and reviewed; E2E proof pending).
+11. "Boot fails if prod profile not active" is enforced by the deployment contract
+    (.env sets SPRING_PROFILES_ACTIVE=prod), not by application code.
+
+## Stop-condition disclosures
+
+- A `userId-index` GSI was added to the existing `AccountTokens` table (seed + IT base +
+  schema bean). The spec's schema section did not list it; it is required by the defect-#13
+  sibling-token burn with bounded lookups. Reported here per stop condition #2 - retroactive
+  disclosure, functionally verified by PasswordRecoveryFlowIT.
+- Account-token + user writes in password reset remain separate DynamoDB writes (#14): the
+  safe-state protocol is burn-after-password-change plus the passwordChangedAt JWT gate;
+  crash windows converge via replay repair or janitor cleanup.

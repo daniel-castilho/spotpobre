@@ -29,7 +29,7 @@ import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.spotpobre.backend.infrastructure.common.Redaction;
+import com.spotpobre.backend.domain.common.Redaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;

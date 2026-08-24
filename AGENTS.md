@@ -100,9 +100,9 @@ src/main/java/com/spotpobre/backend/
   annotation processors; getters, `equals`/`hashCode`/`toString` and small fluent builders are
   hand-written.
 - **`application`** — use-case implementations such as `CreateArtistService`,
-  `ToggleLikeService` (a `LikeStrategy` family: `SongLikeStrategy`, `ArtistLikeStrategy`,
-  `PlaylistLikeStrategy` behind `LikeStrategyFactory`). They depend on domain ports only and stay
-  ignorant of `infrastructure/`.
+  `PutLikeService` / `DeleteLikeService` (a `LikeStrategy` family: `SongLikeStrategy`,
+  `ArtistLikeStrategy`, `PlaylistLikeStrategy` behind `LikeStrategyFactory`). They depend on
+  domain ports only and stay ignorant of `infrastructure/`.
 - **`infrastructure`** — implements the domain ports (`DynamoDbUserRepositoryAdapter`,
   `DynamoDbAlbumRepositoryAdapter`, ...), exposes REST via thin controllers, and holds all
   framework configuration (`DynamoDbConfig`, `S3Config`, `CacheConfig`, `JwtProperties`,
@@ -155,7 +155,7 @@ src/main/java/com/spotpobre/backend/
 ## Releases
 
 - Pick the next version from the **highest existing tag** (`git ls-remote --tags origin`, mirrored
-  by the CHANGELOG headings) — do not infer from this note. Release history: `v0.1.0` … `v0.9.0`.
+  by the CHANGELOG headings) — do not infer from this note. Release history: `v0.1.0` … `v0.13.0`.
 - The first annotated tag (`v0.1.0`) was created on commit `f0716a7` covering playlist ownership
   (IDOR fix), presigned S3 upload, and test hardening. Tag only when a milestone meets its
   Definition of Done and the human asks for it.
