@@ -181,7 +181,8 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
             emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);
         } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(RegisterUserIdempotentService.class)
-                    .error("Failed to deliver verification e-mail to {}", user.getProfile().email(), e);
+                    .error("Failed to deliver verification e-mail to {}",
+                            com.spotpobre.backend.infrastructure.common.Redaction.maskEmail(user.getProfile().email()), e);
         }
     }
 

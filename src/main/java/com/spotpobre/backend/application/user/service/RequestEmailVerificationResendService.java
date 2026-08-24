@@ -61,7 +61,9 @@ public class RequestEmailVerificationResendService implements RequestEmailVerifi
         try {
             emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);
         } catch (RuntimeException e) {
-            log.error("Failed to deliver verification e-mail to {}", user.getProfile().email(), e);
+            log.error("Failed to deliver verification e-mail to {}",
+                    com.spotpobre.backend.infrastructure.common.Redaction.maskEmail(
+                            user.getProfile().email()), e);
         }
     }
 

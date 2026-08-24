@@ -130,7 +130,8 @@ public class S3SongStorageAdapter implements SongStoragePort {
                     .key(storageKey)
                     .build());
         } catch (Exception e) {
-            logger.warn("Failed to delete storage object {}: {}", storageKey, e.getMessage(), e);
+            logger.warn("Failed to delete storage object {}: {}",
+                    com.spotpobre.backend.infrastructure.common.Redaction.shortStorageKey(storageKey), e.getMessage(), e);
         }
     }
 
@@ -149,7 +150,8 @@ public class S3SongStorageAdapter implements SongStoragePort {
                     .build());
         } catch (Exception e) {
             logger.warn("Failed to abort orphan multipart upload for storage key {}: {}",
-                    storageKey, e.getMessage(), e);
+                    com.spotpobre.backend.infrastructure.common.Redaction.shortStorageKey(storageKey),
+                    e.getMessage(), e);
         }
     }
 

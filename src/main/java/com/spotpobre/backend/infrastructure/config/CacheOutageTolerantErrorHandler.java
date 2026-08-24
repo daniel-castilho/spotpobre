@@ -29,12 +29,14 @@ public class CacheOutageTolerantErrorHandler implements CacheErrorHandler {
     public void handleCacheGetError(final RuntimeException exception, final Cache cache, final Object key) {
         if (isInfrastructureOutage(exception)) {
             log.warn("Cache '{}' unavailable ({}); degrading to source lookup for key '{}'",
-                    cache.getName(), rootCauseClass(exception).getSimpleName(), key);
+                    cache.getName(), rootCauseClass(exception).getSimpleName(),
+                    com.spotpobre.backend.infrastructure.common.Redaction.digest(String.valueOf(key)));
             return;
         }
         // Corrupt entries and unexpected cache bugs must not brick authentication either:
         // treat as a miss with the stack trace preserved for investigation.
-        log.warn("Cache '{}' read failed for key '{}'; treating as miss", cache.getName(), key, exception);
+        log.warn("Cache '{}' read failed for key '{}'; treating as miss", cache.getName(),
+                com.spotpobre.backend.infrastructure.common.Redaction.digest(String.valueOf(key)), exception);
     }
 
     @Override
@@ -42,10 +44,12 @@ public class CacheOutageTolerantErrorHandler implements CacheErrorHandler {
                                     final Object key, final Object value) {
         if (isInfrastructureOutage(exception)) {
             log.warn("Cache '{}' unavailable ({}); skipping write for key '{}'",
-                    cache.getName(), rootCauseClass(exception).getSimpleName(), key);
+                    cache.getName(), rootCauseClass(exception).getSimpleName(),
+                    com.spotpobre.backend.infrastructure.common.Redaction.digest(String.valueOf(key)));
             return;
         }
-        log.warn("Cache '{}' write failed for key '{}'; skipping", cache.getName(), key, exception);
+        log.warn("Cache '{}' write failed for key '{}'; skipping", cache.getName(),
+                com.spotpobre.backend.infrastructure.common.Redaction.digest(String.valueOf(key)), exception);
     }
 
     @Override

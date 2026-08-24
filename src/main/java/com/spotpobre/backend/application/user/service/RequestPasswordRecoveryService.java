@@ -51,7 +51,8 @@ public class RequestPasswordRecoveryService implements RequestPasswordRecoveryUs
         } catch (RuntimeException e) {
             // Never surface provider failures to the caller (enumeration-safe ack); the token
             // simply expires unused and the user can request a new one.
-            log.error("Failed to deliver password recovery e-mail to {}", email, e);
+            log.error("Failed to deliver password recovery e-mail to {}",
+                    com.spotpobre.backend.infrastructure.common.Redaction.maskEmail(email), e);
         }
     }
 
