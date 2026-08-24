@@ -86,6 +86,25 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large", ex.getMessage(), request, null);
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+        // Protocol matrix row: 405 must preserve the Allow header on the canonical envelope.
+        return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
+                ex.getMessage(), request, null,
+                Map.of("Allow", String.join(", ", ex.getSupportedMethods() == null
+                        ? new String[0] : ex.getSupportedMethods())));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+            org.springframework.web.HttpMediaTypeNotSupportedException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type",
+                ex.getMessage(), request, null);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableBody(
             HttpMessageNotReadableException ex, HttpServletRequest request) {

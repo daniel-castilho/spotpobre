@@ -201,4 +201,62 @@ class ErrorHandlingFlowIT extends AbstractFlowIT {
                 .extract()
                 .response();
     }
+
+    // ---- Protocol error matrix rows (spec S20/section 9) ----------------------------
+
+    @Test
+    void malformedJson_returnsCanonical400() {
+        given()
+                .header("Idempotency-Key", "eh-" + UUID.randomUUID())
+                .contentType(ContentType.JSON)
+                .body("{not-json")
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("timestamp", notNullValue())
+                .body("path", equalTo("/api/v1/auth/register"));
+    }
+
+    @Test
+    void methodNotAllowed_preservesAllowHeaderOnCanonicalEnvelope() {
+        given()
+                .when()
+                .delete("/api/v1/auth/register") // permitAll wildcard -> reaches MVC -> 405
+                .then()
+                .statusCode(405)
+                .header("Allow", notNullValue())
+                .body("status", equalTo(405));
+    }
+
+    @Test
+    void unsupportedMediaType_returns415OnCanonicalEnvelope() {
+        given()
+                .header("Idempotency-Key", "eh-" + UUID.randomUUID())
+                .contentType(ContentType.TEXT)
+                .body("plain text body")
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(415)
+                .body("status", equalTo(415));
+    }
+
+    @Test
+    void oversizedJsonBody_returns413WithoutEchoingContent() {
+        String padding = "x".repeat(70 * 1024);
+        String body = "{\"name\":\"" + padding + "\",\"email\":\"big@"
+                + UUID.randomUUID() + ".com\",\"password\":\"password123\",\"country\":\"US\"}";
+
+        given()
+                .header("Idempotency-Key", "eh-" + UUID.randomUUID())
+                .contentType(ContentType.JSON)
+                .body(body)
+                .when()
+                .post("/api/v1/auth/register")
+                .then()
+                .statusCode(413)
+                .body("status", equalTo(413));
+    }
 }
