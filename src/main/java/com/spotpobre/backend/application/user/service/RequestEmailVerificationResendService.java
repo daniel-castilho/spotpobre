@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.user.service;
 
+import com.spotpobre.backend.application.user.EmailVerificationSettings;
 import com.spotpobre.backend.application.user.port.in.RequestEmailVerificationResendUseCase;
 import com.spotpobre.backend.domain.common.TooManyRequestsException;
 import com.spotpobre.backend.domain.user.model.AccountToken;
@@ -34,7 +35,7 @@ public class RequestEmailVerificationResendService implements RequestEmailVerifi
     private final AccountTokenRepository accountTokenRepository;
     private final EmailSenderPort emailSenderPort;
     private final Clock clock;
-    private final com.spotpobre.backend.infrastructure.config.properties.EmailProperties emailProperties;
+    private final EmailVerificationSettings emailSettings;
 
     private final SecureRandom secureRandom = new SecureRandom();
     // In-memory per-user cooldown: same consistency class as FixedWindowRateLimiter (drift
@@ -60,7 +61,7 @@ public class RequestEmailVerificationResendService implements RequestEmailVerifi
         final String rawToken = newRawToken();
         accountTokenRepository.save(AccountToken.issue(
                 userId, AccountTokenPurpose.EMAIL_VERIFICATION,
-                rawToken, emailProperties.verificationTtl(), clock.instant()));
+                rawToken, emailSettings.verificationTtl(), clock.instant()));
 
         try {
             emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);

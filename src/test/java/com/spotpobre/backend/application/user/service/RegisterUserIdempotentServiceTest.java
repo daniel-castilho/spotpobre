@@ -4,6 +4,7 @@ import com.spotpobre.backend.application.idempotency.ClaimOutcome;
 import com.spotpobre.backend.application.idempotency.IdempotencyCoordinator;
 import com.spotpobre.backend.application.idempotency.InMemoryIdempotencyRecordRepository;
 import com.spotpobre.backend.application.idempotency.port.out.IdempotencyMetrics;
+import com.spotpobre.backend.application.user.EmailVerificationSettings;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase.RegistrationOutcome;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase.RegisterUserCommand;
 import com.spotpobre.backend.domain.common.ConflictException;
@@ -16,6 +17,7 @@ import com.spotpobre.backend.domain.idempotency.model.IdempotencyState;
 import com.spotpobre.backend.domain.idempotency.model.LeaseToken;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
+import com.spotpobre.backend.domain.user.port.AuthTokenIssuer;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.same;
@@ -55,7 +58,8 @@ class RegisterUserIdempotentServiceTest {
     private PasswordHasher passwordHasher;
     private com.spotpobre.backend.domain.user.port.AccountTokenRepository accountTokenRepository;
     private com.spotpobre.backend.domain.user.port.EmailSenderPort emailSenderPort;
-    private com.spotpobre.backend.infrastructure.config.properties.EmailProperties emailProperties;
+    private AuthTokenIssuer authTokenIssuer;
+    private EmailVerificationSettings emailSettings;
     private RegisterUserIdempotentService service;
 
     @BeforeEach
@@ -67,10 +71,12 @@ class RegisterUserIdempotentServiceTest {
         passwordHasher = mock(PasswordHasher.class);
         accountTokenRepository = mock(com.spotpobre.backend.domain.user.port.AccountTokenRepository.class);
         emailSenderPort = mock(com.spotpobre.backend.domain.user.port.EmailSenderPort.class);
-        emailProperties = new com.spotpobre.backend.infrastructure.config.properties.EmailProperties(
-                "no-reply@spotpobre.local", "http://localhost:4566",
+        authTokenIssuer = mock(AuthTokenIssuer.class);
+        lenient().when(authTokenIssuer.issueFor(any(User.class))).thenReturn("test-token");
+        emailSettings = new EmailVerificationSettings(
                 com.spotpobre.backend.domain.user.model.AccountToken.DEFAULT_TTL);
-        service = new RegisterUserIdempotentService(coordinator, userRepository, passwordHasher, clock, accountTokenRepository, emailSenderPort, emailProperties);
+        service = new RegisterUserIdempotentService(coordinator, userRepository, passwordHasher, clock,
+                accountTokenRepository, emailSenderPort, authTokenIssuer, emailSettings);
     }
 
     @Test
@@ -83,6 +89,7 @@ class RegisterUserIdempotentServiceTest {
 
         assertFalse(outcome.replayed());
         assertTrue(outcome.user().getId().value() != null);
+        assertEquals("test-token", outcome.token());
         verify(userRepository).createIfEmailNotExists(any(User.class));
 
         // The completed record stores only the safe snapshot reference, never a JWT.

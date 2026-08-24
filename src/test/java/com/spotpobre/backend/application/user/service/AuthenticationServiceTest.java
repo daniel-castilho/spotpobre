@@ -5,6 +5,7 @@ import com.spotpobre.backend.domain.user.model.AuthenticatedUser;
 import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserProfile;
 import com.spotpobre.backend.domain.user.port.AuthenticationPort;
+import com.spotpobre.backend.domain.user.port.AuthTokenIssuer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,25 +21,31 @@ class AuthenticationServiceTest {
     @Mock
     private AuthenticationPort authenticationPort;
 
+    @Mock
+    private AuthTokenIssuer authTokenIssuer;
+
     @InjectMocks
     private AuthenticationService authenticationService;
 
     @Test
-    void shouldAuthenticateSuccessfullyAndReturnUser() {
+    void shouldAuthenticateSuccessfullyAndReturnSessionWithFreshToken() {
         // Given
         AuthenticateUserUseCase.AuthenticationCommand command = new AuthenticateUserUseCase.AuthenticationCommand("user@example.com", "password");
         User expectedUser = User.createWithLocalPassword(new UserProfile("Test User", "user@example.com", "BR"), "hashedPassword");
 
         when(authenticationPort.authenticate(command.email(), command.password()))
                 .thenReturn(new AuthenticatedUser(expectedUser));
+        when(authTokenIssuer.issueFor(expectedUser)).thenReturn("signed.jwt.value");
 
         // When
-        User authenticatedUser = authenticationService.authenticate(command);
+        AuthenticateUserUseCase.AuthenticatedSession session = authenticationService.authenticate(command);
 
         // Then
-        assertNotNull(authenticatedUser);
-        assertEquals(expectedUser, authenticatedUser);
+        assertNotNull(session);
+        assertEquals(expectedUser, session.user());
+        assertEquals("signed.jwt.value", session.token());
         verify(authenticationPort, times(1)).authenticate(command.email(), command.password());
+        verify(authTokenIssuer, times(1)).issueFor(expectedUser);
     }
 
     @Test
@@ -52,5 +59,6 @@ class AuthenticationServiceTest {
         assertThrows(IllegalStateException.class, () -> {
             authenticationService.authenticate(command);
         });
+        verifyNoInteractions(authTokenIssuer);
     }
 }

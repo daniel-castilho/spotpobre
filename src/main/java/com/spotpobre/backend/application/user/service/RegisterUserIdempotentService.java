@@ -1,5 +1,6 @@
 package com.spotpobre.backend.application.user.service;
 
+import com.spotpobre.backend.application.user.EmailVerificationSettings;
 import com.spotpobre.backend.application.idempotency.Claim;
 import com.spotpobre.backend.application.idempotency.ClaimOutcome;
 import com.spotpobre.backend.application.idempotency.IdempotencyCoordinator;
@@ -18,6 +19,7 @@ import com.spotpobre.backend.domain.user.model.User;
 import com.spotpobre.backend.domain.user.model.UserId;
 import com.spotpobre.backend.domain.user.model.UserProfile;
 import com.spotpobre.backend.domain.user.port.AccountTokenRepository;
+import com.spotpobre.backend.domain.user.port.AuthTokenIssuer;
 import com.spotpobre.backend.domain.user.port.EmailSenderPort;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
@@ -53,7 +55,8 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
     private final Clock clock;
     private final AccountTokenRepository accountTokenRepository;
     private final EmailSenderPort emailSenderPort;
-    private final com.spotpobre.backend.infrastructure.config.properties.EmailProperties emailProperties;
+    private final AuthTokenIssuer authTokenIssuer;
+    private final EmailVerificationSettings emailSettings;
 
     @Override
     @Transactional
@@ -74,7 +77,9 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
                 IdempotencyResourceType.USER, IdempotencyCoordinator.DEFAULT_CREATION_LEASE);
 
         if (outcome.replay().isPresent()) {
-            return new RegistrationOutcome(loadReservedUser(outcome.replay().get().resourceId()), true);
+            final User replayedUser = loadReservedUser(outcome.replay().get().resourceId());
+            // Replay mints a fresh token for the reserved account; nothing is persisted.
+            return new RegistrationOutcome(replayedUser, authTokenIssuer.issueFor(replayedUser), true);
         }
         if (outcome.replayedFailure().isPresent()) {
             throw failureToException(outcome.replayedFailure().get().failure());
@@ -101,7 +106,7 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
             // recovery) sends the verification e-mail at-least-once; idempotent REPLAYS
             // never resend. Delivery failures are logged, never surfaced to the caller.
             sendVerificationEmailBestEffort(user);
-            return new RegistrationOutcome(user, false);
+            return new RegistrationOutcome(user, authTokenIssuer.issueFor(user), false);
         } catch (ConflictException e) {
             coordinator.failClaim(claim,
                     FailureDescriptor.of(409, "EMAIL_ALREADY_EXISTS",
@@ -155,7 +160,7 @@ public class RegisterUserIdempotentService implements RegisterUserIdempotentlyUs
             final String rawToken = newRawToken();
             accountTokenRepository.save(com.spotpobre.backend.domain.user.model.AccountToken.issue(
                     user.getId(), com.spotpobre.backend.domain.user.model.AccountTokenPurpose.EMAIL_VERIFICATION,
-                    rawToken, emailProperties.verificationTtl(), clock.instant()));
+                    rawToken, emailSettings.verificationTtl(), clock.instant()));
             emailSenderPort.sendEmailVerificationEmail(user.getProfile().email(), rawToken);
         } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(RegisterUserIdempotentService.class)

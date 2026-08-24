@@ -8,8 +8,6 @@ import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUs
 import com.spotpobre.backend.application.user.port.in.RequestEmailVerificationResendUseCase;
 import com.spotpobre.backend.application.user.port.in.RequestPasswordRecoveryUseCase;
 import com.spotpobre.backend.application.user.port.in.ResetPasswordUseCase;
-import com.spotpobre.backend.domain.user.model.User;
-import com.spotpobre.backend.infrastructure.security.service.JwtService;
 import com.spotpobre.backend.infrastructure.web.dto.request.AuthenticationRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.ConfirmEmailVerificationRequest;
 import com.spotpobre.backend.infrastructure.web.dto.request.RegisterRequest;
@@ -20,16 +18,11 @@ import com.spotpobre.backend.infrastructure.web.mapper.AuthApiMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -43,7 +36,6 @@ public class AuthenticationController {
     private final RequestEmailVerificationResendUseCase requestEmailVerificationResendUseCase;
     private final ConfirmEmailVerificationUseCase confirmEmailVerificationUseCase;
     private final GetCurrentUserUseCase getCurrentUserUseCase;
-    private final JwtService jwtService;
     private final AuthApiMapper mapper;
 
     /**
@@ -62,30 +54,15 @@ public class AuthenticationController {
         // Original success status is preserved on replay (registration responds 200).
         return ResponseEntity.ok()
                 .header("Idempotency-Replayed", String.valueOf(outcome.replayed()))
-                .body(toResponse(outcome.user()));
+                .body(new AuthenticationResponse(outcome.token()));
     }
 
     @PostMapping("/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticate(@RequestBody @Valid final AuthenticationRequest request) {
         final var command = mapper.toCommand(request);
-        final User authenticatedUser = authenticateUserUseCase.authenticate(command);
+        final AuthenticateUserUseCase.AuthenticatedSession session = authenticateUserUseCase.authenticate(command);
 
-        return ResponseEntity.ok(toResponse(authenticatedUser));
-    }
-
-    private AuthenticationResponse toResponse(final User user) {
-        var authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
-                .collect(Collectors.toList());
-
-        final UserDetails userDetails = new org.springframework.security.core.userdetails.User(
-                user.getProfile().email(),
-                user.getPassword(),
-                authorities
-        );
-
-        final String token = jwtService.generateToken(userDetails);
-        return new AuthenticationResponse(token);
+        return ResponseEntity.ok(new AuthenticationResponse(session.token()));
     }
 
     /**

@@ -1,10 +1,13 @@
 package com.spotpobre.backend.infrastructure.security.service;
 
+import com.spotpobre.backend.domain.user.model.User;
+import com.spotpobre.backend.domain.user.port.AuthTokenIssuer;
 import com.spotpobre.backend.infrastructure.config.properties.JwtProperties; // Import JwtProperties
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +20,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-public class JwtService {
+public class JwtService implements AuthTokenIssuer {
 
     private final JwtProperties jwtProperties; // Inject JwtProperties
 
@@ -39,7 +42,6 @@ public class JwtService {
         claims.put("authorities", userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
-
         return Jwts.builder()
                 .claims(claims)
                 .subject(userDetails.getUsername())
@@ -47,6 +49,20 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.expiration().toMillis())) // Use expiration from properties
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /** {@inheritDoc} — translates the domain user to the token subject and role claims. */
+    @Override
+    public String issueFor(final User user) {
+        final var authorities = user.getRoles().stream()
+                .map(role -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + role.name()))
+                .collect(Collectors.toList());
+        final UserDetails details = org.springframework.security.core.userdetails.User.builder()
+                .username(user.getProfile().email())
+                .password(user.getPassword())
+                .authorities(authorities)
+                .build();
+        return generateToken(details);
     }
 
     public boolean isTokenValid(final String token, final UserDetails userDetails) {

@@ -16,6 +16,6 @@ public interface RegisterUserIdempotentlyUseCase {
      * @param replayed {@code true} when this outcome is a replay of a previously completed
      *                 execution; drives the {@code Idempotency-Replayed} response header
      */
-    record RegistrationOutcome(User user, boolean replayed) {
+    record RegistrationOutcome(User user, String token, boolean replayed) {
     }
 }

@@ -52,11 +52,13 @@ import com.spotpobre.backend.application.song.service.GetSongStreamUrlService;
 import com.spotpobre.backend.application.song.service.InitiateSongUploadIdempotentService;
 import com.spotpobre.backend.application.song.service.InitiateSongUploadService;
 import com.spotpobre.backend.application.song.service.SearchSongsService;
+import com.spotpobre.backend.application.user.EmailVerificationSettings;
 import com.spotpobre.backend.application.user.port.in.AuthenticateUserUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserDetailsUseCase;
 import com.spotpobre.backend.application.user.port.in.GetUserProfileUseCase;
 import com.spotpobre.backend.application.user.port.in.RegisterUserIdempotentlyUseCase;
 import com.spotpobre.backend.domain.user.port.AccountTokenRepository;
+import com.spotpobre.backend.domain.user.port.AuthTokenIssuer;
 import com.spotpobre.backend.domain.user.port.EmailSenderPort;
 import com.spotpobre.backend.infrastructure.config.properties.EmailProperties;
 import com.spotpobre.backend.application.user.port.in.RegisterUserUseCase;
@@ -207,8 +209,9 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    public AuthenticateUserUseCase authenticateUserUseCase(final AuthenticationPort authenticationPort) {
-        return new AuthenticationService(authenticationPort);
+    public AuthenticateUserUseCase authenticateUserUseCase(final AuthenticationPort authenticationPort,
+                                                           final AuthTokenIssuer authTokenIssuer) {
+        return new AuthenticationService(authenticationPort, authTokenIssuer);
     }
 
     @Bean
@@ -307,10 +310,18 @@ public class ApplicationBeanConfig {
             Clock clock,
             AccountTokenRepository accountTokenRepository,
             EmailSenderPort emailSenderPort,
-            EmailProperties emailProperties
+            AuthTokenIssuer authTokenIssuer,
+            EmailVerificationSettings emailVerificationSettings
     ) {
         return new RegisterUserIdempotentService(idempotencyCoordinator, userRepository,
-                passwordHasher, clock, accountTokenRepository, emailSenderPort, emailProperties);
+                passwordHasher, clock, accountTokenRepository, emailSenderPort, authTokenIssuer,
+                emailVerificationSettings);
+    }
+
+    @Bean
+    public EmailVerificationSettings emailVerificationSettings(EmailProperties emailProperties) {
+        // Explicit translation: application services never see infrastructure property types.
+        return new EmailVerificationSettings(emailProperties.verificationTtl());
     }
 
     @Bean
