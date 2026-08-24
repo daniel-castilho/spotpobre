@@ -77,6 +77,7 @@ import com.spotpobre.backend.domain.like.port.LikeRepository;
 import com.spotpobre.backend.domain.playlist.port.PlaylistRepository;
 import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
+import com.spotpobre.backend.domain.song.port.SongUploadRepository;
 import com.spotpobre.backend.domain.user.port.AuthenticationPort;
 import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.port.UserRepository;
@@ -157,23 +158,26 @@ public class ApplicationBeanConfig {
     public InitiateSongUploadIdempotentlyUseCase initiateSongUploadIdempotentlyUseCase(
             IdempotencyCoordinator idempotencyCoordinator,
             SongStoragePort songStoragePort,
-            SongMetadataRepository songMetadataRepository,
+            SongUploadRepository songUploadRepository,
             AlbumRepository albumRepository,
             RequireArtistAccessUseCase requireArtistAccessUseCase,
             Clock clock
     ) {
         return new InitiateSongUploadIdempotentService(idempotencyCoordinator, songStoragePort,
-                songMetadataRepository, albumRepository, requireArtistAccessUseCase, clock);
+                songUploadRepository, albumRepository, requireArtistAccessUseCase, clock);
     }
 
     @Bean
     public ConfirmSongUploadUseCase confirmSongUploadUseCase(
             final SongStoragePort songStoragePort,
             final SongMetadataRepository songMetadataRepository,
+            final SongUploadRepository songUploadRepository,
             final AlbumRepository albumRepository,
-            final RequireArtistAccessUseCase requireArtistAccessUseCase
+            final RequireArtistAccessUseCase requireArtistAccessUseCase,
+            final Clock clock
     ) {
-        return new ConfirmSongUploadService(songStoragePort, songMetadataRepository, albumRepository, requireArtistAccessUseCase);
+        return new ConfirmSongUploadService(songStoragePort, songMetadataRepository,
+                songUploadRepository, albumRepository, requireArtistAccessUseCase, clock);
     }
 
     @Bean

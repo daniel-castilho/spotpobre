@@ -236,6 +236,7 @@ public class DynamoDbConfig {
         return TableSchema.builder(SongUploadDocument.class)
                 .newItemSupplier(SongUploadDocument::new)
                 .addAttribute(String.class, a -> a.name("songId").getter(SongUploadDocument::getSongId).setter(SongUploadDocument::setSongId).tags(StaticAttributeTags.primaryPartitionKey()))
+                .addAttribute(String.class, a -> a.name("title").getter(SongUploadDocument::getTitle).setter(SongUploadDocument::setTitle))
                 .addAttribute(String.class, a -> a.name("albumId").getter(SongUploadDocument::getAlbumId).setter(SongUploadDocument::setAlbumId))
                 .addAttribute(String.class, a -> a.name("artistId").getter(SongUploadDocument::getArtistId).setter(SongUploadDocument::setArtistId))
                 .addAttribute(String.class, a -> a.name("actorUserId").getter(SongUploadDocument::getActorUserId).setter(SongUploadDocument::setActorUserId))

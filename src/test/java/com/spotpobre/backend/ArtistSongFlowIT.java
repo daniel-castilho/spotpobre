@@ -22,6 +22,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -153,6 +154,28 @@ class ArtistSongFlowIT extends AbstractFlowIT {
         String storageKey = initiate.path("storageKey");
         String uploadUrl = initiate.path("parts[0].url");
 
+        // 3b. Visibility proof (spec S13): a pending upload must be invisible to detail,
+        // search, stream and like flows because no Song row exists yet.
+        given()
+                .header("Authorization", "Bearer " + artistToken)
+                .when()
+                .get("/api/v1/songs/{songId}", songId)
+                .then()
+                .statusCode(404);
+        given()
+                .header("Authorization", "Bearer " + artistToken)
+                .when()
+                .get("/api/v1/songs/search?query={q}", songTitle)
+                .then()
+                .statusCode(200)
+                .body("content.size()", equalTo(0));
+        given()
+                .header("Authorization", "Bearer " + adminToken)
+                .when()
+                .put("/api/v1/users/me/likes/SONG/{songId}", songId)
+                .then()
+                .statusCode(anyOf(equalTo(404), equalTo(409)));
+
         // 4. Client uploads directly to object storage
         // Note: RestAssured double-encodes query parameters in presigned S3 URLs (e.g. %3B -> %253B),
         // which causes LocalStack 3.x to return 500 InternalError when validating the signature.
@@ -174,6 +197,7 @@ class ArtistSongFlowIT extends AbstractFlowIT {
                 .when()
                 .post("/api/v1/albums/{albumId}/songs/{songId}/confirm", albumId, songId)
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .body("id", equalTo(songId))
                 .body("title", equalTo(songTitle));

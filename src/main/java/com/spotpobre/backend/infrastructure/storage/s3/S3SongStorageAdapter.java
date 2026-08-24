@@ -5,6 +5,7 @@ import com.spotpobre.backend.domain.song.model.ConfirmUploadCommand;
 import com.spotpobre.backend.domain.song.model.PresignedUploadPart;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
 import com.spotpobre.backend.domain.song.model.SongUploadCommand;
+import com.spotpobre.backend.domain.song.model.StorageObjectHead;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
 import com.spotpobre.backend.infrastructure.config.properties.AwsProperties;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,10 @@ import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -81,6 +84,54 @@ public class S3SongStorageAdapter implements SongStoragePort {
             return;
         }
         verifyObjectExists(command.storageKey());
+    }
+
+    @Override
+    public StorageObjectHead headObject(final String storageKey) {
+        try {
+            final var head = s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucket())
+                    .key(storageKey)
+                    .build());
+            return new StorageObjectHead(head.contentType(), head.contentLength());
+        } catch (NoSuchKeyException e) {
+            throw new IllegalStateException("Uploaded object not found for storage key: " + storageKey, e);
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                throw new IllegalStateException("Uploaded object not found for storage key: " + storageKey, e);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void promoteObject(final String stagingKey, final String finalKey) {
+        try {
+            s3Client.copyObject(CopyObjectRequest.builder()
+                    .sourceBucket(bucket())
+                    .sourceKey(stagingKey)
+                    .destinationBucket(bucket())
+                    .destinationKey(finalKey)
+                    .build());
+        } catch (S3Exception e) {
+            throw new IllegalStateException("Failed to promote object from " + stagingKey
+                    + " to " + finalKey + ": " + e.getMessage(), e);
+        }
+        // Verify the promoted copy before removing the staging object.
+        headObject(finalKey);
+        deleteObject(stagingKey);
+    }
+
+    @Override
+    public void deleteObject(final String storageKey) {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucket())
+                    .key(storageKey)
+                    .build());
+        } catch (Exception e) {
+            logger.warn("Failed to delete storage object {}: {}", storageKey, e.getMessage(), e);
+        }
     }
 
     @Override

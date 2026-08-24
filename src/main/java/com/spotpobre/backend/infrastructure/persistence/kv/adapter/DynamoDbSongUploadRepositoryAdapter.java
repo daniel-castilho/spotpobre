@@ -2,12 +2,16 @@ package com.spotpobre.backend.infrastructure.persistence.kv.adapter;
 
 import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
+import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.model.SongUpload;
 import com.spotpobre.backend.domain.song.model.SongUploadState;
 import com.spotpobre.backend.domain.song.port.SongUploadRepository;
+import com.spotpobre.backend.infrastructure.persistence.kv.mapper.SongPersistenceMapper;
+import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongDocument;
 import com.spotpobre.backend.infrastructure.persistence.kv.entity.SongUploadDocument;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Expression;
@@ -15,8 +19,11 @@ import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.TransactPutItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.TransactWriteItemsEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,9 +40,18 @@ import java.util.UUID;
 public class DynamoDbSongUploadRepositoryAdapter implements SongUploadRepository {
 
     private final DynamoDbTable<SongUploadDocument> table;
+    private final DynamoDbTable<SongDocument> songsTable;
+    private final SongPersistenceMapper songMapper;
+    private final DynamoDbEnhancedClient enhancedClient;
 
-    public DynamoDbSongUploadRepositoryAdapter(final DynamoDbTable<SongUploadDocument> table) {
+    public DynamoDbSongUploadRepositoryAdapter(final DynamoDbTable<SongUploadDocument> table,
+                                               final DynamoDbTable<SongDocument> songsTable,
+                                               final SongPersistenceMapper songMapper,
+                                               final DynamoDbEnhancedClient enhancedClient) {
         this.table = table;
+        this.songsTable = songsTable;
+        this.songMapper = songMapper;
+        this.enhancedClient = enhancedClient;
     }
 
     private static Key key(final SongId songId) {
@@ -138,6 +154,39 @@ public class DynamoDbSongUploadRepositoryAdapter implements SongUploadRepository
         }
     }
 
+    @Override
+    public boolean markCompletedAndCreateSongIfAbsent(final SongUpload upload, final Song song,
+                                                      final Instant at) {
+        final SongUploadDocument uploadDoc = toDocument(upload);
+        uploadDoc.setState(SongUploadState.COMPLETED.name());
+        uploadDoc.setCompletingLeaseUntil(null);
+        uploadDoc.setUpdatedAt(at);
+
+        try {
+            enhancedClient.transactWriteItems(TransactWriteItemsEnhancedRequest.builder()
+                    .addPutItem(table, TransactPutItemEnhancedRequest.builder(SongUploadDocument.class)
+                            .item(uploadDoc)
+                            .conditionExpression(Expression.builder()
+                                    .expression("#st = :completing AND #lu = :expectedLease")
+                                    .expressionNames(Map.of("#st", "state", "#lu", "completingLeaseUntil"))
+                                    .expressionValues(Map.of(
+                                            ":completing", s(SongUploadState.COMPLETING.name()),
+                                            ":expectedLease", s(upload.getCompletingLeaseUntil().toString())))
+                                    .build())
+                            .build())
+                    .addPutItem(songsTable, TransactPutItemEnhancedRequest.builder(SongDocument.class)
+                            .item(songMapper.toDocument(song))
+                            .conditionExpression(Expression.builder()
+                                    .expression("attribute_not_exists(id)")
+                                    .build())
+                            .build())
+                    .build());
+            return true;
+        } catch (TransactionCanceledException e) {
+            return false;
+        }
+    }
+
     private SongUploadDocument observedWithState(final SongId songId, final SongUploadState target,
                                                  final Instant now) {
         final SongUploadDocument observed = table.getItem(key(songId));
@@ -205,6 +254,7 @@ public class DynamoDbSongUploadRepositoryAdapter implements SongUploadRepository
     private SongUploadDocument toDocument(final SongUpload upload) {
         final SongUploadDocument doc = new SongUploadDocument();
         doc.setSongId(upload.getSongId().value().toString());
+        doc.setTitle(upload.getTitle());
         doc.setAlbumId(upload.getAlbumId().value().toString());
         doc.setArtistId(upload.getArtistId().value().toString());
         doc.setActorUserId(upload.getActorUserId().toString());
@@ -224,6 +274,7 @@ public class DynamoDbSongUploadRepositoryAdapter implements SongUploadRepository
     private SongUpload toDomain(final SongUploadDocument doc) {
         return SongUpload.rehydrate(
                 new SongId(UUID.fromString(doc.getSongId())),
+                doc.getTitle(),
                 new AlbumId(UUID.fromString(doc.getAlbumId())),
                 new ArtistId(UUID.fromString(doc.getArtistId())),
                 UUID.fromString(doc.getActorUserId()),

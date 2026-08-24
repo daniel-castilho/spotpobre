@@ -18,7 +18,7 @@ class SongUploadTest {
     private static final Instant T0 = Instant.parse("2026-08-23T10:00:00Z");
 
     private static SongUpload freshUpload() {
-        return SongUpload.start(new SongId(UUID.randomUUID()), new AlbumId(UUID.randomUUID()),
+        return SongUpload.start(new SongId(UUID.randomUUID()), "Track", new AlbumId(UUID.randomUUID()),
                 new ArtistId(UUID.randomUUID()), UUID.randomUUID(), "audio/mpeg", 1024L,
                 null, T0, T0.plus(java.time.Duration.ofHours(24)));
     }
@@ -27,7 +27,7 @@ class SongUploadTest {
     void start_derivesServerSideKeysAndStartsPending() {
         SongId songId = new SongId(UUID.randomUUID());
 
-        SongUpload upload = SongUpload.start(songId, new AlbumId(UUID.randomUUID()),
+        SongUpload upload = SongUpload.start(songId, "Track", new AlbumId(UUID.randomUUID()),
                 new ArtistId(UUID.randomUUID()), UUID.randomUUID(), "audio/mpeg", 2048L,
                 null, T0, null);
 

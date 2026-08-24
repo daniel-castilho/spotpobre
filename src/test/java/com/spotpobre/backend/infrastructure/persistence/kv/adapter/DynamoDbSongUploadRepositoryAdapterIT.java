@@ -122,13 +122,13 @@ class DynamoDbSongUploadRepositoryAdapterIT extends AbstractIntegrationTest {
 
 
     private static SongUpload freshUpload(final Instant logicalExpiry) {
-        return SongUpload.start(new SongId(UUID.randomUUID()), new AlbumId(UUID.randomUUID()),
+        return SongUpload.start(new SongId(UUID.randomUUID()), "Track", new AlbumId(UUID.randomUUID()),
                 new ArtistId(UUID.randomUUID()), UUID.randomUUID(), "audio/mpeg", 1024L,
                 null, NOW, logicalExpiry);
     }
 
     private static SongUpload freshUploadWithSameSong(final SongUpload template) {
-        return SongUpload.start(template.getSongId(), template.getAlbumId(),
+        return SongUpload.start(template.getSongId(), template.getTitle(), template.getAlbumId(),
                 template.getArtistId(), template.getActorUserId(), template.getContentType(),
                 template.getContentLengthBytes(), null, NOW, NOW.plusSeconds(3600));
     }

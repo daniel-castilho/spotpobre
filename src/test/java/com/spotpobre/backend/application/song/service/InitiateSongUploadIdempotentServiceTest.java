@@ -10,7 +10,6 @@ import com.spotpobre.backend.application.song.port.in.InitiateSongUploadIdempote
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.album.port.AlbumRepository;
-import com.spotpobre.backend.domain.artist.model.Artist;
 import com.spotpobre.backend.domain.artist.model.ArtistId;
 import com.spotpobre.backend.domain.common.ForbiddenException;
 import com.spotpobre.backend.domain.common.IdempotencyConflictException;
@@ -19,14 +18,16 @@ import com.spotpobre.backend.domain.common.IdempotencyKey;
 import com.spotpobre.backend.domain.common.IdempotencyLeaseLostException;
 import com.spotpobre.backend.domain.common.NotFoundException;
 import com.spotpobre.backend.domain.idempotency.model.CanonicalRequestHash;
+import com.spotpobre.backend.domain.idempotency.model.IdempotencyResourceType;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyState;
 import com.spotpobre.backend.domain.song.model.PresignedUploadPart;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
-import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
-import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
+import com.spotpobre.backend.domain.song.model.SongUpload;
+import com.spotpobre.backend.domain.song.model.SongUploadCommand;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
+import com.spotpobre.backend.domain.song.port.SongUploadRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,8 +47,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -63,13 +64,14 @@ class InitiateSongUploadIdempotentServiceTest {
     private InMemoryIdempotencyRecordRepository idempotencyStore;
     private IdempotencyCoordinator coordinator;
     private SongStoragePort songStoragePort;
-    private SongMetadataRepository songMetadataRepository;
+    private SongUploadRepository songUploadRepository;
     private AlbumRepository albumRepository;
     private RequireArtistAccessUseCase requireArtistAccess;
     private InitiateSongUploadIdempotentService service;
 
     private final AlbumId albumId = new AlbumId(UUID.randomUUID());
     private final UUID actorId = UUID.randomUUID();
+    private final AtomicReference<SongUpload> stagedRecord = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
@@ -77,24 +79,29 @@ class InitiateSongUploadIdempotentServiceTest {
         idempotencyStore = new InMemoryIdempotencyRecordRepository();
         coordinator = new IdempotencyCoordinator(idempotencyStore, clock, NoopMetrics.INSTANCE);
         songStoragePort = mock(SongStoragePort.class);
-        songMetadataRepository = mock(SongMetadataRepository.class);
+        songUploadRepository = mock(SongUploadRepository.class);
         albumRepository = mock(AlbumRepository.class);
         requireArtistAccess = mock(RequireArtistAccessUseCase.class);
         service = new InitiateSongUploadIdempotentService(coordinator, songStoragePort,
-                songMetadataRepository, albumRepository, requireArtistAccess, clock);
+                songUploadRepository, albumRepository, requireArtistAccess, clock);
 
         Album album = Album.builder().id(albumId)
                 .name("Album").artistId(new ArtistId(UUID.randomUUID())).build();
         when(albumRepository.findById(albumId)).thenReturn(Optional.of(album));
-        when(songMetadataRepository.findById(any())).thenReturn(Optional.empty());
-        when(songStoragePort.generateUploadUrl(any())).thenAnswer(inv -> singlePartResult("fresh-key"));
+        when(songUploadRepository.findBySongId(any())).thenAnswer(inv ->
+                Optional.ofNullable(stagedRecord.get())
+                        .filter(r -> r.getSongId().equals(inv.getArgument(0))));
+        when(songUploadRepository.insertIfAbsent(any())).thenAnswer(inv -> {
+            stagedRecord.set(inv.getArgument(0));
+            return true;
+        });
         when(songStoragePort.regenerateUploadUrl(anyString(), any()))
-                .thenAnswer((inv) -> singlePartResult(inv.getArgument(0)));
+                .thenAnswer(inv -> singlePartResult(inv.getArgument(0)));
     }
 
     private static PresignedUploadResult singlePartResult(final String storageKey) {
         return new PresignedUploadResult(storageKey, null,
-                Instant.parse("2026-03-02T09:10:00Z"), false,
+                T0.plus(Duration.ofMinutes(10)), false,
                 List.of(new PresignedUploadPart(1, "https://presigned/" + storageKey)));
     }
 
@@ -104,24 +111,22 @@ class InitiateSongUploadIdempotentServiceTest {
     }
 
     @Test
-    void initiateUploadIdempotently_newKey_createsSongUnderReservedIdWithFreshKey() {
+    void initiateUploadIdempotently_newKey_stagesUploadUnderReservedIdWithoutSongRow() {
         String key = validKey();
-        AtomicReference<Song> saved = new AtomicReference<>();
-        doAnswer(inv -> {
-            saved.set(inv.getArgument(0));
-            return null;
-        }).when(songMetadataRepository).save(any());
 
         InitiateUploadIdempotentResult result =
                 service.initiateUploadIdempotently(key, command("Track One"));
 
         assertFalse(result.replayed());
-        assertEquals(result.song().getStorageId(), result.upload().storageKey(),
-                "presigned upload must target the song's storage key");
+        assertEquals("pending/" + result.upload().getSongId().value(),
+                result.upload().getStagingKey(), "staging key must be server-derived");
+        assertEquals(result.upload().getStagingKey(), result.presigned().storageKey(),
+                "presigned upload must target the staging key");
+        verify(songUploadRepository).insertIfAbsent(any(SongUpload.class));
 
         var stored = idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow();
         assertEquals(IdempotencyState.COMPLETED, stored.state());
-        assertEquals(result.song().getId().value().toString(), stored.resourceId());
+        assertEquals(result.upload().getSongId().value().toString(), stored.resourceId());
     }
 
     @Test
@@ -145,7 +150,7 @@ class InitiateSongUploadIdempotentServiceTest {
         assertThrows(NotFoundException.class, () -> service.initiateUploadIdempotently(key, command("T")));
 
         assertTrue(idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).isEmpty());
-        verify(songMetadataRepository, never()).save(any());
+        verify(songUploadRepository, never()).insertIfAbsent(any());
     }
 
     @Test
@@ -155,23 +160,12 @@ class InitiateSongUploadIdempotentServiceTest {
 
         assertThrows(ForbiddenException.class,
                 () -> service.initiateUploadIdempotently(validKey(), command("T")));
-        verify(songMetadataRepository, never()).save(any());
+        verify(songUploadRepository, never()).insertIfAbsent(any());
     }
 
     @Test
-    void initiateUploadIdempotently_sameKeySameRequest_replaysStoredResultWithFreshUrl() {
+    void initiateUploadIdempotently_sameKeySameRequest_replaysStagedRecordWithFreshUrl() {
         String key = validKey();
-        AtomicReference<Song> saved = new AtomicReference<>();
-        when(songMetadataRepository.findById(any(SongId.class))).thenAnswer(inv -> {
-            SongId asked = inv.getArgument(0);
-            Song stored = saved.get();
-            return stored != null && stored.getId().equals(asked)
-                    ? Optional.of(stored) : Optional.empty();
-        });
-        doAnswer(inv -> {
-            saved.set(inv.getArgument(0));
-            return null;
-        }).when(songMetadataRepository).save(any());
 
         InitiateUploadIdempotentResult first =
                 service.initiateUploadIdempotently(key, command("Track One"));
@@ -180,17 +174,16 @@ class InitiateSongUploadIdempotentServiceTest {
 
         assertFalse(first.replayed());
         assertTrue(second.replayed());
-        assertEquals(first.song().getId(), second.song().getId());
-        assertEquals(second.song().getStorageId(), second.upload().storageKey(),
-                "replay must re-presign for the same storage key");
-        verify(songStoragePort, times(1)).generateUploadUrl(any());
-        verify(songStoragePort, times(1)).regenerateUploadUrl(anyString(), any());
+        assertEquals(first.upload().getSongId(), second.upload().getSongId());
+        assertEquals(second.upload().getStagingKey(), second.presigned().storageKey(),
+                "replay must re-presign for the same staging key");
+        verify(songStoragePort, never()).generateUploadUrl(any());
+        verify(songStoragePort, times(2)).regenerateUploadUrl(anyString(), any());
     }
 
     @Test
     void initiateUploadIdempotently_sameKeyDifferentRequest_returnsKeyReuseConflict() {
         String key = validKey();
-        doAnswer(inv -> null).when(songMetadataRepository).save(any());
 
         service.initiateUploadIdempotently(key, command("Track One"));
 
@@ -202,8 +195,7 @@ class InitiateSongUploadIdempotentServiceTest {
     void initiateUploadIdempotently_activeForeignLease_throwsInProgressWithCappedRetryAfter() {
         String key = validKey();
         coordinator.claim(scopeOf(key), requestHash("Track One"), "InitiateSongUpload",
-                com.spotpobre.backend.domain.idempotency.model.IdempotencyResourceType.SONG_UPLOAD,
-                IdempotencyCoordinator.UPLOAD_LEASE);
+                IdempotencyResourceType.SONG_UPLOAD, IdempotencyCoordinator.UPLOAD_LEASE);
 
         InitiateSongUploadCommand cmd = command("Track One");
         // The direct probe above used a hash built from the same inputs; align it.
@@ -214,53 +206,65 @@ class InitiateSongUploadIdempotentServiceTest {
                 () -> service.initiateUploadIdempotently(key, finalCmd));
 
         assertTrue(exception.getRetryAfterSeconds() >= 1 && exception.getRetryAfterSeconds() <= 30);
-        assertEquals(com.spotpobre.backend.domain.idempotency.model.IdempotencyState.IN_PROGRESS,
-                record.state());
+        assertEquals(IdempotencyState.IN_PROGRESS, record.state());
     }
 
     @Test
-    void initiateUploadIdempotently_crashAfterSave_recoversExistingSongAndRegeneratesUrl() {
+    void initiateUploadIdempotently_crashAfterInsert_recoversExistingStagedRecordAndRegeneratesUrl() {
         String key = validKey();
         ClaimOutcome crashed = coordinator.claim(scopeOf(key), requestHash("Track One"),
-                "InitiateSongUpload",
-                com.spotpobre.backend.domain.idempotency.model.IdempotencyResourceType.SONG_UPLOAD,
+                "InitiateSongUpload", IdempotencyResourceType.SONG_UPLOAD,
                 IdempotencyCoordinator.UPLOAD_LEASE);
         clock.advance(IdempotencyCoordinator.UPLOAD_LEASE.multipliedBy(2));
 
-        Song writtenBeforeCrash = Song.create(
-                SongId.from(crashed.claimed().orElseThrow().resourceId()),
-                "Track One", albumId, "crashed-key");
-        when(songMetadataRepository.findById(
-                SongId.from(crashed.claimed().orElseThrow().resourceId())))
-                .thenReturn(Optional.of(writtenBeforeCrash));
+        SongId reserved = SongId.from(crashed.claimed().orElseThrow().resourceId());
+        stagedRecord.set(SongUpload.start(reserved, "Track One", albumId,
+                new ArtistId(UUID.randomUUID()), actorId, "audio/mpeg", 1_000_000L,
+                "crashed-mpu", T0.minusSeconds(3600), T0.plusSeconds(86400)));
 
         InitiateUploadIdempotentResult result =
                 service.initiateUploadIdempotently(key, command("Track One"));
 
         assertFalse(result.replayed(), "recovery executes once more to reach completion");
-        assertSame(writtenBeforeCrash, result.song());
-        assertEquals("crashed-key", result.upload().storageKey(),
-                "recovered URL must target the crashed attempt's storage key");
-        verify(songStoragePort, never()).generateUploadUrl(any());
-        verify(songMetadataRepository, never()).save(any());
+        assertSame(stagedRecord.get(), result.upload());
+        assertEquals(stagedRecord.get().getStagingKey(), result.presigned().storageKey(),
+                "recovered URL must target the crashed attempt's staging key");
+        verify(songUploadRepository, never()).insertIfAbsent(any());
         assertEquals(IdempotencyState.COMPLETED,
                 idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow().state());
     }
 
     @Test
-    void initiateUploadIdempotently_metadataSaveFails_abortsMultipartAndRetainsInProgress() {
+    void initiateUploadIdempotently_insertRaceLoser_abortsCreatedMultipartAndReusesWinner() {
         String key = validKey();
-        PresignedUploadResult multipart = new PresignedUploadResult("mp-key", "upload-id",
-                Instant.parse("2026-03-02T09:10:00Z"), true,
-                List.of(new PresignedUploadPart(1, "https://presigned/part1")));
-        when(songStoragePort.generateUploadUrl(any())).thenReturn(multipart);
-        doThrow(new IllegalStateException("DynamoDB down")).when(songMetadataRepository).save(any());
+        // Model the real race: a crashed twin of this same logical operation (same key -> same
+        // reserved song id) already inserted the staging record; our conditional insert loses.
+        AtomicReference<SongId> reserved = new AtomicReference<>();
+        doAnswer(inv -> {
+            final String targetKey = inv.getArgument(0);
+            if (reserved.get() == null) {
+                reserved.set(SongId.from(targetKey.substring("pending/".length())));
+                stagedRecord.set(SongUpload.start(reserved.get(), "Track One", albumId,
+                        new ArtistId(UUID.randomUUID()), actorId, "audio/mpeg", 1_000_000L,
+                        "twin-mpu", T0.minusSeconds(3600), T0.plusSeconds(86400)));
+                return new PresignedUploadResult("pending/race-key", "upload-id",
+                        T0.plus(Duration.ofMinutes(10)), true,
+                        List.of(new PresignedUploadPart(1, "https://presigned/part1")));
+            }
+            return singlePartResult(targetKey);
+        }).when(songStoragePort).regenerateUploadUrl(anyString(), any());
+        doReturn(false).when(songUploadRepository).insertIfAbsent(any());
 
-        assertThrows(IllegalStateException.class,
-                () -> service.initiateUploadIdempotently(key, command("Track One")));
+        InitiateUploadIdempotentResult result =
+                service.initiateUploadIdempotently(key, command("Track One"));
 
-        verify(songStoragePort).abortUpload("mp-key", "upload-id");
-        assertEquals(IdempotencyState.IN_PROGRESS,
+        verify(songStoragePort).abortUpload("pending/race-key", "upload-id");
+        assertEquals(reserved.get(), result.upload().getSongId(),
+                "the loser must converge on the already-reserved song identity");
+        assertSame(stagedRecord.get(), result.upload(),
+                "the loser must reuse the winner's record, not its own");
+        assertEquals(stagedRecord.get().getStagingKey(), result.presigned().storageKey());
+        assertEquals(IdempotencyState.COMPLETED,
                 idempotencyStore.findByScopeKey(scopeOf(key).scopeKey()).orElseThrow().state());
     }
 

@@ -17,6 +17,7 @@ import java.time.Instant;
 public class SongUploadDocument {
 
     private String songId;
+    private String title;
     private String albumId;
     private String artistId;
     private String actorUserId;
@@ -39,6 +40,15 @@ public class SongUploadDocument {
 
     public void setSongId(String songId) {
         this.songId = songId;
+    }
+
+    @DynamoDbAttribute("title")
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     @DynamoDbAttribute("albumId")

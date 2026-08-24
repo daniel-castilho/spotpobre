@@ -1,5 +1,6 @@
 package com.spotpobre.backend.domain.song.port;
 
+import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
 import com.spotpobre.backend.domain.song.model.SongUpload;
 import com.spotpobre.backend.domain.song.model.SongUploadState;
@@ -34,6 +35,13 @@ public interface SongUploadRepository {
 
     /** Terminal abort for cleanup/reconciliation; never overwrites COMPLETED. */
     boolean markAbortedFromPendingOrExpiredCompleting(SongId songId, Instant now);
+
+    /**
+     * Atomically marks the upload COMPLETED (conditional on the caller's lease) and creates the
+     * Song row if absent — one transaction, so a song never exists without a completed upload
+     * and vice versa.
+     */
+    boolean markCompletedAndCreateSongIfAbsent(SongUpload upload, Song song, Instant at);
 
     /** Bounded cleanup-candidate scan through the {@code state-expiry-index} GSI. */
     List<SongUpload> findExpiredByState(SongUploadState state, Instant expiryCutoff, int limit);

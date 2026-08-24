@@ -4,7 +4,6 @@ import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUs
 import com.spotpobre.backend.application.album.port.in.CreateAlbumIdempotentlyUseCase.CreateAlbumOutcome;
 import com.spotpobre.backend.application.song.port.in.ConfirmSongUploadUseCase;
 import com.spotpobre.backend.application.song.port.in.InitiateSongUploadIdempotentlyUseCase;
-import com.spotpobre.backend.application.song.port.in.InitiateSongUploadUseCase;
 import com.spotpobre.backend.application.user.port.in.GetCurrentUserUseCase;
 import com.spotpobre.backend.domain.album.model.Album;
 import com.spotpobre.backend.domain.album.model.AlbumId;
@@ -108,12 +107,11 @@ public class AlbumController {
                 initiateSongUploadIdempotentlyUseCase.initiateUploadIdempotently(idempotencyKey, command);
 
         // Original success status is preserved on replay (initiation responds 201); the presigned
-        // URL is always freshly signed and targets the storage key bound to this song.
+        // URL is always freshly signed and targets the staging key bound to the staged upload.
+        // No Song row exists yet — the song becomes visible only after confirmation.
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header("Idempotency-Replayed", String.valueOf(result.replayed()))
-                .body(songApiMapper.toInitiateResponse(
-                        new InitiateSongUploadUseCase.InitiateSongUploadResult(
-                                result.song(), result.upload())));
+                .body(songApiMapper.toStagedInitiateResponse(result));
     }
 
     @PostMapping("/{albumId}/songs/{songId}/confirm")

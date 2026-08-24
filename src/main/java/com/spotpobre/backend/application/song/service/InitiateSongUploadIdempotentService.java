@@ -19,14 +19,12 @@ import com.spotpobre.backend.domain.idempotency.model.IdempotencyResourceType;
 import com.spotpobre.backend.domain.idempotency.model.IdempotencyScope;
 import com.spotpobre.backend.domain.idempotency.model.ResultSnapshot;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
-import com.spotpobre.backend.domain.song.model.Song;
 import com.spotpobre.backend.domain.song.model.SongId;
+import com.spotpobre.backend.domain.song.model.SongUpload;
 import com.spotpobre.backend.domain.song.model.SongUploadCommand;
-import com.spotpobre.backend.domain.song.port.SongMetadataRepository;
+import com.spotpobre.backend.domain.song.port.SongUploadRepository;
 import com.spotpobre.backend.domain.song.port.SongStoragePort;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -39,20 +37,22 @@ import java.util.Optional;
  * (120 s). Album existence and membership authorization run before the claim on every call —
  * deterministic failures never consume the key and replays cannot bypass the policy. The
  * reserved {@code SongId} is stable across crash recovery; replays and recoveries re-presign a
- * fresh URL for the storage key already bound to the reserved song.
+ * fresh URL for the staging key already bound to the staged upload. No visible Song row exists
+ * until confirmation promotes the upload (spec §7): pending uploads are invisible to
+ * fetch/search/stream/like/playlist flows by construction.
  */
 @RequiredArgsConstructor
 public class InitiateSongUploadIdempotentService implements InitiateSongUploadIdempotentlyUseCase {
 
-    private static final Logger logger = LoggerFactory.getLogger(InitiateSongUploadIdempotentService.class);
-
     static final String API_VERSION = "v1";
     static final String ROUTE_TEMPLATE = "/api/v1/albums/{albumId}/songs";
     static final Duration RETRY_AFTER_CAP = Duration.ofSeconds(30);
+    /** Logical lifetime of a staged upload before cleanup reconciliation may abort it. */
+    static final Duration STAGING_EXPIRY = Duration.ofHours(24);
 
     private final IdempotencyCoordinator coordinator;
     private final SongStoragePort songStoragePort;
-    private final SongMetadataRepository songMetadataRepository;
+    private final SongUploadRepository songUploadRepository;
     private final AlbumRepository albumRepository;
     private final RequireArtistAccessUseCase requireArtistAccess;
     private final Clock clock;
@@ -87,20 +87,19 @@ public class InitiateSongUploadIdempotentService implements InitiateSongUploadId
                 IdempotencyResourceType.SONG_UPLOAD, IdempotencyCoordinator.UPLOAD_LEASE);
 
         if (outcome.replay().isPresent()) {
-            final Song replayedSong = songMetadataRepository
-                    .findById(SongId.from(outcome.replay().get().resourceId()))
+            final SongUpload replayedRecord = songUploadRepository
+                    .findBySongId(SongId.from(outcome.replay().get().resourceId()))
                     .orElseThrow(() -> new IdempotencyConflictException(
-                            "The initiated song for this Idempotency-Key no longer exists."));
-            final PresignedUploadResult replayedUpload = songStoragePort.regenerateUploadUrl(
-                    replayedSong.getStorageId(),
-                    new SongUploadCommand(command.contentType(), command.contentLengthBytes()));
-            return new InitiateUploadIdempotentResult(replayedSong, replayedUpload, true);
+                            "The initiated upload for this Idempotency-Key no longer exists."));
+            final PresignedUploadResult replayedUpload = presignFor(replayedRecord, command);
+            return new InitiateUploadIdempotentResult(replayedRecord, replayedUpload, true);
         }
-        return executeOrRecover(outcome, command);
+        return executeOrRecover(outcome, command, album);
     }
 
     private InitiateUploadIdempotentResult executeOrRecover(final ClaimOutcome outcome,
-                                                            final InitiateSongUploadCommand command) {
+                                                            final InitiateSongUploadCommand command,
+                                                            final Album album) {
         if (outcome.replayedFailure().isPresent()) {
             throw failureToException(outcome.replayedFailure().get().failure());
         }
@@ -122,29 +121,35 @@ public class InitiateSongUploadIdempotentService implements InitiateSongUploadId
             final SongUploadCommand uploadCommand = new SongUploadCommand(
                     command.contentType(), command.contentLengthBytes());
 
-            // Crash recovery: metadata under the reserved ID may already exist from a crashed
-            // attempt — reuse it and hand out a fresh presigned URL for its storage key.
-            final Optional<Song> recovered =
-                    songMetadataRepository.findById(SongId.from(claim.resourceId()));
-            final Song song;
-            final PresignedUploadResult upload;
+            // Staging-only initiation (spec section 7): the reserved SongId is recorded in a
+            // durable upload record; the Songs table is untouched until confirmation. Crash
+            // recovery reuses the existing record and re-presigns its exact staging key.
+            final Optional<SongUpload> recovered =
+                    songUploadRepository.findBySongId(SongId.from(claim.resourceId()));
+            final SongUpload staged;
+            PresignedUploadResult upload;
             if (recovered.isPresent()) {
-                song = recovered.get();
-                upload = songStoragePort.regenerateUploadUrl(song.getStorageId(), uploadCommand);
+                staged = recovered.get();
+                upload = presignFor(staged, command);
             } else {
-                upload = songStoragePort.generateUploadUrl(uploadCommand);
-                song = Song.create(SongId.from(claim.resourceId()),
-                        command.title(), command.albumId(), upload.storageKey());
-                try {
-                    songMetadataRepository.save(song);
-                } catch (RuntimeException e) {
+                final String stagingKey = SongUpload.stagingKeyFor(SongId.from(claim.resourceId()));
+                upload = songStoragePort.regenerateUploadUrl(stagingKey, uploadCommand);
+                final SongUpload record = SongUpload.start(SongId.from(claim.resourceId()),
+                        command.title(), command.albumId(), album.getArtistId(),
+                        command.actorUserId(), command.contentType(), command.contentLengthBytes(),
+                        upload.multipartUploadId(), clock.instant(),
+                        clock.instant().plus(STAGING_EXPIRY));
+                if (!songUploadRepository.insertIfAbsent(record)) {
+                    // Lost an insert race: discard the multipart we may have created and reuse
+                    // the winner's record so exactly one logical upload exists per key/song.
                     if (upload.multipartUploadId() != null) {
                         songStoragePort.abortUpload(upload.storageKey(), upload.multipartUploadId());
-                    } else {
-                        logger.warn("Metadata save failed after generating presigned upload for key {}; " +
-                                "no object was created yet, nothing to abort.", upload.storageKey());
                     }
-                    throw e;
+                    staged = songUploadRepository.findBySongId(SongId.from(claim.resourceId()))
+                            .orElseThrow();
+                    upload = presignFor(staged, command);
+                } else {
+                    staged = record;
                 }
             }
 
@@ -156,7 +161,7 @@ public class InitiateSongUploadIdempotentService implements InitiateSongUploadId
                         "The idempotency lease was lost before the result could be recorded; "
                                 + "retry with the same Idempotency-Key.");
             }
-            return new InitiateUploadIdempotentResult(song, upload, false);
+            return new InitiateUploadIdempotentResult(staged, upload, false);
         } catch (ConflictException e) {
             coordinator.failClaim(claim, FailureDescriptor.of(409, "SONG_CONFLICT", safe(e.getMessage())),
                     clock.instant());
@@ -164,6 +169,16 @@ public class InitiateSongUploadIdempotentService implements InitiateSongUploadId
         }
         // Unexpected failures retain IN_PROGRESS for takeover-based recovery: the metadata write
         // may have landed.
+    }
+
+    /**
+     * Re-presigns a fresh URL against the record's bound staging key (replay/expiry recovery).
+     * The multipart id is recovered from storage — never recreated — so duplicate S3 multipart
+     * attempts cannot accumulate for one logical upload.
+     */
+    private PresignedUploadResult presignFor(final SongUpload record, final InitiateSongUploadCommand command) {
+        return songStoragePort.regenerateUploadUrl(record.getStagingKey(),
+                new SongUploadCommand(command.contentType(), command.contentLengthBytes()));
     }
 
     private RuntimeException failureToException(final FailureDescriptor failure) {

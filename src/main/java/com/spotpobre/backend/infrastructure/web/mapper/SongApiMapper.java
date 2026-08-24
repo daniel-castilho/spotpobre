@@ -52,6 +52,22 @@ public interface SongApiMapper {
         );
     }
 
+    default InitiateSongUploadResponse toStagedInitiateResponse(
+            final com.spotpobre.backend.application.song.port.in.InitiateSongUploadIdempotentlyUseCase.InitiateUploadIdempotentResult result) {
+        final var staged = result.upload();
+        final var presigned = result.presigned();
+        return new InitiateSongUploadResponse(
+                staged.getSongId().value(),
+                staged.getTitle(),
+                staged.getAlbumId().value(),
+                presigned.storageKey(),
+                presigned.multipartUploadId(),
+                presigned.expiresAt(),
+                presigned.multipart(),
+                presigned.parts().stream().map(this::toPartResponse).toList()
+        );
+    }
+
     default PresignedUploadPartResponse toPartResponse(final PresignedUploadPart part) {
         return new PresignedUploadPartResponse(part.partNumber(), part.url());
     }

@@ -2,14 +2,16 @@ package com.spotpobre.backend.application.song.port.in;
 
 import com.spotpobre.backend.domain.album.model.AlbumId;
 import com.spotpobre.backend.domain.song.model.PresignedUploadResult;
-import com.spotpobre.backend.domain.song.model.Song;
+import com.spotpobre.backend.domain.song.model.SongUpload;
 
 import java.util.UUID;
 
 /**
- * Song upload initiation protected by the durable idempotency protocol (120 s lease). Replays
- * and crash recoveries return a freshly presigned URL targeting the exact storage key bound to
- * the reserved song, so a client that lost its connection can resume with a new key-less retry.
+ * Song upload initiation protected by the durable idempotency protocol (120 s lease). No Song
+ * row is written here — the upload reserves the song identity in a staging record only, so a
+ * pending upload is invisible to fetch/search/stream/like/playlist flows. Replays and crash
+ * recoveries return a freshly presigned URL targeting the exact staging key bound to the
+ * reserved song.
  */
 public interface InitiateSongUploadIdempotentlyUseCase {
 
@@ -17,11 +19,12 @@ public interface InitiateSongUploadIdempotentlyUseCase {
                                                               final InitiateSongUploadCommand command);
 
     /**
-     * @param song     the initiated song (freshly created or recovered for replay)
-     * @param upload   a presigned upload targeting {@code song}'s storage key
+     * @param upload   the staged upload record (fresh or recovered for replay)
+     * @param presigned a presigned upload targeting {@code upload}'s staging key
      * @param replayed {@code true} when this outcome replays a previously completed execution
      */
-    record InitiateUploadIdempotentResult(Song song, PresignedUploadResult upload, boolean replayed) {
+    record InitiateUploadIdempotentResult(SongUpload upload, PresignedUploadResult presigned,
+                                          boolean replayed) {
     }
 
     record InitiateSongUploadCommand(

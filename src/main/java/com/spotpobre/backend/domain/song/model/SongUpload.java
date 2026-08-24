@@ -22,6 +22,7 @@ import java.util.UUID;
 public final class SongUpload {
 
     private final SongId songId;
+    private final String title;
     private final AlbumId albumId;
     private final ArtistId artistId;
     private final UUID actorUserId;
@@ -36,12 +37,17 @@ public final class SongUpload {
     private Instant updatedAt;
     private long expiresAtEpochSeconds;
 
-    private SongUpload(final SongId songId, final AlbumId albumId, final ArtistId artistId,
+    private SongUpload(final SongId songId, final String title, final AlbumId albumId,
+                       final ArtistId artistId,
                        final UUID actorUserId, final String contentType, final long contentLengthBytes,
                        final String stagingKey, final String finalKey, final String multipartUploadId,
                        final SongUploadState state, final Instant completingLeaseUntil,
                        final Instant createdAt, final Instant updatedAt, final long expiresAtEpochSeconds) {
         this.songId = Objects.requireNonNull(songId, "songId is required");
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("title is required");
+        }
+        this.title = title;
         this.albumId = Objects.requireNonNull(albumId, "albumId is required");
         this.artistId = Objects.requireNonNull(artistId, "artistId is required");
         this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId is required");
@@ -70,27 +76,30 @@ public final class SongUpload {
      * Creates a new PENDING_UPLOAD record reserving {@code songId}. Staging/final keys are
      * derived server-side — never accepted from client input.
      */
-    public static SongUpload start(final SongId songId, final AlbumId albumId, final ArtistId artistId,
+    public static SongUpload start(final SongId songId, final String title, final AlbumId albumId,
+                                   final ArtistId artistId,
                                    final UUID actorUserId, final String contentType,
                                    final long contentLengthBytes, final String multipartUploadId,
                                    final Instant now, final Instant logicalExpiry) {
-        return new SongUpload(songId, albumId, artistId, actorUserId, contentType, contentLengthBytes,
+        return new SongUpload(songId, title, albumId, artistId, actorUserId, contentType,
+                contentLengthBytes,
                 stagingKeyFor(songId), finalKeyFor(songId), multipartUploadId,
                 SongUploadState.PENDING_UPLOAD, null, now, now,
                 logicalExpiry == null ? 0L : logicalExpiry.getEpochSecond());
     }
 
     /** Rehydrates a persisted record without re-deriving keys or re-validating transitions. */
-    public static SongUpload rehydrate(final SongId songId, final AlbumId albumId, final ArtistId artistId,
+    public static SongUpload rehydrate(final SongId songId, final String title, final AlbumId albumId,
+                                       final ArtistId artistId,
                                        final UUID actorUserId, final String contentType,
                                        final long contentLengthBytes, final String stagingKey,
                                        final String finalKey, final String multipartUploadId,
                                        final SongUploadState state, final Instant completingLeaseUntil,
                                        final Instant createdAt, final Instant updatedAt,
                                        final long expiresAtEpochSeconds) {
-        return new SongUpload(songId, albumId, artistId, actorUserId, contentType, contentLengthBytes,
-                stagingKey, finalKey, multipartUploadId, state, completingLeaseUntil,
-                createdAt, updatedAt, expiresAtEpochSeconds);
+        return new SongUpload(songId, title, albumId, artistId, actorUserId, contentType,
+                contentLengthBytes, stagingKey, finalKey, multipartUploadId, state,
+                completingLeaseUntil, createdAt, updatedAt, expiresAtEpochSeconds);
     }
 
     /** Binds (or rebinds) the S3 multipart id once logically; recovery reuses the same id. */
@@ -153,6 +162,10 @@ public final class SongUpload {
 
     public SongId getSongId() {
         return songId;
+    }
+
+    public String getTitle() {
+        return title;
     }
 
     public AlbumId getAlbumId() {
@@ -220,6 +233,7 @@ public final class SongUpload {
             return false;
         }
         return songId.equals(other.songId)
+                && title.equals(other.title)
                 && albumId.equals(other.albumId)
                 && artistId.equals(other.artistId)
                 && actorUserId.equals(other.actorUserId)
@@ -237,14 +251,15 @@ public final class SongUpload {
 
     @Override
     public int hashCode() {
-        return Objects.hash(songId, albumId, artistId, actorUserId, contentType, contentLengthBytes,
+        return Objects.hash(songId, title, albumId, artistId, actorUserId, contentType, contentLengthBytes,
                 stagingKey, finalKey, multipartUploadId, state, completingLeaseUntil,
                 createdAt, updatedAt, expiresAtEpochSeconds);
     }
 
     @Override
     public String toString() {
-        return "SongUpload{" + songId.value() + ", state=" + state
+        return "SongUpload{" + songId.value() + ", title=" + title
+                + ", state=" + state
                 + ", album=" + albumId.value() + ", artist=" + artistId.value()
                 + ", multipart=" + (multipartUploadId != null ? "bound" : "none") + "}";
     }
