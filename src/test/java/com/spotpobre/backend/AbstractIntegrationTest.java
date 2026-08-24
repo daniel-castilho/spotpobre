@@ -64,6 +64,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("aws.dynamodb.endpoint", () -> localstack.getEndpoint().toString());
         // SES shares the LocalStack edge; the adapter must hit the mapped port, not 4566.
         registry.add("email.sesEndpoint", () -> localstack.getEndpoint().toString());
+        // Flow ITs are not about throttling (spec section 8.5): the limiter is disabled so
+        // shared Redis state cannot make unrelated suites nondeterministic. Dedicated
+        // RateLimit*ITs enable it with their own pinned Redis container.
+        registry.add("rate-limit.enabled", () -> "false");
 
         // AWS Credentials for LocalStack — used by DynamoDbConfig and S3Config which build
         // clients with StaticCredentialsProvider from AwsProperties.credentials().
