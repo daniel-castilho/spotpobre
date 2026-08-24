@@ -14,6 +14,7 @@ public class UserDocument {
     private String password;
     private Set<String> roles;
     private Instant emailVerifiedAt;
+    private Instant passwordChangedAt;
 
     public UserDocument() {
     }
@@ -24,6 +25,7 @@ public class UserDocument {
         this.password = builder.password;
         this.roles = builder.roles;
         this.emailVerifiedAt = builder.emailVerifiedAt;
+        this.passwordChangedAt = builder.passwordChangedAt;
     }
 
     @DynamoDbPartitionKey
@@ -62,6 +64,14 @@ public class UserDocument {
     /** Null (or absent on legacy rows) means the e-mail is not verified. */
     public Instant getEmailVerifiedAt() {
         return emailVerifiedAt;
+    }
+
+    public Instant getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(Instant passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 
     public void setEmailVerifiedAt(Instant emailVerifiedAt) {
@@ -104,6 +114,7 @@ public class UserDocument {
         private String password;
         private Set<String> roles;
         private Instant emailVerifiedAt;
+        private Instant passwordChangedAt;
 
         private Builder() {
         }
@@ -125,6 +136,11 @@ public class UserDocument {
 
         public Builder roles(Set<String> roles) {
             this.roles = roles;
+            return this;
+        }
+
+        public Builder passwordChangedAt(Instant passwordChangedAt) {
+            this.passwordChangedAt = passwordChangedAt;
             return this;
         }
 

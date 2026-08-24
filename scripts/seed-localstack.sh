@@ -162,8 +162,9 @@ run_aws s3api put-bucket-lifecycle-configuration \
   }' >/dev/null || echo "[seed][warn] bucket lifecycle configuration rejected by emulator; operator fallback required (see docs/runbooks)"
 
 create_table AccountTokens \
-  --attribute-definitions AttributeName=tokenHash,AttributeType=S \
+  --attribute-definitions AttributeName=tokenHash,AttributeType=S AttributeName=userId,AttributeType=S \
   --key-schema AttributeName=tokenHash,KeyType=HASH \
+  --global-secondary-indexes "IndexName=userId-index,KeySchema=[{AttributeName=userId,KeyType=HASH}],Projection={ProjectionType=ALL}" \
   --billing-mode PAY_PER_REQUEST
 
 # Account-lifecycle tokens (password recovery) rely on DynamoDB TTL for cleanup.

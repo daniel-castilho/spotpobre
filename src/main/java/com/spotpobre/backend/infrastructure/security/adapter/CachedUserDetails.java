@@ -22,15 +22,30 @@ public class CachedUserDetails implements UserDetails {
     private String username;
     private String password;
     private List<String> roles;
+    private java.time.Instant passwordChangedAt;
 
     public CachedUserDetails() {
         // No-arg constructor required by the JSON deserializer.
     }
 
     public CachedUserDetails(final String username, final String password, final List<String> roles) {
+        this(username, password, roles, null);
+    }
+
+    public CachedUserDetails(final String username, final String password, final List<String> roles,
+                             final java.time.Instant passwordChangedAt) {
         this.username = username;
         this.password = password;
         this.roles = roles;
+        this.passwordChangedAt = passwordChangedAt;
+    }
+
+    public java.time.Instant getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(final java.time.Instant passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 
     @Override

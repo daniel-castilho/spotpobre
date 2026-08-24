@@ -146,7 +146,20 @@ class UserTest {
     @Test
     void changePassword_blankOrNull_rejected() {
         User user = User.createWithLocalPassword(new UserProfile("C", "c@x.com", "BR"), "pw");
-        assertThrows(IllegalArgumentException.class, () -> user.changePassword(null));
-        assertThrows(IllegalArgumentException.class, () -> user.changePassword("   "));
+        assertThrows(IllegalArgumentException.class,
+                () -> user.changePassword(null, Instant.now()));
+        assertThrows(IllegalArgumentException.class,
+                () -> user.changePassword("   ", Instant.now()));
+    }
+
+    @Test
+    void changePassword_recordsRevocationBaseline() {
+        User user = User.createWithLocalPassword(new UserProfile("C", "c@x.com", "BR"), "pw");
+        Instant at = Instant.parse("2026-08-24T00:00:00Z");
+
+        assertNull(user.getPasswordChangedAt());
+        user.changePassword("new-hash", at);
+
+        assertEquals(at, user.getPasswordChangedAt());
     }
 }

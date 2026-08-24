@@ -11,4 +11,10 @@ public interface DynamoDbAccountTokenRepository {
     Optional<AccountTokenDocument> findByHashAndPurpose(final String tokenHash, final String purpose);
 
     void markUsed(final String tokenHash, final long usedAtEpochSeconds);
+
+    /**
+     * Burns all still-unused tokens for one user and purpose through the {@code userId-index}
+     * GSI; returns how many rows this call burned.
+     */
+    int burnAllForUser(final String userId, final String purpose, final long usedAtEpochSeconds);
 }

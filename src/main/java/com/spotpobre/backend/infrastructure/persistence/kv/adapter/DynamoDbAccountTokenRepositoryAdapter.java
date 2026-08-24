@@ -44,4 +44,11 @@ public class DynamoDbAccountTokenRepositoryAdapter implements AccountTokenReposi
     public void markUsed(final String tokenHash) {
         dynamoDbAccountTokenRepository.markUsed(tokenHash, Instant.now().getEpochSecond());
     }
+
+    @Override
+    public int markAllUsedForUser(final UserId userId, final AccountTokenPurpose purpose,
+                                  final Instant at) {
+        return dynamoDbAccountTokenRepository.burnAllForUser(userId.value().toString(),
+                purpose.name(), at.getEpochSecond());
+    }
 }

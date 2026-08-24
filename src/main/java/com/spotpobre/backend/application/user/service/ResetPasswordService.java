@@ -6,6 +6,7 @@ import com.spotpobre.backend.domain.user.port.PasswordHasher;
 import com.spotpobre.backend.domain.user.model.AccountToken;
 import com.spotpobre.backend.domain.user.model.AccountTokenPurpose;
 import com.spotpobre.backend.domain.user.port.AccountTokenRepository;
+import com.spotpobre.backend.domain.user.port.UserAuthenticationCachePort;
 import com.spotpobre.backend.domain.user.port.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     private final AccountTokenRepository accountTokenRepository;
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
+    private final UserAuthenticationCachePort authenticationCachePort;
     private final Clock clock;
 
     @Override
@@ -37,9 +39,14 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         final var user = userRepository.findById(token.userId())
                 .orElseThrow(ResetPasswordService::tokenNotFound);
 
-        user.changePassword(passwordHasher.encode(command.newPassword()));
+        user.changePassword(passwordHasher.encode(command.newPassword()), clock.instant());
         userRepository.save(user);
-        accountTokenRepository.markUsed(tokenHash);
+
+        // Defect #13 hardening: burn every sibling recovery link, then invalidate cached
+        // credentials and JWTs issued before the change.
+        accountTokenRepository.markAllUsedForUser(token.userId(), AccountTokenPurpose.PASSWORD_RESET,
+                clock.instant());
+        authenticationCachePort.evict(user.getProfile().email());
     }
 
     /** Unknown, expired and redeemed tokens are indistinguishable — tokens are secrets. */

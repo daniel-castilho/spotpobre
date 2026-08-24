@@ -118,7 +118,8 @@ public abstract class AbstractIntegrationTest {
                 gsi("entityId-index", "entityCompositeKey", "userId"));
         createTableIfMissing(dynamoDb, "IdempotencyRecords", "scopeKey", null);
         enableTimeToLive(dynamoDb, "IdempotencyRecords");
-        createTableIfMissing(dynamoDb, "AccountTokens", "tokenHash", null);
+        createTableIfMissing(dynamoDb, "AccountTokens", "tokenHash", null,
+                gsi("userId-index", "userId"));
         enableTimeToLive(dynamoDb, "AccountTokens");
         createSongUploadsTableIfMissing(dynamoDb);
     }

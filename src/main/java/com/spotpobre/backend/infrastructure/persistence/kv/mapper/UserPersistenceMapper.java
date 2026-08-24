@@ -32,6 +32,7 @@ public class UserPersistenceMapper {
                         .collect(Collectors.toSet()) :
                     Collections.emptySet())
                 .emailVerifiedAt(user.getEmailVerifiedAt())
+                .passwordChangedAt(user.getPasswordChangedAt())
                 .build();
     }
 
@@ -50,6 +51,7 @@ public class UserPersistenceMapper {
                             .collect(Collectors.toCollection(() -> EnumSet.noneOf(Role.class))) :
                     EnumSet.noneOf(Role.class))
                 .emailVerifiedAt(document.getEmailVerifiedAt())
+                .passwordChangedAt(document.getPasswordChangedAt())
                 .build();
     }
 

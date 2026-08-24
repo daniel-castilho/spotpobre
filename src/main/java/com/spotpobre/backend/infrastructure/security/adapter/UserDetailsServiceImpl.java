@@ -38,7 +38,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new CachedUserDetails(
                 domainUser.getProfile().email(),
                 domainUser.getPassword(), // Can be null for OAuth2 users
-                roles
+                roles,
+                domainUser.getPasswordChangedAt()
         );
     }
 }

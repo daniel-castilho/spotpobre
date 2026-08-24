@@ -14,6 +14,9 @@ public class User {
     private String password; // Can be null for OAuth2 users
     private Set<Role> roles;
     private Instant emailVerifiedAt; // Null (or absent on legacy rows) = not verified
+    // Revocation baseline: JWTs issued BEFORE this instant are rejected on the authenticated
+    // path (password-reset invalidation, spec S22 / defect #13). Null = never changed.
+    private Instant passwordChangedAt;
 
     private User(final Builder builder) {
         this.id = builder.id;
@@ -21,6 +24,7 @@ public class User {
         this.password = builder.password;
         this.roles = builder.roles;
         this.emailVerifiedAt = builder.emailVerifiedAt;
+        this.passwordChangedAt = builder.passwordChangedAt;
     }
 
     public static User createWithLocalPassword(final UserProfile profile, final String password) {
@@ -102,11 +106,16 @@ public class User {
      * Replaces the local password with an already-hashed value (callers encode through the
      * {@code PasswordHasher} port before reaching the aggregate).
      */
-    public void changePassword(final String encodedPassword) {
+    public void changePassword(final String encodedPassword, final java.time.Instant at) {
         if (encodedPassword == null || encodedPassword.isBlank()) {
             throw new IllegalArgumentException("Encoded password cannot be blank");
         }
         this.password = encodedPassword;
+        this.passwordChangedAt = at;
+    }
+
+    public Instant getPasswordChangedAt() {
+        return passwordChangedAt;
     }
 
     /**
@@ -166,6 +175,7 @@ public class User {
         private String password;
         private Set<Role> roles;
         private Instant emailVerifiedAt;
+        private Instant passwordChangedAt;
 
         private Builder() {
         }
@@ -187,6 +197,11 @@ public class User {
 
         public Builder roles(final Set<Role> roles) {
             this.roles = roles;
+            return this;
+        }
+
+        public Builder passwordChangedAt(final Instant passwordChangedAt) {
+            this.passwordChangedAt = passwordChangedAt;
             return this;
         }
 

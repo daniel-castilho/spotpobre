@@ -44,6 +44,9 @@ class ResetPasswordServiceTest {
     @Mock
     private PasswordHasher passwordHasher;
 
+    @Mock
+    private com.spotpobre.backend.domain.user.port.UserAuthenticationCachePort authenticationCachePort;
+
     @InjectMocks
     private ResetPasswordService resetPasswordService;
 
@@ -70,7 +73,12 @@ class ResetPasswordServiceTest {
 
         assertEquals("encoded-new", user.getPassword());
         verify(userRepository).save(user);
-        verify(accountTokenRepository).markUsed(hash);
+        // Defect #13: the single conditional burn retires the redeemed token together with
+        // every sibling link, then cached credentials are evicted.
+        verify(accountTokenRepository, never()).markUsed(anyString());
+        verify(accountTokenRepository).markAllUsedForUser(user.getId(),
+                AccountTokenPurpose.PASSWORD_RESET, Instant.parse("2026-08-23T12:00:00Z"));
+        verify(authenticationCachePort).evict("u@example.com");
     }
 
     @Test
