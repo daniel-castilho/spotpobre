@@ -1,6 +1,6 @@
 # ADR-0001: Production platform, secrets and rollout strategy
 
-**Status:** Superseded by [ADR-0002](0002-onprem-bare-metal-platform.md) (on-premises bare metal + LocalStack). The AWS manifests produced under this decision (`deploy/stack.yaml`, `deploy/task-definition.json`, `deploy/codedeploy.yaml`, `deploy/appspec.yaml`) are kept as a documented legacy backup.
+**Status:** Superseded by [ADR-0002](0002-onprem-bare-metal-platform.md) (on-premises bare metal + LocalStack). The AWS manifests produced under this decision (`deploy/stack.yaml`, `deploy/task-definition.json`, `deploy/codedeploy.yaml`, `deploy/appspec.yaml`) are kept as a historical record only — the real-AWS migration they were written for is formally abandoned (2026-08-23 decision, see ADR-0002 update note).
 **Date:** 2026-08-19
 **Deciders:** Spotpobre API maintainers
 **Context:** Runtime & Deployment epic (S1)

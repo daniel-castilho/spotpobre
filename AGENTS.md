@@ -170,12 +170,9 @@ src/main/java/com/spotpobre/backend/
 Items that currently violate the rules above. Do **not** silently "fix" them, and do **not** add
 new violations — flag them to the human instead.
 
-- **Blue/green exercise proven locally; AWS-native path unexercised.** The on-premises
-  production target (ADR-0002) was exercised end-to-end against the compose stack: canary deploy,
-  cutover, rollback and LB IP-change resilience all PASS (`deploy/README.md` §1.6). What remains
-  unproven is only the **legacy AWS-native path** (ADR-0001: CodeDeploy canary 10%/5min shift,
-  rollback alarms, task-role identity) — it activates when the project migrates to a real AWS
-  account (see README Roadmap); its first real deployment must prove those gates end to end.
+- None. The previous entry (AWS-native deploy path unexercised) was closed on 2026-08-23 when the
+  real-AWS migration was formally abandoned: on-premises bare metal with LocalStack is the
+  permanent production substrate (ADR-0002 update note).
 
 ## Notes
 

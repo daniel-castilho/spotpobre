@@ -422,8 +422,8 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   (ADR-0002): Docker Compose blue/green fleets behind an NGINX weighted load balancer, with
   LocalStack emulating DynamoDB/S3/SES and Redis alongside.
   - **ADR** (`docs/adr/0002-onprem-bare-metal-platform.md`) — Compose + NGINX + LocalStack target;
-    ADR-0001 (ECS Fargate + CodeDeploy) is superseded but its manifests remain versioned as a
-    migration path to real AWS.
+    ADR-0001 (ECS Fargate + CodeDeploy) is superseded and its manifests are kept as a historical
+    record only (real-AWS migration formally abandoned, 2026-08-23).
   - **Container** — multi-stage `Dockerfile` (Maven build → Temurin 21 JRE), non-root user
     (UID/GID 10001), exec-form entrypoint, hardened `.dockerignore`.
   - **Supply chain** — CI `image` job: build, UID-0 check, Trivy full-SARIF advisory report
@@ -472,11 +472,10 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
 Deliberately not implemented yet (candidate backlog):
 
 - Per-user quotas (beyond the basic endpoint rate limiting already shipped)
-- Email verification (the token foundation and SES delivery already shipped with password
-  recovery; only the verification flow itself remains)
-- **Migrate to a real AWS account** — the versioned ECS/CodeDeploy manifests (ADR-0001 backup,
-  `deploy/stack.yaml` + `codedeploy.yaml`) become the target again; flip
-  `AWS_CREDENTIALS_SOURCE=workload-identity`, provision DynamoDB/S3 natively and retire LocalStack.
+
+> **Platform decision (2026-08-23):** the project will never migrate to real AWS. On-premises
+> bare metal with LocalStack is the permanent production substrate (ADR-0002, update note);
+> the ADR-0001 ECS/CodeDeploy manifests remain in `deploy/` as a historical record only.
 
 ## Documentation
 
@@ -489,7 +488,7 @@ Deliberately not implemented yet (candidate backlog):
 | `docs/testing-playbook.md` | Test taxonomy, principles, patterns, regression checklist & smoke |
 | `docs/lessons.md` | Durable lessons learned from debugging and design decisions |
 | `docs/twelve-factor.md` | Twelve-Factor App reference & compliance matrix |
-| `docs/adr/0001-production-platform.md` | ADR (superseded): ECS Fargate + ECR + ALB + Secrets Manager + CodeDeploy — kept as the real-AWS migration path |
+| `docs/adr/0001-production-platform.md` | ADR (superseded): ECS Fargate + ECR + ALB + Secrets Manager + CodeDeploy — historical record only, real-AWS migration abandoned |
 | `docs/adr/0002-onprem-bare-metal-platform.md` | ADR: current production platform — on-premises bare metal, Docker Compose + NGINX blue/green + LocalStack |
 | `docs/release-runbook.md` | Operational runbook: deploy, rollback, secret rotation, readiness-DOWN triage, incident response |
 | `deploy/README.md` | Deployment manifests, runtime contract, blue/green scripts and the recorded rollout exercise |

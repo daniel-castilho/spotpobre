@@ -6,6 +6,11 @@
 **Context:** Runtime & Deployment epic (S1 review); supersedes [ADR-0001](0001-production-platform.md)
 **Companion:** `tasks/runtime-deployment-spec.md`
 
+> **Update (2026-08-23):** The platform decision is now **final**. There will be **no migration
+> to real AWS, ever** — the workload stays on-premises bare metal with LocalStack as the
+> permanent DynamoDB/S3/SES substrate. The ADR-0001 manifests are retained purely as a
+> historical record; every "if a real AWS account appears" caveat in earlier docs is closed.
+
 ---
 
 ## Context
@@ -22,8 +27,8 @@ The deployment target has since changed by business decision:
 - The operations profile is a single host, small traffic, operator-run deployments.
 
 The AWS-native manifests from ADR-0001 cannot be executed against this target and are kept in the
-repository **as a documented legacy backup** (they remain valid if the project ever moves to a real
-AWS account).
+repository **as a historical record only** — the migration they were written for is formally
+abandoned (see the update note above).
 
 ## Decision
 
@@ -43,8 +48,9 @@ AWS account).
 1. **Matches the actual infrastructure.** One server, no cloud account, no Kubernetes/ECS control
    plane to operate. Docker Compose is already the project's local/CI runtime shape.
 2. **LocalStack keeps the application cloud-agnostic.** The domain/application layers still speak
-   only to DynamoDB/S3 through ports; swapping the emulator for real AWS later requires no code
-   change — only endpoints and credentials.
+   only to DynamoDB/S3 through ports, so the platform abstraction costs nothing operationally.
+   (Since 2026-08-23 this is a permanent choice, not a stepping stone: LocalStack is the
+   production substrate.)
 3. **NGINX weighted upstreams reproduce the ALB/CodeDeploy blue/green semantics** (two fleets,
    weighted traffic shift, drain, instant rollback) without any managed service.
 4. **Env-file secrets are the honest on-prem equivalent** of a secret store: untracked, root-owned,
@@ -59,7 +65,8 @@ AWS account).
 - Zero cloud cost and zero vendor dependency for production.
 - Deploy/rollback is fully scriptable and reproducible on the single host; exercises run locally
   against the exact production shape (no "pending AWS credentials" gap).
-- The ADR-0001 artifact set remains a ready-made migration path if a real AWS account appears.
+- The ADR-0001 artifact set is retained as a historical record only; the real-AWS migration is
+  formally abandoned (2026-08-23 decision).
 
 ### Negative / accepted trade-offs
 

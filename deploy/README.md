@@ -1,8 +1,8 @@
 # Spotpobre API — Deployment
 
 Production deployment for **on-premises bare metal with LocalStack** (`docs/adr/0002-onprem-bare-metal-platform.md`).
-The AWS-native manifests from ADR-0001 are kept at the bottom of this file as a **documented
-legacy backup** for a future real-AWS account.
+The AWS-native manifests from ADR-0001 are kept at the bottom of this file as a **historical
+record only** — the real-AWS migration is formally abandoned (2026-08-23, ADR-0002 update note).
 
 ---
 
@@ -83,7 +83,7 @@ Traffic reverts to blue instantly (NGINX reload), green is stopped. Verify the s
 | Concern            | Setting                                                                                            |
 | :----------------- | :------------------------------------------------------------------------------------------------- |
 | Profile & secrets  | `SPRING_PROFILES_ACTIVE=prod`; all values from `deploy/.env` (gitignored). `JWT_SECRET` never in Git/images/manifests. |
-| Credential source  | `AWS_CREDENTIALS_SOURCE=static` + LocalStack dummy keys (enforced coherent by `ProdConfigValidator`). Flip to `workload-identity` when moving to real AWS. |
+| Credential source  | `AWS_CREDENTIALS_SOURCE=static` + LocalStack dummy keys (enforced coherent by `ProdConfigValidator`). `workload-identity` support is retained for portability but has no migration target since 2026-08-23. |
 | Non-root           | App containers run UID/GID 10001 (verified in CI); `read_only: true` root FS + tmpfs `/tmp`.        |
 | Resource limits    | Apps 800 m RAM / 1.5 CPU each; LocalStack 600 m; Redis 128 m; LB 128 m.                             |
 | Probes             | Container healthcheck on `/actuator/health/readiness`; LB routes only to healthy fleets; non-probe `/actuator/**` stays authenticated. |
@@ -124,9 +124,10 @@ rollback script, and a pre-existing wrong GSI key in `scripts/seed-localstack.sh
 
 ---
 
-## 2. LEGACY BACKUP — AWS ECS Fargate manifests (ADR-0001, superseded)
+## 2. HISTORICAL RECORD — AWS ECS Fargate manifests (ADR-0001, superseded)
 
-> Kept verbatim as a ready-made migration path for a future real-AWS account. Nothing in this
+> Kept verbatim as a historical record only; the real-AWS migration is formally abandoned
+> (2026-08-23, ADR-0002 update note). Nothing in this
 > section applies to the current on-premises production target. Files: `stack.yaml`,
 > `codedeploy.yaml`, `appspec.yaml`, `task-definition.json`. See also
 > `docs/adr/0001-production-platform.md` (status: superseded).

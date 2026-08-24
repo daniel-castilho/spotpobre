@@ -149,8 +149,9 @@ auth failures, not data loss.
 
 App keeps running but every DynamoDB/S3 operation fails → readiness DOWN → LB sheds traffic.
 Restore the container, then run `./scripts/seed-localstack.sh` if volumes were lost. Data written
-to emulated services is ephemeral by design; real durability comes when migrating to actual AWS
-(ADR-0001 backup path).
+to emulated services is ephemeral by design — durability is an operational responsibility
+(host-level backups of the LocalStack/Redis volumes; there is no AWS migration path since
+2026-08-23).
 
 **Graceful shutdown verification** (after any change to shutdown config)
 
@@ -169,11 +170,12 @@ to emulated services is ephemeral by design; real durability comes when migratin
 | Host reboot recovery | Containers use `restart: unless-stopped`; verify with `$DC ps` after boot |
 | Free disk | `docker system df`; prune build cache with care (`docker builder prune`) |
 
-## Appendix — legacy AWS/ECS path (ADR-0001 backup)
+## Appendix — legacy AWS/ECS path (historical record only)
 
-If the project migrates to a real AWS account, the versioned manifests in `deploy/`
-(`stack.yaml`, `codedeploy.yaml`, `appspec.yaml`, `task-definition.json`) provide ECS Fargate +
-ALB weighted blue/green + CodeDeploy canary 10%/5 min with automatic rollback alarms. Full
+The versioned manifests in `deploy/` (`stack.yaml`, `codedeploy.yaml`, `appspec.yaml`,
+`task-definition.json`) describe the abandoned ADR-0001 target (ECS Fargate + ALB weighted
+blue/green + CodeDeploy canary 10%/5 min with automatic rollback alarms). They are kept for
+archaeology only — there is no plan to execute them. Full
 procedure: `deploy/README.md` §2. Operational deltas vs. this runbook: deploys go through
 `aws deploy create-deployment` (CodeDeploy performs the gated traffic shift), rollback is
 `aws deploy stop-deployment --auto-rollback-enabled` (or automatic via alarms), secrets rotate in

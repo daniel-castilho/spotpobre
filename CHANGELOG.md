@@ -7,6 +7,14 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Changed
+
+- **Platform decision finalized: no AWS, ever.** On-premises bare metal with LocalStack is the
+  permanent production substrate (ADR-0002 update note); the ADR-0001 ECS/CodeDeploy manifests
+  are demoted from "migration backup" to historical record. Living docs (README roadmap,
+  deploy/README, release-runbook, AGENTS debt list) no longer carry the real-AWS contingency;
+  the corresponding AGENTS technical-debt entry is closed.
+
 ### Added
 
 - **Performance baseline (foundation, consultative).** Three k6 read-path scenarios
