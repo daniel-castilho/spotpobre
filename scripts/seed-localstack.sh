@@ -171,4 +171,9 @@ run_aws dynamodb update-time-to-live \
   --table-name AccountTokens \
   --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds" >/dev/null
 
+# Verify the SES sender identity so production-shaped sends are accepted by the emulator.
+if [ -n "${EMAIL_FROM_ADDRESS:-}" ]; then
+  run_aws ses verify-email-identity --email-address "$EMAIL_FROM_ADDRESS" >/dev/null     && echo "[seed] SES identity verified: $EMAIL_FROM_ADDRESS"     || echo "[seed][warn] SES identity verification failed for $EMAIL_FROM_ADDRESS"
+fi
+
 echo "[seed] LocalStack environment configured successfully!"

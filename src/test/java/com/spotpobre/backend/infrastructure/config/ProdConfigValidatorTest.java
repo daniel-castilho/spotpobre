@@ -29,6 +29,8 @@ class ProdConfigValidatorTest {
         when(environment.getProperty("spring.data.redis.host")).thenReturn("redis");
         when(environment.getProperty("aws.credentials.source")).thenReturn("static");
         lenient().when(environment.getProperty("rate-limit.key-secret")).thenReturn("prod-rate-limit-secret");
+        lenient().when(environment.getProperty("email.from-address")).thenReturn("no-reply@spotpobre.local");
+        lenient().when(environment.getProperty("email.ses-endpoint")).thenReturn("http://localstack:4566");
     }
 
     private void givenCredentialKeys(String accessKey, String secretKey) {

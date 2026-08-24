@@ -36,6 +36,12 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:1h}
 
+email:
+  # Outbound e-mail contract: SES via the LocalStack edge on the compose network.
+  # EMAIL_FROM_ADDRESS must be a verified identity (seed-localstack.sh verifies it).
+  from-address: ${EMAIL_FROM_ADDRESS}
+  ses-endpoint: ${EMAIL_SES_ENDPOINT}
+
 rate-limit:
   # Redis token-bucket authority (spec section 8). RATE_LIMIT_KEY_SECRET is REQUIRED in prod
   # (fail-fast via ProdConfigValidator); generate with `openssl rand -base64 48`.
@@ -53,3 +59,22 @@ rate-limit:
   resend-cooldown-capacity: ${RATE_LIMIT_RESEND_COOLDOWN_CAPACITY:1}
   resend-cooldown-window: ${RATE_LIMIT_RESEND_COOLDOWN_WINDOW:2m}
   trusted-proxy-cidrs: ${RATE_LIMIT_TRUSTED_PROXY_CIDRS:10.0.0.0/8}
+# --- Operational exposure lockdown (spec section 11) ------------------------------------
+# Management plane moves to the internal-only port 9090 (locked topology decision,
+# overriding the spec's "default 8081" wording): health-only, no details, no swagger.
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

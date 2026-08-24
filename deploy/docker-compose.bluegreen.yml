@@ -31,7 +31,8 @@ services:
     environment:
       SERVER_PORT: "8081"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
-    ports: ["8081:8081"]
+    # Locked topology (spec section 11): fleets are internal-only; only the LB publishes 8080.
+    expose: ["8081", "9090"]
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -44,7 +45,8 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health/readiness >/dev/null || exit 1"]
+      # Management plane lives on internal 9090 (application-prod.yaml).
+      test: ["CMD-SHELL", "curl -sf http://localhost:9090/actuator/health/readiness >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -61,7 +63,7 @@ services:
     environment:
       SERVER_PORT: "8082"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
-    ports: ["8082:8082"]
+    expose: ["8082", "9090"]
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -74,7 +76,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8082/actuator/health/readiness >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9090/actuator/health/readiness >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -102,9 +104,10 @@ services:
   localstack:
     image: localstack/localstack:3.2
     container_name: spotpobre-localstack
-    ports: ["4566:4566"]
+    # Internal-only: nothing on the host needs to reach emulated AWS in production.
+    expose: ["4566"]
     environment:
-      SERVICES: dynamodb,s3
+      SERVICES: dynamodb,s3,ses
       DEBUG: "0"
       AWS_DEFAULT_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
@@ -125,7 +128,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: spotpobre-redis
-    ports: ["6379:6379"]
+    # Internal-only: apps reach it over the compose network.
+    expose: ["6379"]
     mem_limit: 128m
     cpus: 0.25
     restart: unless-stopped

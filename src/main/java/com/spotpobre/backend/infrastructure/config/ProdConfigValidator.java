@@ -40,7 +40,9 @@ public class ProdConfigValidator implements InitializingBean {
             "aws.s3.bucket-name",
             "spring.data.redis.host",
             "aws.credentials.source",
-            "rate-limit.key-secret"
+            "rate-limit.key-secret",
+            "email.from-address",
+            "email.ses-endpoint"
     );
 
     private static final Set<String> VALID_CREDENTIAL_SOURCES = Set.of("static", "workload-identity");

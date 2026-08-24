@@ -124,6 +124,31 @@ rollback script, and a pre-existing wrong GSI key in `scripts/seed-localstack.sh
 
 ---
 
+### 1.7 Perimeter, TLS and management-plane trust (spec section 11)
+
+Locked topology (single host, on-premises bare metal):
+
+- **Only 8080 is published** (NGINX LB). The blue (8081) and green (8082) fleets and the
+  management port 9090 are internal to the compose network — nothing else is exposed.
+- **Management plane**: `application-prod.yaml` moves actuator to internal port **9090**,
+  health-only exposure with `show-details: never`. Healthchecks run container-internally
+  (`curl localhost:9090/...`); the load balancer never proxies health endpoints publicly.
+- **Redis and LocalStack are unpublished** from the host; applications reach them over the
+  compose DNS names only. SES is part of the enabled LocalStack services for the
+  production-shaped stack.
+
+TLS termination and perimeter headers:
+
+- The perimeter terminates TLS in front of NGINX (host-level reverse proxy / firewall
+  forwarding 443 → 8080). NGINX itself listens plain HTTP inside the trusted segment; HSTS
+  must be set at the TLS layer (`Strict-Transport-Security: max-age=63072000; includeSubDomains`).
+- Forwarded-header trust: `RATE_LIMIT_TRUSTED_PROXY_CIDRS` must list ONLY the proxy segment
+  that sets `X-Forwarded-For`/`Forwarded` (default `10.0.0.0/8`). Trusting `0.0.0.0/0` or
+  `::/0` would let any client spoof rate-limit identities and is forbidden by the
+  ClientAddressResolver contract (spoof attempts from untrusted peers are ignored).
+- Never publish Redis/LocalStack/9090 through the perimeter firewall; if remote operator
+  access is required, use an SSH tunnel or VPN, never a host port mapping.
+
 ## 2. HISTORICAL RECORD — AWS ECS Fargate manifests (ADR-0001, superseded)
 
 > Kept verbatim as a historical record only; the real-AWS migration is formally abandoned
