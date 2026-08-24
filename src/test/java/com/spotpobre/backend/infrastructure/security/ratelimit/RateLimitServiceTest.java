@@ -17,6 +17,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RateLimitServiceTest {
@@ -100,6 +102,28 @@ class RateLimitServiceTest {
 
         assertFalse(evaluation.allowed());
         assertEquals(300, evaluation.retryAfterSeconds());
+    }
+
+    @Test
+    void disabledAuthority_bucketsAdmitWithoutTouchingRedis() {
+        RateLimitProperties disabled = new RateLimitProperties(
+                false, "test-secret",
+                20, Duration.ofHours(1), 5, Duration.ofHours(1),
+                100, Duration.ofMinutes(15), 10, Duration.ofMinutes(15),
+                20, Duration.ofMinutes(1), 40, Duration.ofHours(1),
+                60, Duration.ofMinutes(1), 120, Duration.ofHours(1),
+                120, Duration.ofMinutes(1), 1, Duration.ofMinutes(2),
+                List.of("/api/v1/auth/register", "/api/v1/auth/authenticate"),
+                "/api/v1/albums/{albumId}/songs",
+                "/api/v1/albums/{albumId}/songs/{songId}/confirm",
+                "/api/v1/songs/search",
+                List.of("127.0.0.0/8"),
+                "X-Forwarded-For");
+        RateLimitService off = new RateLimitService(limiter, new RateLimitKeyEncoder("test-secret"), disabled);
+
+        assertTrue(off.checkRegister("127.0.0.1", "a@b.com").allowed());
+        assertTrue(off.checkResendCooldown("a@b.com").allowed());
+        verify(limiter, never()).tryAcquire(anyString(), anyInt(), any(Duration.class), anyInt());
     }
 
     @Test

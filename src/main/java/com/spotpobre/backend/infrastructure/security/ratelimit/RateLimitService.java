@@ -113,6 +113,11 @@ public class RateLimitService {
     }
 
     private TokenBucketResult acquire(final Bucket bucket) {
+        // Disabled authority (flow ITs / explicit opt-out): every bucket admits. This is the
+        // single choke point shared by filters and the resend-cooldown port.
+        if (!properties.enabled()) {
+            return TokenBucketResult.allowed(bucket.capacity);
+        }
         TokenBucketResult result = limiter.tryAcquire(
                 keyEncoder.encode(bucket.scope, bucket.subject),
                 bucket.capacity, bucket.refill, 1);
