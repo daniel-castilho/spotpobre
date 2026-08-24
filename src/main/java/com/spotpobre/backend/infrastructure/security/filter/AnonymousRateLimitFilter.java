@@ -55,9 +55,20 @@ public class AnonymousRateLimitFilter extends OncePerRequestFilter {
         String email = extractEmail(wrapped.bodyAsString());
 
         boolean register = request.getRequestURI().endsWith("/register");
-        RateLimitEvaluation evaluation = register
-                ? rateLimitService.checkRegister(clientIp, email)
-                : rateLimitService.checkAuthenticate(clientIp, email);
+        RateLimitEvaluation evaluation;
+        try {
+            evaluation = register
+                    ? rateLimitService.checkRegister(clientIp, email)
+                    : rateLimitService.checkAuthenticate(clientIp, email);
+        } catch (com.spotpobre.backend.domain.common.RateLimiterUnavailableException e) {
+            // Filters sit outside DispatcherServlet: write the canonical 503 here instead of
+            // relying on @ExceptionHandler (spec section 8.4 - never claim a limit was hit).
+            errorResponseWriter.write(request, response,
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "Service Unavailable",
+                    "Rate-limit backend temporarily unavailable.");
+            return;
+        }
 
         if (!evaluation.allowed()) {
             applyHeaders(response, evaluation);

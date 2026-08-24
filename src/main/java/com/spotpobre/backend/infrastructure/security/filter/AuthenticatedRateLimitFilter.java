@@ -72,13 +72,23 @@ public class AuthenticatedRateLimitFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
 
         RateLimitEvaluation evaluation;
-        if (uri.equals(properties.searchPath())) {
-            evaluation = rateLimitService.checkSearch(actorSubject);
-        } else {
-            String albumId = albumIdFor(uri);
-            evaluation = uploadInitiateTemplate.matches(uri)
-                    ? rateLimitService.checkUploadInitiate(actorSubject, albumId)
-                    : rateLimitService.checkUploadConfirm(actorSubject, albumId);
+        try {
+            if (uri.equals(properties.searchPath())) {
+                evaluation = rateLimitService.checkSearch(actorSubject);
+            } else {
+                String albumId = albumIdFor(uri);
+                evaluation = uploadInitiateTemplate.matches(uri)
+                        ? rateLimitService.checkUploadInitiate(actorSubject, albumId)
+                        : rateLimitService.checkUploadConfirm(actorSubject, albumId);
+            }
+        } catch (com.spotpobre.backend.domain.common.RateLimiterUnavailableException e) {
+            // Filters sit outside DispatcherServlet: write the canonical 503 here instead of
+            // relying on @ExceptionHandler (spec section 8.4 - never claim a limit was hit).
+            errorResponseWriter.write(request, response,
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "Service Unavailable",
+                    "Rate-limit backend temporarily unavailable.");
+            return;
         }
 
         if (!evaluation.allowed()) {

@@ -16,6 +16,11 @@ public class RedisResendCooldownAdapter implements VerificationResendCooldownPor
 
     @Override
     public boolean tryAcquire(final String subjectKey) {
-        return rateLimitService.checkResendCooldown(subjectKey).allowed();
+        try {
+            return rateLimitService.checkResendCooldown(subjectKey).allowed();
+        } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+            throw new com.spotpobre.backend.domain.common.RateLimiterUnavailableException(
+                    "Rate-limit backend temporarily unavailable");
+        }
     }
 }

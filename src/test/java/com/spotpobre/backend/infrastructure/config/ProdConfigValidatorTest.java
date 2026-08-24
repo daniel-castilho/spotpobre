@@ -8,6 +8,7 @@ import org.springframework.core.env.Environment;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,6 +28,7 @@ class ProdConfigValidatorTest {
         when(environment.getProperty("aws.s3.bucket-name")).thenReturn("spotpobre-songs");
         when(environment.getProperty("spring.data.redis.host")).thenReturn("redis");
         when(environment.getProperty("aws.credentials.source")).thenReturn("static");
+        lenient().when(environment.getProperty("rate-limit.key-secret")).thenReturn("prod-rate-limit-secret");
     }
 
     private void givenCredentialKeys(String accessKey, String secretKey) {

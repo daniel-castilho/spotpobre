@@ -37,6 +37,15 @@ public abstract class AbstractIntegrationTest {
     // cached context would keep pointing at a dead port.
     private static final LocalStackContainer localstack = startLocalStack();
 
+    /** Static accessors so non-subclassing ITs (e.g. RateLimitFlowIT) reuse the singleton. */
+    public static String localstackEndpoint() {
+        return localstack.getEndpoint().toString();
+    }
+
+    public static String localstackRegion() {
+        return localstack.getRegion();
+    }
+
     private static LocalStackContainer startLocalStack() {
         // Testcontainers 2.x: withServices takes service-name strings (the
         // Service enum was removed) and every LocalStack service shares the
@@ -74,7 +83,7 @@ public abstract class AbstractIntegrationTest {
      * DynamoDB table (with GSIs) the application expects, against the throwaway container.
      */
     @BeforeAll
-    static void provisionLocalStack() {
+    public static void provisionLocalStack() {
         DynamoDbClient dynamoDb = DynamoDbClient.builder()
                 .endpointOverride(localstack.getEndpoint())
                 .credentialsProvider(credentials())

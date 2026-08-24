@@ -37,7 +37,19 @@ jwt:
   expiration: ${JWT_EXPIRATION:1h}
 
 rate-limit:
-  # Basic per-client throttling on sensitive endpoints. Values from environment (bounded defaults).
+  # Redis token-bucket authority (spec section 8). RATE_LIMIT_KEY_SECRET is REQUIRED in prod
+  # (fail-fast via ProdConfigValidator); generate with `openssl rand -base64 48`.
   enabled: ${RATE_LIMIT_ENABLED:true}
-  limit: ${RATE_LIMIT_LIMIT:20}
-  window: ${RATE_LIMIT_WINDOW:1m}
+  key-secret: ${RATE_LIMIT_KEY_SECRET}
+  register-ip-capacity: ${RATE_LIMIT_REGISTER_IP_CAPACITY:20}
+  register-email-capacity: ${RATE_LIMIT_REGISTER_EMAIL_CAPACITY:5}
+  authenticate-ip-capacity: ${RATE_LIMIT_AUTHENTICATE_IP_CAPACITY:100}
+  authenticate-email-capacity: ${RATE_LIMIT_AUTHENTICATE_EMAIL_CAPACITY:10}
+  upload-initiate-user-capacity: ${RATE_LIMIT_UPLOAD_INITIATE_USER_CAPACITY:20}
+  upload-initiate-album-capacity: ${RATE_LIMIT_UPLOAD_INITIATE_ALBUM_CAPACITY:40}
+  upload-confirm-user-capacity: ${RATE_LIMIT_UPLOAD_CONFIRM_USER_CAPACITY:60}
+  upload-confirm-album-capacity: ${RATE_LIMIT_UPLOAD_CONFIRM_ALBUM_CAPACITY:120}
+  search-capacity: ${RATE_LIMIT_SEARCH_CAPACITY:120}
+  resend-cooldown-capacity: ${RATE_LIMIT_RESEND_COOLDOWN_CAPACITY:1}
+  resend-cooldown-window: ${RATE_LIMIT_RESEND_COOLDOWN_WINDOW:2m}
+  trusted-proxy-cidrs: ${RATE_LIMIT_TRUSTED_PROXY_CIDRS:10.0.0.0/8}
