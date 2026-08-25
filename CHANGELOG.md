@@ -7,6 +7,8 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-24
+
 ### Changed
 
 - **Platform decision finalized: no AWS, ever.** On-premises bare metal with LocalStack is the
