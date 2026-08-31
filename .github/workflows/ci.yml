@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -175,7 +175,7 @@ jobs:
       # the runner's default (17) cannot load the Java 21 jar and readiness
       # never comes UP.
       - name: Setup Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -232,7 +232,7 @@ jobs:
       # The baseline launches the production jar directly; the runner's default
       # JDK cannot load the Java 21 jar.
       - name: Setup Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
