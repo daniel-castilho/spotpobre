@@ -1,12 +1,12 @@
 # Spotpobre API
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Spring](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 [![License](https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 
-Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 4.1** and a strict
+Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 4.1.1** and a strict
 **Clean Architecture**. Its business core is 100% framework-free and free of code-generation
 tools: the `domain` layer holds plain Java entities (no Lombok, no annotation processors), rich business
 rules and outbound port interfaces, which keeps the application scalable, testable and independent of
@@ -31,17 +31,17 @@ external technologies.
 
 | Category | Technology |
 | :--- | :--- |
-| **Language & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
+| **Language & Framework** | ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white) |
 | **Build & Dependencies** | ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white) (with Maven Wrapper) |
-| **Security** | ![Spring Security](https://img.shields.io/badge/Spring_Security-6-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Tokens-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white) |
+| **Security** | ![Spring Security](https://img.shields.io/badge/Spring_Security-7-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Tokens-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white) |
 | **Database** | ![Amazon DynamoDB](https://img.shields.io/badge/Amazon_DynamoDB-4053D6?style=for-the-badge&logo=amazon-dynamodb&logoColor=white) |
 | **Storage & Cache** | ![Amazon S3](https://img.shields.io/badge/Amazon_S3-569A31?style=for-the-badge&logo=amazon-s3&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white) |
 | **Documentation & Mapping** | ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) ![MapStruct](https://img.shields.io/badge/MapStruct-333333?style=for-the-badge&logo=mapstruct&logoColor=white) |
 | **Testing** | ![JUnit 5](https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white) ![Mockito](https://img.shields.io/badge/Mockito-D43A2A?style=for-the-badge&logo=mockito&logoColor=white) ![Testcontainers](https://img.shields.io/badge/Testcontainers-262261?style=for-the-badge&logo=testcontainers&logoColor=white) ![RestAssured](https://img.shields.io/badge/REST_Assured-000000?style=for-the-badge&logo=rest-assured&logoColor=white) |
 | **Local Dev** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![LocalStack](https://img.shields.io/badge/LocalStack-4A90E2?style=for-the-badge&logo=localstack&logoColor=white) |
 
-- **Cloud:** `spring-cloud-aws` 3.4 (DynamoDB + S3 starters) and `aws-sdk` DynamoDB Enhanced Client.
-- **Auth:** Spring Security 6 with `jjwt` 0.12 JWT bearer tokens (1h default expiry, `JwtProperties`).
+- **Cloud:** `spring-cloud-aws` 4.1 (DynamoDB + S3 starters) and `aws-sdk` DynamoDB Enhanced Client.
+- **Auth:** Spring Security 7 with `jjwt` 0.13 JWT bearer tokens (1h default expiry, `JwtProperties`).
 - **API docs:** `springdoc-openapi` (Swagger UI) + **Actuator** (`health`, `info`, `metrics`).
 - **Logging:** `logstash-logback-encoder` for structured (JSON) logs.
 

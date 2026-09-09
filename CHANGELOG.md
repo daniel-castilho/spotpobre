@@ -7,6 +7,16 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependency wave (Dependabot PRs #16–#23)** — Spring Boot parent 4.1.0 → 4.1.1,
+  spring-cloud-aws 4.1.0 → 4.1.1, BouncyCastle 1.84 → 1.85.2, logstash-logback-encoder
+  7.4 → 9.0, dependency-check-maven 12.2.2 → 13.0.0, maven-compiler-plugin 3.14.1 → 3.16.0,
+  actions/setup-java v5 → v6, actions/download-artifact v7 → v8. All eight merged after a
+  combined local gate (394 unit tests, boundary check, SpotBugs, 106 `*IT` tests, jar build).
+  With Boot 4.1.1 the Netty 4.2.17.Final pin became redundant (managed natively) and was
+  removed; the Tomcat 11.0.25 pin stays (Boot manages only 11.0.24).
+
 ### Security
 
 - **Dependency CVE bumps (Trivy CRITICAL gate)** — override the Boot-managed versions to the
@@ -16,6 +26,9 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 - **README overhaul** — replace the ~140-line inline LocalStack setup with the idempotent
   `scripts/seed-localstack.sh` reference, refresh the Current State header (latest tagged
   release `v0.14.0`), and add Contributing / License sections.
+- **README tech-stack sync** — spring-cloud-aws 3.4 → 4.1, Spring Security 6 → 7, jjwt
+  0.12 → 0.13, Spring Boot 4.1 → 4.1.1 (badges and Tech Stack rows), matching the
+  dependency wave above.
 
 ## [0.14.0] - 2026-08-24
 
