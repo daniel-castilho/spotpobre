@@ -4,6 +4,7 @@
 ![Spring](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.8+-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+[![License](https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 
 Spotpobre API is a music streaming backend service built with **Java 21**, **Spring Boot 4.1** and a strict
 **Clean Architecture**. Its business core is 100% framework-free and free of code-generation
@@ -22,6 +23,9 @@ external technologies.
 - [API & Documentation](#api--documentation)
 - [Current State](#current-state)
 - [Roadmap](#roadmap)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Tech Stack
 
@@ -101,153 +105,19 @@ docker-compose up -d
 
 ### 2. Configure LocalStack
 
-In a **new terminal**, run the following commands to create the DynamoDB tables and the S3 bucket
-the application expects.
+Provision the DynamoDB tables, their Global Secondary Indexes (GSIs), the TTL attributes and the S3
+bucket the application expects — all in one idempotent script:
 
 ```sh
-# (Optional) alias to keep the commands short
-alias awslocal='aws --endpoint-url=http://localhost:4566'
-
-# 1. Create the S3 bucket
-awslocal s3 mb s3://spotpobre-songs
-
-# 2. Create the DynamoDB tables with their Global Secondary Indexes (GSIs)
-# Users table (GSI on profile.email)
-awslocal dynamodb create-table \
-    --table-name Users \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=profile.email,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"email-index\",
-                \"KeySchema\": [{\"AttributeName\":\"profile.email\",\"KeyType\":\"HASH\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# UserEmails table (email uniqueness sentinel used during registration)
-awslocal dynamodb create-table \
-    --table-name UserEmails \
-    --attribute-definitions AttributeName=email,AttributeType=S \
-    --key-schema AttributeName=email,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST
-
-# Playlists table (GSI on ownerId)
-awslocal dynamodb create-table \
-    --table-name Playlists \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=ownerId,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"ownerId-index\",
-                \"KeySchema\": [{\"AttributeName\":\"ownerId\",\"KeyType\":\"HASH\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# Songs table (GSIs for title search and album lookup; searchPartition is a constant "SONG";
-# searchTitle is the write-time lowercased title used as the title-search-index sort key)
-awslocal dynamodb create-table \
-    --table-name Songs \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=searchTitle,AttributeType=S AttributeName=albumId,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"title-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"searchTitle\",\"KeyType\":\"RANGE\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            },
-            {
-                \"IndexName\": \"albumId-index\",
-                \"KeySchema\": [{\"AttributeName\":\"albumId\",\"KeyType\":\"HASH\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# Artists table (GSI for name search; searchPartition is a constant "ARTIST";
-# searchName is the write-time lowercased name used as the name-search-index sort key)
-awslocal dynamodb create-table \
-    --table-name Artists \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=searchPartition,AttributeType=S AttributeName=searchName,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"name-search-index\",
-                \"KeySchema\": [{\"AttributeName\":\"searchPartition\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"searchName\",\"KeyType\":\"RANGE\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# ArtistAccounts table (user memberships on an artist; PK artistId, SK userId;
-# no GSI in P0 — access checks always query by artist)
-awslocal dynamodb create-table \
-    --table-name ArtistAccounts \
-    --attribute-definitions AttributeName=artistId,AttributeType=S AttributeName=userId,AttributeType=S \
-    --key-schema AttributeName=artistId,KeyType=HASH AttributeName=userId,KeyType=RANGE \
-    --billing-mode PAY_PER_REQUEST
-
-# Albums table (GSI on artistId)
-awslocal dynamodb create-table \
-    --table-name Albums \
-    --attribute-definitions AttributeName=id,AttributeType=S AttributeName=artistId,AttributeType=S \
-    --key-schema AttributeName=id,KeyType=HASH \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"artistId-index\",
-                \"KeySchema\": [{\"AttributeName\":\"artistId\",\"KeyType\":\"HASH\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# Likes table (Adjacency List with reverse GSI)
-awslocal dynamodb create-table \
-    --table-name Likes \
-    --attribute-definitions AttributeName=userId,AttributeType=S AttributeName=entityCompositeKey,AttributeType=S \
-    --key-schema AttributeName=userId,KeyType=HASH AttributeName=entityCompositeKey,KeyType=RANGE \
-    --global-secondary-indexes \
-        "[
-            {
-                \"IndexName\": \"entityId-index\",
-                \"KeySchema\": [{\"AttributeName\":\"entityCompositeKey\",\"KeyType\":\"HASH\"}, {\"AttributeName\":\"userId\",\"KeyType\":\"RANGE\"}],
-                \"Projection\": {\"ProjectionType\":\"ALL\"}
-            }
-        ]" \
-    --billing-mode PAY_PER_REQUEST
-
-# IdempotencyRecords table (durable idempotency store, PK scopeKey + DynamoDB TTL)
-aws --endpoint-url=http://localhost:4566 dynamodb create-table \
-    --table-name IdempotencyRecords \
-    --attribute-definitions AttributeName=scopeKey,AttributeType=S \
-    --key-schema AttributeName=scopeKey,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST
-
-aws --endpoint-url=http://localhost:4566 dynamodb update-time-to-live \
-    --table-name IdempotencyRecords \
-    --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds"
-
-# AccountTokens table (single-use account-lifecycle tokens, PK tokenHash + DynamoDB TTL)
-aws --endpoint-url=http://localhost:4566 dynamodb create-table \
-    --table-name AccountTokens \
-    --attribute-definitions AttributeName=tokenHash,AttributeType=S \
-    --key-schema AttributeName=tokenHash,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST
-
-aws --endpoint-url=http://localhost:4566 dynamodb update-time-to-live \
-    --table-name AccountTokens \
-    --time-to-live-specification "Enabled=true, AttributeName=expiresAtEpochSeconds"
-
-echo "LocalStack environment configured successfully!"
+./scripts/seed-localstack.sh
 ```
+
+The script creates `Users`, `UserEmails`, `Playlists`, `Songs`, `Artists`, `ArtistAccounts`,
+`Albums`, `Likes`, `IdempotencyRecords` and `SongUploads` (all `PAY_PER_REQUEST`), enables
+DynamoDB TTL on the idempotency and upload tables, creates the `spotpobre-songs` bucket and applies
+the S3 lifecycle rules (abort orphaned multipart uploads after 1 day, expire `pending/` staging
+objects after 2 days). It is idempotent: existing tables/buckets are detected and skipped. If you
+prefer to run the `aws` commands by hand, they are documented in the script itself.
 
 > Note: the local `application.yaml` already points `aws.dynamodb.endpoint`, `aws.s3.endpoint` and
 > `spring.data.redis` at localhost (`4566` / `6379`), and the `jwt.secret` shown there is a dev-only
@@ -359,8 +229,10 @@ everything else under `/actuator/**` is authenticated (see `SecurityConfig`).
 
 ## Current State
 
-The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following already implemented on
-`main`:
+**Latest tagged release: `v0.14.0`** (API Design Excellence P0 + production durability, 2026-08-25) ·
+see [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+Implemented on `main`:
 
 - **Auth & users** — JWT registration/authentication, `ROLE_ADMIN` / `ROLE_ARTIST` / `ROLE_USER`,
   profile endpoint. Passwords are hashed with **Argon2id** behind the domain `PasswordHasher` port
@@ -389,14 +261,14 @@ The project is an early-stage backend (`0.0.1-SNAPSHOT`) with the following alre
   for the reserved song's storage key on replay/recovery. The `IdempotencyRecords` DynamoDB table (PK `scopeKey`, TTL
   `expiresAtEpochSeconds`, 24 h retention) stores only SHA-256 digests and validated safe
   snapshots — never raw keys, e-mails, IPs, JWTs or signed URLs. Existing environments: create
-  the table and enable TTL (commands in the LocalStack setup above; already part of
-  `scripts/seed-localstack.sh`).
+  the table and enable TTL (covered by `scripts/seed-localstack.sh`).
 - **Song upload** — direct-to-S3 via presigned URLs. `POST /albums/{id}/songs` authorizes the
   upload (content type, max 500 MB) and returns 10-minute presigned PUT URL(s); the client PUTs
   the audio to S3; `POST .../songs/{songId}/confirm` verifies the object (or completes multipart).
   No `byte[]` / `MultipartFile` on the API.
 - **Playlists** — full CRUD with owner authorization (IDOR fixed: authenticated users can only mutate playlists they own; 403 returned for unauthorized access), paginated listing and idempotent song membership (`PUT` add / `DELETE` remove; repeated operations are successful no-ops without version bumps, and concurrent same-song adds converge instead of 409).
-- **Likes** — desired-state and naturally idempotent: `PUT`/`DELETE /api/v1/users/me/likes/{entityType}/{entityId}` backed by conditional `createIfAbsent`/`deleteIfPresent` writes on the adjacency-list table (reverse GSI kept for counts); implemented as a Strategy family
+- **Likes** — desired-state and naturally idempotent: `PUT`/
+  `DELETE /api/v1/users/me/likes/{entityType}/{entityId}` backed by conditional `createIfAbsent`/`deleteIfPresent` writes on the adjacency-list table (reverse GSI kept for counts); implemented as a Strategy family
   (`SongLikeStrategy`, `ArtistLikeStrategy`, `PlaylistLikeStrategy`).
 - **Search** — songs by title and artists by name via DynamoDB GSIs, case-insensitive (write-time
   normalized `searchTitle`/`searchName` sort keys) and cursor-paginated (`ExclusiveStartKey` +
@@ -516,3 +388,15 @@ Deliberately not implemented yet (candidate backlog):
 | `deploy/README.md` | Deployment manifests, runtime contract, blue/green scripts and the recorded rollout exercise |
 | `docker-compose.yaml` | LocalStack (DynamoDB, S3) + Redis for local development |
 | `pom.xml` | Dependency, build and annotation-processor configuration |
+
+## Contributing
+
+Spotpobre API is developed solo/AI-assisted. Before contributing, read [AGENTS.md](AGENTS.md)
+(binding rules — Clean Architecture boundaries, no direct DynamoDB/S3/Redis/JWT outside
+`infrastructure/`, English-only, no unapproved dependencies) and the
+[coding standards](docs/coding-standards.md). Keep the default suite green (`./mvnw test`) and
+sync `README.md` / `CHANGELOG.md` / `AGENTS.md` in the same change set (AGENTS.md rule 8).
+
+## License
+
+[Apache License 2.0](LICENSE). See the [LICENSE](LICENSE) file for the full terms.
