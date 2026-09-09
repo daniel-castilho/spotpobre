@@ -48,7 +48,7 @@
              gate): Boot 4.1.0 manages Tomcat at 11.0.22; 11.0.25 is the fixed
              line for the embedded tomcat-embed-core in app.jar. -->
         <tomcat.version>11.0.25</tomcat.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.85.2</bouncycastle.version>
         <!-- CVE-2026-54399 / CVE-2026-54428 (Trivy HIGH gate): Boot 4.1.0
              manages the httpcore5 family at 5.4.2, which spring-cloud-aws
              4.1.0 pulls into the application jar; 5.4.3 is the fixed line. -->
