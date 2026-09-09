@@ -39,13 +39,10 @@
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<springdoc.version>3.1.0</springdoc.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
-        <!-- CVE-2026-59901 / CVE-2026-55831 / CVE-2026-55833 / CVE-2026-56745 /
-             CVE-2026-56819 / CVE-2026-75595 (Trivy HIGH gate): overrides the
-             Boot-managed Netty BOM until the next Boot release manages
-             >= 4.2.17.Final natively. -->
-        <netty.version>4.2.17.Final</netty.version>
+        <!-- Netty pin removed: Boot 4.1.1 now manages 4.2.17.Final natively
+             (covers CVE-2026-75595 plus the earlier 4.2.16-era CVEs). -->
         <!-- CVE-2026-65182 / CVE-2026-65905 / CVE-2026-68525 (Trivy CRITICAL
-             gate): Boot 4.1.0 manages Tomcat at 11.0.22; 11.0.25 is the fixed
+             gate): Boot 4.1.1 manages Tomcat at 11.0.24; 11.0.25 is the fixed
              line for the embedded tomcat-embed-core in app.jar. -->
         <tomcat.version>11.0.25</tomcat.version>
         <bouncycastle.version>1.85.2</bouncycastle.version>
