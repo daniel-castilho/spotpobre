@@ -7,6 +7,16 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Security
+
+- **Dependency CVE bumps (Trivy CRITICAL gate)** — override the Boot-managed versions to the
+  fixed lines: Netty `4.2.17.Final` (CVE-2026-75595) and Tomcat `11.0.25`
+  (CVE-2026-65182, CVE-2026-65905, CVE-2026-68525). These are version pins only — no code
+  change, no new dependency coordinates.
+- **README overhaul** — replace the ~140-line inline LocalStack setup with the idempotent
+  `scripts/seed-localstack.sh` reference, refresh the Current State header (latest tagged
+  release `v0.14.0`), and add Contributing / License sections.
+
 ## [0.14.0] - 2026-08-24
 
 ### Changed
