@@ -7,6 +7,18 @@ intends to follow [Semantic Versioning](https://semver.org/) starting from its f
 
 ## [Unreleased]
 
+### Fixed
+
+- **k6 `song-search` scenario measured the rate limiter, not the read path** — the
+  scenario funneled 10 VUs through a single shared user and died at ~88% HTTP 429
+  (search bucket: 120/min per user; predicted exactly: 120 burst + 2/s refill × 30s =
+  180 allowed of ~1450 requests). The scenario now registers one dedicated user per VU
+  (`vuToken()` in `perf/lib/auth.js`, lazy per-VU memoization) and runs fully green
+  (0.00% fail rate, p95 ≈ 65 ms). Register volume stays within the 20/h-per-IP bucket
+  (worst case 13 registrations per pipeline run). This unblocked reading the
+  consultative `performance` job's data for the search path — it had failed with this
+  exact signature on every run since the rate limiting shipped (2026-08-24).
+
 ### Changed
 
 - **Dependency wave (Dependabot PRs #16–#23)** — Spring Boot parent 4.1.0 → 4.1.1,

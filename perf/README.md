@@ -11,8 +11,18 @@ Budgets-as-code for the read paths, executed with [k6](https://k6.io) via the pi
 | `scenarios/song-search.js` | `GET /api/v1/songs/search` | p95 < 350 ms · p99 < 600 ms |
 | `scenarios/artists-list.js` | `GET /api/v1/artists` | p95 < 250 ms · p99 < 500 ms |
 
-All scenarios also require `http_req_failed rate < 1%`. Each registers a fresh user in
-`setup()` (durable-idempotent registration, unique key) and reuses the bearer token.
+All scenarios also require `http_req_failed rate < 1%`. Each registers a fresh user through
+the public API (durable-idempotent registration, unique key) and reuses the bearer token.
+`users-me` and `artists-list` register one user in `setup()`; `song-search` uses
+`vuToken()` — one dedicated user per VU — because search is rate-limited at 120/min per
+user (spec §8.3) and a single shared identity would exhaust its bucket in seconds under
+10 VUs, measuring 429s instead of the read path.
+
+The whole pipeline (warmup registration + scenario users) must stay under the register
+rate limit of 20/h per IP: worst case ≈ 1 (warmup) + 1 (`users-me`) + 10 (`song-search`)
++ 1 (`artists-list`) = 13 registrations against a fresh CI runner IP. When running the
+baseline repeatedly against a long-lived stack, flush the `rl:register:*` Redis keys (or
+wait for the 1h window) first.
 
 ## Philosophy
 

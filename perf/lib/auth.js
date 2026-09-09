@@ -44,3 +44,24 @@ export function registerAndAuthenticate(baseUrl) {
     }
     return token;
 }
+
+/**
+ * Per-VU token: returns the calling VU's dedicated user, registering it on first use.
+ *
+ * Module-level state in k6 is per-VU (each VU runs its own JS VM), so the memoized
+ * token gives exactly one user per VU for the whole scenario.
+ *
+ * Rate-limited scenarios (search: 120/min per user) must not funnel all VUs
+ * through one principal — the per-user bucket would reject ~88% of the traffic
+ * and the scenario would measure the limiter, not the read path. Lazy rather
+ * than setup() because setup() runs once process-wide and would reintroduce the
+ * single shared identity.
+ */
+export function vuToken(baseUrl) {
+    if (!vuTokenState.token) {
+        vuTokenState.token = registerAndAuthenticate(baseUrl);
+    }
+    return vuTokenState.token;
+}
+
+const vuTokenState = { token: null };
